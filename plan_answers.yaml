@@ -415,7 +415,7 @@ sections:
     title: "Configuration System"
     phase: 2
     required: true
-    guidance: "Config file format: TOML, YAML, JSON, INI, or dotfile? Config file locations: global (~/.config/tool/), local (./.toolrc), or both? Discovery order: CLI flags > env vars > local config > global config > defaults Show example config with actual keys and default values: ```toml [core] output_format = "text" color = "auto" verbose = false [paths] cache_dir = "~/.cache/tool" ``` What config changes require a restart vs take effect immediately? Is there a `tool config` subcommand for managing config?"
+    guidance: "Config file format: TOML, YAML, JSON, INI, or dotfile? Config file locations: global (~/.config/tool/), local (./.toolrc), or both? Discovery order: CLI flags > env vars > local config > global config > defaults Show example config with actual keys and default values: ```toml [core] output_format = \"text\" color = \"auto\" verbose = false [paths] cache_dir = \"~/.cache/tool\" ``` What config changes require a restart vs take effect immediately? Is there a `tool config` subcommand for managing config?"
     answer: |
       Config file format: TOML (.sdi/config.toml). TOML is human-readable, has a clear spec,
       supports nested tables without YAML's indentation fragility, and is the standard for
@@ -593,7 +593,7 @@ sections:
     title: "Error Handling & Diagnostics"
     phase: 2
     required: false
-    guidance: "How does the tool report errors? (stderr messages, exit codes, log files) Error message format: prefix (Error:, Warning:), color, suggestions? What happens on: invalid arguments, missing files, permission denied, network error? Does the tool suggest fixes? ("Did you mean...?", "Try running X first") Verbose/debug mode: what additional information is shown? How are unexpected errors handled? (panic, stack trace, bug report URL)"
+    guidance: "How does the tool report errors? (stderr messages, exit codes, log files) Error message format: prefix (Error:, Warning:), color, suggestions? What happens on: invalid arguments, missing files, permission denied, network error? Does the tool suggest fixes? (\"Did you mean...?\", \"Try running X first\") Verbose/debug mode: what additional information is shown? How are unexpected errors handled? (panic, stack trace, bug report URL)"
     answer: |
       Error reporting strategy:
 
@@ -1041,7 +1041,7 @@ sections:
     title: "Open Design Questions"
     phase: 3
     required: true
-    guidance: "What decisions are you deliberately deferring? What needs user feedback before you can decide? Example: "Unsure if we need a daemon mode or if CLI invocations are sufficient" Example: "Plugin system scope TBD — start with built-in commands only" List each open question with the information needed to resolve it."
+    guidance: "What decisions are you deliberately deferring? What needs user feedback before you can decide? Example: \"Unsure if we need a daemon mode or if CLI invocations are sufficient\" Example: \"Plugin system scope TBD — start with built-in commands only\" List each open question with the information needed to resolve it."
     answer: |
       1. Weighted vs unweighted edges in the dependency graph.
          Should import frequency (number of symbols imported) affect edge weight in Leiden
@@ -1124,7 +1124,7 @@ sections:
     title: "What Not to Build Yet"
     phase: 3
     required: false
-    guidance: "What features are explicitly deferred? For each: what it is, why it's deferred, what milestone might add it Example: "GUI wrapper — CLI first, evaluate GUI need after v1.0" Example: "Plugin system — need stable internal API before exposing to third parties""
+    guidance: "What features are explicitly deferred? For each: what it is, why it's deferred, what milestone might add it Example: \"GUI wrapper — CLI first, evaluate GUI need after v1.0\" Example: \"Plugin system — need stable internal API before exposing to third parties\""
     answer: |
       1. IDE/editor plugin — CLI first. An IDE integration that shows real-time boundary
          violations or pattern drift inline would be valuable, but requires a stable API

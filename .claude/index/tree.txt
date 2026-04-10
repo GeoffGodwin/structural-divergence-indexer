@@ -1,0 +1,8 @@
+.
+./.claude
+./.claude/agents
+./.claude/index
+./.claude/index/samples
+./.claude/logs
+./.claude/logs/archive
+./.claude/milestones
