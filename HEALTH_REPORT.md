@@ -2,7 +2,7 @@
 
 > **Pre-code baseline** — scores reflect project setup only, not code quality.
 
-## Composite Score: 6/100
+## Composite Score: 7/100
 
 **White Belt** — Starting fresh
 
@@ -16,7 +16,7 @@
 | Code Quality | 0/100 | 25% |
 | Dependency Health | 0/100 | 15% |
 | Documentation | 20/100 | 15% |
-| Project Hygiene | 20/100 | 15% |
+| Project Hygiene | 30/100 | 15% |
 
 ---
 
@@ -26,4 +26,4 @@
 - **Code Quality** (0/100): Add a linter configuration (ESLint, pylint, golangci-lint, etc.) and consider pre-commit hooks.
 - **Dependencies** (0/100): Commit your lock file (package-lock.json, Cargo.lock, etc.) and consider adding Dependabot or Renovate.
 - **Documentation** (20/100): Expand your README with setup instructions and code examples. Consider adding ARCHITECTURE.md.
-- **Project Hygiene** (20/100): Ensure .gitignore covers common patterns, add CI/CD, and verify .env is not committed.
+- **Project Hygiene** (30/100): Ensure .gitignore covers common patterns, add CI/CD, and verify .env is not committed.

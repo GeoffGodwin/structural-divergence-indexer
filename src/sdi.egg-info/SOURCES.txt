@@ -1,0 +1,11 @@
+pyproject.toml
+src/sdi/__init__.py
+src/sdi/config.py
+src/sdi.egg-info/PKG-INFO
+src/sdi.egg-info/SOURCES.txt
+src/sdi.egg-info/dependency_links.txt
+src/sdi.egg-info/entry_points.txt
+src/sdi.egg-info/requires.txt
+src/sdi.egg-info/top_level.txt
+src/sdi/cli/__init__.py
+src/sdi/cli/init_cmd.py

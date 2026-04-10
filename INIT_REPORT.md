@@ -2,9 +2,9 @@
 
 <!-- init-report-meta
 project: structural-divergence-indexer
-timestamp: 2026-04-10 09:47:06
+timestamp: 2026-04-10 11:17:11
 tekhton_version: 3.71.0
-file_count: 22
+file_count: 40
 project_type: custom
 -->
 
@@ -41,6 +41,6 @@ project_type: custom
 
 - **Project name:** structural-divergence-indexer
 - **Project type:** custom
-- **Tracked files:** 22
-- **Init timestamp:** 2026-04-10 09:47:06
+- **Tracked files:** 40
+- **Init timestamp:** 2026-04-10 11:17:11
 

@@ -1,25 +1,41 @@
 # PROJECT_INDEX.md — structural-divergence-indexer
 
-<!-- Last-Scan: 2026-04-10T13:47:06Z -->
-<!-- Scan-Commit: b7f3b01 -->
-<!-- File-Count: 22 -->
-<!-- Total-Lines: 10259 -->
+<!-- Last-Scan: 2026-04-10T15:17:11Z -->
+<!-- Scan-Commit: a5e4ddf -->
+<!-- File-Count: 40 -->
+<!-- Total-Lines: 11133 -->
 <!-- DOC_QUALITY_SCORE: 20 -->
 
 **Project:** structural-divergence-indexer
-**Scanned:** 2026-04-10T13:47:06Z
-**Files:** 22 | **Lines:** 10259
+**Scanned:** 2026-04-10T15:17:11Z
+**Files:** 40 | **Lines:** 11133
 
 ## Directory Tree
 
 .
 ./.claude
 ./.claude/agents
+./.claude/dashboard
+./.claude/dashboard/data
 ./.claude/index
 ./.claude/index/samples
 ./.claude/logs
 ./.claude/logs/archive
+./.claude/logs/runs
 ./.claude/milestones
+./.claude/watchtower_inbox
+./.claude/watchtower_inbox/processed
+./.pytest_cache
+./.pytest_cache/v
+./.pytest_cache/v/cache
+./.ruff_cache
+./.ruff_cache/0.15.10
+./src
+./src/sdi
+./src/sdi.egg-info
+./src/sdi/cli
+./tests
+./tests/unit
 
 ## File Inventory
 
@@ -37,6 +53,15 @@
 | plan_answers.yaml | 1178 | huge |
 | CLAUDE.md | 609 | large |
 
+| **.claude/agents/** | | |
+| .claude/agents/architect.md | 61 | small |
+| .claude/agents/coder.md | 91 | small |
+| .claude/agents/reviewer.md | 72 | small |
+| .claude/agents/security.md | 96 | small |
+
+| **.claude/index/samples/** | | |
+| .claude/index/samples/DESIGN.md.txt | 70 | small |
+
 | **.claude/milestones/** | | |
 | .claude/milestones/m01-project-skeleton-and-core-infrastructure.md | 64 | small |
 | .claude/milestones/m02-source-parsing-and-file-discovery.md | 60 | small |
@@ -49,17 +74,42 @@
 | .claude/milestones/m09-cli-polish-and-output-formatting.md | 63 | small |
 | .claude/milestones/m10-performance-optimization-and-caching.md | 58 | small |
 
+| **.claude/** | | |
+| .claude/pipeline.conf | 102 | small |
+
 | **./** | | |
+| PROJECT_INDEX.md | 153 | small |
 | plan_questions.yaml | 130 | small |
 
+| **.claude/** | | |
+| .claude/HEALTH_BASELINE.json | 12 | tiny |
+
+| **.claude/agents/** | | |
+| .claude/agents/jr-coder.md | 22 | tiny |
+| .claude/agents/tester.md | 48 | tiny |
+
 | **.claude/index/** | | |
+| .claude/index/configs.json | 4 | tiny |
+| .claude/index/dependencies.json | 6 | tiny |
 | .claude/index/inv_Xe7sRM4K | 0 | tiny |
-| .claude/index/tree.txt | 8 | tiny |
+| .claude/index/inventory.jsonl | 22 | tiny |
+| .claude/index/meta.json | 10 | tiny |
+
+| **.claude/index/samples/** | | |
+| .claude/index/samples/manifest.json | 7 | tiny |
+
+| **.claude/index/** | | |
+| .claude/index/tests.json | 7 | tiny |
+| .claude/index/tree.txt | 24 | tiny |
 
 | **.claude/milestones/** | | |
 | .claude/milestones/MANIFEST.cfg | 14 | tiny |
 | .claude/milestones/m11-testing-fixtures-and-quality-gate.md | 49 | tiny |
 | .claude/milestones/m12-packaging-distribution-and-documentation.md | 49 | tiny |
+
+| **./** | | |
+| HEALTH_REPORT.md | 29 | tiny |
+| INIT_REPORT.md | 46 | tiny |
 
 ## Key Dependencies
 
