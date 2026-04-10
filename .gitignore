@@ -16,3 +16,17 @@
 .claude/dry_run_cache/
 .claude/migration-backups/
 .claude/watchtower_inbox/
+
+# Tech-stack patterns
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Sensitive files
+.env
+*.pem
+*.key
+id_rsa
+.DS_Store
