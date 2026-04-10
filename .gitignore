@@ -20,9 +20,16 @@
 # Tech-stack patterns
 __pycache__/
 *.pyc
+*.pyo
 .venv/
 *.egg-info/
 .pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# SDI cache (auto-generated, do not commit)
+.sdi/cache/
 
 # Sensitive files
 .env
