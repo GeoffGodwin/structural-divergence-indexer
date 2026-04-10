@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-04-10T13:47:06Z",
+  "composite": 6,
+  "belt": "White Belt",
+  "dimensions": {
+    "test_health": {"score": 0, "weight": 30, "details": {"ratio":0,"command":0,"naming":0,"framework":0,"execution":0,"test_files":0,"source_files":0,"note":"Estimated from file presence. Run with HEALTH_RUN_TESTS=true for actual pass rate."}},
+    "code_quality": {"score": 0, "weight": 25, "details": {"linter":0,"precommit":0,"todo_density":0,"magic_numbers":0,"type_safety":0,"function_length":0}},
+    "dependency_health": {"score": 0, "weight": 15, "details": {"lock_file":0,"dep_ratio":0,"vuln_scanner":0,"manifest":0}},
+    "doc_quality": {"score": 20, "weight": 15, "details": {"source":"m12","details":"readme:0/30(missing);contributing:0/15;api-docs:0/15;architecture:20/20;inline:0/20"}},
+    "project_hygiene": {"score": 20, "weight": 15, "details": {"gitignore":0,"env_safety":20,"ci_cd":0,"setup_docs":0,"changelog":0}}
+  }
+}
