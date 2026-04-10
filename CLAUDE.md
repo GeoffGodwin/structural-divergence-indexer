@@ -4,7 +4,24 @@
 
 SDI (Structural Divergence Indexer) is a CLI tool that computes and tracks the Structural Divergence Index — a composite metric measuring the rate of structural drift in a codebase across four dimensions: pattern entropy, convention drift rate, coupling topology delta, and boundary violation velocity. It captures periodic structural fingerprints (snapshots) via tree-sitter AST parsing and Leiden community detection, diffs them over time, and produces trend data and actionable CI gate checks. Target users are software engineers, tech leads, and engineering managers responsible for the structural health of codebases — particularly teams using AI-assisted development at scale where multiple contributors generate code concurrently without shared structural awareness.
 
+**Languages:**
+- Python
+
 **Tech stack:** Python 3.10+, tree-sitter (multi-language AST parsing), leidenalg (Leiden community detection), igraph (graph analysis), Click (CLI framework), Rich (terminal formatting), TOML (configuration), YAML via ruamel.yaml (boundary specs), JSON (snapshots).
+
+**Key dependencies:**
+
+| Package | Purpose |
+|---|---|
+| tree-sitter >=0.24 | Multi-language AST parsing |
+| tree-sitter-python, tree-sitter-javascript, tree-sitter-typescript, tree-sitter-go, tree-sitter-java, tree-sitter-rust | Per-language grammar packages |
+| leidenalg | Leiden community detection algorithm |
+| igraph | Graph construction, analysis, cycle detection, centrality |
+| click | CLI framework (argument parsing, subcommands, help) |
+| rich | Terminal output formatting (tables, progress bars, color) |
+| tomli / tomllib | TOML config parsing (tomllib is stdlib in 3.11+, tomli for 3.10) |
+| tomli-w | TOML writing for `sdi init` config generation |
+| ruamel.yaml | YAML parsing for boundary specs (preserves comments) |
 
 **Platform:** Linux (primary), macOS (tested in CI), Windows (best-effort). Distributed via PyPI (`pip install sdi`) and Homebrew (`brew tap geoffgodwin/sdi && brew install sdi`).
 
@@ -505,6 +522,9 @@ ruff check src/ tests/
 
 # Type check
 mypy src/sdi/
+
+# Format check
+ruff format --check src/ tests/
 ```
 
 ### Fixture Repos

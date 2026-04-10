@@ -1,0 +1,39 @@
+### Milestone 4: Dependency Graph Construction and Metrics
+
+**Scope:** Build Stage 2 of the pipeline — construct a directed dependency graph from `FeatureRecord` objects using igraph. Compute graph metrics: node count, edge count, density, connected components, cycle count, and hub concentration. Support both weighted (by import symbol count) and unweighted edges via config toggle.
+
+**Deliverables:**
+- `src/sdi/graph/__init__.py` with `build_dependency_graph(records: list[FeatureRecord], config: SDIConfig) -> tuple[igraph.Graph, dict]` public API
+- `src/sdi/graph/builder.py` with graph construction: nodes from files/modules, directed edges from imports, optional edge weights from symbol counts
+- `src/sdi/graph/metrics.py` with metric computation: `compute_graph_metrics(graph: igraph.Graph) -> dict` returning node count, edge count, density, connected component count, cycle count, hub nodes (high in-degree), max dependency depth
+- `tests/unit/test_graph_builder.py`
+- `tests/unit/test_graph_metrics.py`
+
+**Acceptance criteria:**
+- Given `FeatureRecord` objects from the `simple-python` fixture, the graph has the expected number of nodes and edges
+- Each import in a `FeatureRecord` produces a directed edge from the importing file to the imported file
+- Unresolved imports (external packages, stdlib) are excluded from the graph — only intra-project imports create edges
+- `weighted_edges = true` in config produces edges with `weight` attribute equal to the number of symbols imported
+- `weighted_edges = false` (default) produces unweighted edges
+- Cycle detection correctly identifies circular imports
+- Hub concentration identifies the top N nodes by in-degree
+- Connected component count correctly handles disconnected subgraphs
+- Graph is deterministic — same input produces same graph with same node/edge ordering
+- `pytest tests/unit/test_graph_builder.py tests/unit/test_graph_metrics.py` passes
+
+**Tests:**
+- `tests/unit/test_graph_builder.py`: Graph from known imports has correct nodes/edges, external imports excluded, self-imports handled, weighted edges have correct weights, empty record list produces empty graph, duplicate imports create single edge (or weighted edge), unresolved relative imports logged as warning
+- `tests/unit/test_graph_metrics.py`: Density calculation on known graphs, cycle count on acyclic graph (0) and cyclic graph (>0), hub detection identifies highest in-degree nodes, connected components count, max depth on DAG, metrics on empty graph return zeroes
+
+**Watch For:**
+- igraph node IDs are integers — maintain a mapping from file paths to node IDs and back, stored as vertex attributes (`graph.vs["name"] = file_path`)
+- Import resolution must handle the case where the target file does not exist in the analyzed set (external dependency) — these edges are silently dropped, not errored
+- Go and Java use package-based imports not file-based — the builder needs a resolution step that maps package names to file nodes, possibly via a mapping built during discovery
+- Graph density for large sparse graphs can be very small (0.001) — ensure the metric is reported with sufficient decimal precision
+
+**Seeds Forward:**
+- The `igraph.Graph` object is passed directly to `detection/leiden.py` in Milestone 5 — vertex names and edge structure must be stable
+- The metrics dict is included in the snapshot JSON — its key names (`node_count`, `edge_count`, `density`, `cycle_count`, `hub_concentration`, `component_count`, `max_depth`) become part of the snapshot schema
+- Cycle count delta and hub concentration delta are components of the "coupling topology delta" SDI dimension — Milestone 7 computes these deltas
+
+---
