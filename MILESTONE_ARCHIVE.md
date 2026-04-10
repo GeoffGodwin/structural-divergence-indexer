@@ -1,3 +1,12 @@
+# Milestone Archive
+
+Completed milestone definitions archived from CLAUDE.md.
+See git history for the commit that completed each milestone.
+
+---
+
+## Archived: 2026-04-10 — Unknown Initiative
+
 ### Milestone 2: File Discovery and Tree-Sitter Parsing
 <!-- milestone-meta
 id: "02"
