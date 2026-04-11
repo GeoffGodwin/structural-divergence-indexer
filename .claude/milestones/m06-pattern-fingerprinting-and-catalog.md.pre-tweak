@@ -1,10 +1,8 @@
-
 ### Milestone 6: Pattern Fingerprinting and Catalog
 <!-- milestone-meta
 id: "06"
-status: "done"
+status: "in_progress"
 -->
-<!-- PM-tweaked: 2026-04-11 -->
 
 
 **Scope:** Build Stage 4 of the pipeline — pattern fingerprinting, catalog construction, and entropy computation. Implement the seven built-in pattern categories, structural hashing of AST subtrees, canonical pattern identification, and per-shape velocity / boundary spread computation. This milestone produces the `PatternCatalog` with entropy measurements.
@@ -18,21 +16,6 @@ status: "done"
 - `tests/unit/test_fingerprint.py`
 - `tests/unit/test_catalog.py`
 
-**[PM: Seven Built-in Category Names]**
-The seven built-in categories to implement in `categories.py` are:
-
-| Category name | Structural target |
-|---|---|
-| `error_handling` | `try`/`except`/`raise`/`finally` blocks and patterns |
-| `data_access` | Function/method calls to data stores, ORM queries, cursor operations |
-| `logging` | Log call sites (`logging.*`, `logger.*`, `log.*`) and their argument shapes |
-| `async_patterns` | `async def`, `await`, `asyncio.gather`, coroutine entry points |
-| `class_hierarchy` | Class definitions with base classes, `super()` call patterns |
-| `context_managers` | `with` statement bodies and `__enter__`/`__exit__` pairs |
-| `comprehensions` | List, dict, set, and generator comprehension expressions |
-
-A category with no query for the current language returns no instances (empty list, not an error). Categories are referenced by their string name in config threshold overrides (e.g., `[thresholds.overrides.error_handling]`).
-
 **Acceptance criteria:**
 - Structurally equivalent AST subtrees (same node types and structure, different identifiers) produce identical fingerprints
 - Structurally different AST subtrees produce different fingerprints
@@ -45,12 +28,10 @@ A category with no query for the current language returns no instances (empty li
 - `min_pattern_nodes` config filters out AST subtrees smaller than the threshold
 - `PatternCatalog` serializes to and deserializes from JSON (for snapshot inclusion)
 - `pytest tests/unit/test_fingerprint.py tests/unit/test_catalog.py` passes
-- **[PM: added]** All seven category names listed above are registered in the category registry in `categories.py`; a lookup by unknown category name returns an empty result, not an exception
 
 **Tests:**
 - `tests/unit/test_fingerprint.py`: Identical AST shapes produce same hash, different shapes produce different hashes, identifier stripping works (same structure with different variable names = same hash), literal stripping works, minimum node threshold filters small patterns, empty AST subtree handled gracefully
 - `tests/unit/test_catalog.py`: Catalog groups fingerprints by category correctly, entropy counts distinct shapes, canonical is most frequent shape, velocity computation (current minus previous instance counts), velocity is null on first snapshot, boundary spread counts distinct boundaries, empty category has entropy 0, catalog JSON round-trip, high-entropy fixture produces expected entropy values
-- **[PM: added]** `tests/unit/test_catalog.py`: all seven category names in the registry resolve without error; lookup of an unregistered category name returns an empty instance list
 
 **Watch For:**
 - Structural hashing must normalize AST subtrees — node types are kept, identifier node values are replaced with a placeholder, literal values are replaced with a type token. The hash is of the normalized tree structure, not the raw source.
@@ -63,3 +44,5 @@ A category with no query for the current language returns no instances (empty li
 - Per-shape velocity feeds into the "convention drift rate" SDI dimension computation in Milestone 7
 - Per-shape boundary spread is a raw measurement included in snapshots — it is never used for classification (Non-Negotiable Rule 4)
 - The `categories.py` module's category registry pattern must support future extensibility (post-v1), though v1 ships with hardcoded categories only
+
+---
