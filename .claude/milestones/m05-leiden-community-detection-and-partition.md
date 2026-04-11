@@ -1,4 +1,9 @@
 ### Milestone 5: Leiden Community Detection and Partition Stability
+<!-- milestone-meta
+id: "05"
+status: "done"
+-->
+
 
 **Scope:** Build Stage 3 of the pipeline — run the Leiden community detection algorithm on the dependency graph to identify structural boundaries. Implement partition seeding (from cache on warm starts, from fixed random seed on cold starts), partition stability scoring, and the stability threshold debounce. Write partition cache to `.sdi/cache/partition.json`.
 

@@ -23,14 +23,14 @@ except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 
-_DEFAULT_EXCLUDE = [
+_DEFAULT_EXCLUDE = (
     "**/vendor/**",
     "**/node_modules/**",
     "**/__pycache__/**",
     "**/dist/**",
     "**/build/**",
     "**/.git/**",
-]
+)
 
 
 @dataclass

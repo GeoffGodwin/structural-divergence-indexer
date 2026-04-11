@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from sdi.snapshot.model import FeatureRecord
+from sdi.parsing import FeatureRecord
 
 
 # ---------------------------------------------------------------------------

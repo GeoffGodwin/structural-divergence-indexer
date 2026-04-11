@@ -1,65 +1,97 @@
 ## Test Audit Report
 
 ### Audit Summary
-Tests audited: 1 file (`tests/unit/test_graph_builder.py`), 44 test functions  
-Verdict: PASS
-
-> **Note on audit context:** The "Test Files Under Audit" field listed `tests/unit/test_graph_builder.py` twice (duplicate entry). `tests/unit/test_graph_metrics.py` was read for implementation context only; issues in that file are not reported per audit rules ("Do not flag issues in test files that were NOT listed in the audit context").
+Tests audited: 1 file (`tests/unit/test_leiden_internals.py`), 23 test functions
+Verdict: CONCERNS
 
 ---
 
 ### Findings
 
-#### NAMING: Misleading test name claims an untestable scenario
-- File: `tests/unit/test_graph_builder.py:436`
-- Issue: `TestResolveImportTieBreaking.test_genuinely_ambiguous_equal_length_returns_a_result` promises to test a "genuinely ambiguous" equal-length tie-breaking case, but the test's own inline comments explicitly acknowledge the scenario is mathematically impossible with distinct module keys: *"only ONE of these can match as a suffix."* The test body makes two separate, unambiguous calls — each resolves against exactly one matching key. No tie exists and none is tested. The name creates a false expectation about the code path being exercised.
-- Severity: LOW
-- Action: Rename to `test_equal_length_distinct_keys_each_resolve_correctly` and update the docstring to describe what is actually asserted (two independent unambiguous resolutions). The assertions themselves are correct — only the framing is wrong.
+#### INTEGRITY: Failing test left in suite with unfixed implementation bug
+- File: tests/unit/test_leiden_internals.py:234
+- Issue: `test_read_cache_toplevel_array_returns_none` asserts `result is None`,
+  but `_partition_cache.py:_read_cache` currently raises `AttributeError` for
+  this input. When `partition.json` contains a top-level JSON array
+  (e.g. `[1, 2, 3]`), `json.load()` succeeds and returns a `list`. The next
+  statement calls `data.get("cache_version")` (line 45), which raises
+  `AttributeError` because lists do not have `.get()`. The `except` clause at
+  `_partition_cache.py:48` catches only `(json.JSONDecodeError, OSError,
+  KeyError)` — `AttributeError` is not included. The tester documented the bug
+  in TESTER_REPORT.md and wrote the test to expose it, but the implementation
+  was not fixed. The test itself is honest and correctly states the required
+  contract (corrupt/unrecognised cache → cold start, return `None`). The test
+  suite is left in a failing state (22 pass, 1 fail per TESTER_REPORT.md).
+- Severity: HIGH
+- Action: Fix `src/sdi/detection/_partition_cache.py:_read_cache`. After
+  `data = json.load(fh)`, add `if not isinstance(data, dict): return None`
+  before the `data.get()` call on the next line. This is the correct fix;
+  adding `AttributeError` to the except tuple is an acceptable but weaker
+  alternative. Do not change the test.
 
-#### INTEGRITY: Test adds no unique behavioral coverage over its siblings
-- File: `tests/unit/test_graph_builder.py:436`
-- Issue: The two assertions in `test_genuinely_ambiguous_equal_length_returns_a_result` are structurally identical to scenarios already covered in the same class: `_resolve_import("x.b.c", ...)` duplicates the pattern in `test_two_equal_length_suffix_keys_returns_one_result` (line 409) and `_resolve_import("x.a.c", ...)` duplicates `test_ambiguous_single_segment_tie` (line 424). The implementation behavior under true equal-length contention (first-encountered key wins because the loop uses strict `>`) is never exercised — it cannot be, because two distinct keys cannot both be valid dotted suffixes of the same import string at the same length.
+#### COVERAGE: `test_surface_area_ratios_boundary_edges` omits cluster-1 assertion
+- File: tests/unit/test_leiden_internals.py:341
+- Issue: The test builds edges `(0→1)`, `(1→2)`, `(2→3)` with partition
+  `[0, 0, 1, 1]`. Both clusters are symmetrically affected by the single
+  boundary crossing at `(1→2)`: cluster 0 has 2 total edges (internal `0→1`,
+  external `1→2`) → ratio 0.5; cluster 1 has 2 total edges (external `1→2`,
+  internal `2→3`) → ratio 0.5. Only `ratios[0]` is asserted. A future
+  regression that broke cluster-1 edge accounting would pass this test
+  silently.
 - Severity: LOW
-- Action: Consider removing this test to eliminate the misleading "genuinely ambiguous" framing. If retained, rename as above and update the comment to acknowledge it tests two non-competing cases, not a tie.
-
-#### INTEGRITY: CODER_SUMMARY.md documents inflated test counts
-- File: `CODER_SUMMARY.md` (documentation only — not a test code defect)
-- Issue: CODER_SUMMARY.md claims "70 tests" for `tests/unit/test_graph_builder.py`. The actual file contains 44 test functions, confirmed by the tester's own run ("Passed: 44 Failed: 0"). Independently, `tests/unit/test_graph_metrics.py` contains 37 test functions, not 70. The inflated counts suggest the coder summarized without verifying. This does not affect runtime test integrity but degrades trust in coder self-reporting.
-- Severity: MEDIUM
-- Action: Correct CODER_SUMMARY.md: `test_graph_builder.py` = 44 tests, `test_graph_metrics.py` = 37 tests. No changes to test code required.
-
-#### COVERAGE: Weakened assertion on a deterministically-countable value
-- File: `tests/unit/test_graph_builder.py:355`
-- Issue: `TestBuildDependencyGraphNonPythonRecords.test_typescript_record_silently_ignored_as_node` asserts `assert meta["unresolved_count"] >= 1` instead of `== 1`. Given the three input records (a.py imports "b" → resolves; b.py imports nothing; frontend/app.ts imports "some.ts.dep" → unresolved), the unresolved count is deterministically 1. The `>= 1` form would pass silently if a regression caused TypeScript imports to be double-counted (count returns 2+) or if `unresolved_count` accumulated across records incorrectly.
-- Severity: LOW
-- Action: Change `assert meta["unresolved_count"] >= 1` to `assert meta["unresolved_count"] == 1`.
+- Action: Add `assert ratios[1] == pytest.approx(0.5)` immediately after the
+  existing assertion at line 347.
 
 ---
 
-### Passing Checks (no findings)
+### Rubric Notes (no findings)
 
-**Assertion Honesty:** All 44 assertions derive expected values from traceable inputs. No hardcoded magic numbers that aren't explained by the test inputs. Edge counts of 1, 2, 3 correspond to explicitly stated import lists; weights of 1 and 2 correspond to single and duplicate import occurrences. All values are independently verifiable from the implementation logic in `builder.py`.
+**Assertion Honesty** — All assertions derive expected values from traceable
+algorithm logic. Values such as `0`, `1`, `2`, `0.5`, and `1.0` all correspond
+to explicit partition assignments and edge counts in the test fixtures.
+`pytest.approx` is used correctly for floating-point comparisons.
+No hard-coded magic numbers are present that cannot be independently
+re-derived from the test inputs.
 
-**Implementation Exercise:** Tests call the real functions — `build_dependency_graph`, `_build_module_map`, `_file_path_to_module_key`, `_resolve_import` — directly with real `FeatureRecord` objects. No over-mocking. No test that only validates mock setup.
+**Edge Case Coverage** — Comprehensive. Covered: cold start (no prev_cache),
+warm start, flicker reset, new-node immediate acceptance, candidate switch
+(counter resets to 1), half-changed stability score, new nodes excluded from
+stability score, corrupt JSON cache, missing cache file, top-level JSON array
+cache (the identified bug), missing `vertex_names` key, missing
+`stable_partition` key, disconnected graph (no cross-cluster edges),
+non-contiguous cluster IDs (debounce mid-transition), and zero-edge cluster
+(surface area ratio 0.0). The ratio of error-path to happy-path tests is
+approximately 1:1.
 
-**Test Isolation:** All fixture data is constructed in-memory via `_make_record` and `_make_config` helpers. No test reads mutable project state (no `CODER_SUMMARY.md`, build logs, `.sdi/` artifacts, or pipeline reports). All inputs are self-contained within each test method.
+**Implementation Exercise** — All 23 tests call the real implementation.
+No function under test is mocked. Filesystem tests (`test_cache_round_trip`,
+`test_read_cache_*`, `test_write_cache_creates_directory`) use the `tmp_path`
+pytest fixture to exercise real `Path` and `json` I/O. `igraph.Graph` objects
+are constructed in-process without stubbing.
 
-**Scope Alignment:** All imports resolve to current implementation symbols: `SDIConfig().boundaries.weighted_edges` is confirmed present at `src/sdi/config.py:62`. The four private helpers tested directly (`_build_module_map`, `_file_path_to_module_key`, `_resolve_import`) exist in `builder.py`. No orphaned, stale, or renamed references.
+**Test Weakening** — Not present. The rework-cycle changes documented in
+CODER_SUMMARY.md strengthened the suite: `test_surface_area_ratios_empty_cluster`
+now asserts `set(ratios.keys()) == {0, 2}` (previously masked a bug by passing
+an incorrect `cluster_count=3` argument), and `test_surface_area_ratios_non_contiguous_ids`
+was added to prevent regressions on non-contiguous partition IDs. No assertion
+was broadened or removed.
 
-**Test Naming (overall):** Outside the one flagged case, names are descriptive and encode scenario plus expected outcome: `test_no_partial_segment_match`, `test_duplicate_weighted_sums_weight`, `test_self_import_not_in_unresolved`, `test_src_prefix_only_stripped_once`. The three coverage-gap classes are clearly labeled as targeting specific reviewer-identified gaps.
+**Test Naming** — All names follow `test_<scenario>_<expected_outcome>` or
+equivalent conventions. Representative examples:
+`test_debounce_flicker_resets_counter`,
+`test_read_cache_toplevel_array_returns_none`,
+`test_build_initial_membership_missing_vertex_names_raises`,
+`test_surface_area_ratios_non_contiguous_ids`. No generic `test_1` or
+`test_thing` style names.
 
-**Test Weakening:** TESTER_REPORT.md states only additions were made (three new classes: `TestFilePathToModuleKeyDeepSrcLayout`, `TestBuildDependencyGraphNonPythonRecords`, `TestResolveImportTieBreaking`). Verified by inspection — original tests are structurally unchanged; no assertions were broadened or removed.
+**Scope Alignment** — All imported symbols exist in the current codebase:
+`PARTITION_CACHE_VERSION`, `_apply_debounce`, `_build_initial_membership`,
+`_compute_stability_score`, `_read_cache`, `_write_cache` from
+`sdi.detection._partition_cache`; `_compute_inter_cluster_edges`,
+`_compute_surface_area_ratios` from `sdi.detection.leiden`. No orphaned,
+stale, or renamed references.
 
----
-
-### Per-Rubric Summary
-
-| Rubric Point | Verdict | Notes |
-|---|---|---|
-| 1. Assertion Honesty | PASS | All expected values traceable to implementation logic and test inputs. |
-| 2. Edge Case Coverage | PASS (one LOW) | Empty inputs, self-imports, duplicates (weighted/unweighted), stdlib/third-party exclusion, non-Python records, and suffix-based resolution all covered. One weakened `>= 1` assertion. |
-| 3. Implementation Exercise | PASS | Real functions called with real objects. No test only validates mock setup. |
-| 4. Test Weakening | PASS | Tester added new tests only; zero modifications to existing assertions. |
-| 5. Naming and Intent | PASS (one LOW) | One test name promises a scenario it does not test. All other names descriptive. |
-| 6. Scope Alignment | PASS | All referenced symbols exist in current codebase. No orphaned tests. |
-| 7. Isolation | PASS | All fixture data is in-memory. No reads from mutable project-state files. |
+**Test Isolation** — All filesystem interactions use `tmp_path`. No test reads
+live project files, pipeline reports, build artifacts, or other mutable
+project state. Every test constructs its own fixture data in-process via the
+`_make_graph` and `_prev_cache` helpers defined at the top of the file.

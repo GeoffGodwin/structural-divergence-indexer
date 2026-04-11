@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from sdi.parsing.go import GoAdapter, count_loc
-from sdi.snapshot.model import FeatureRecord
+from sdi.parsing import FeatureRecord
 
 
 # ---------------------------------------------------------------------------

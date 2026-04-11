@@ -42,6 +42,11 @@ def _file_path_to_module_key(file_path: str) -> str | None:
         "models/__init__.py"    → "models"
         "src/sdi/config.py"     → "sdi.config"
         "main.py"               → "main"
+
+    Note:
+        Assumes `src/` is a build-layout prefix with no corresponding importable
+        package. A project with a real top-level package named `src` would have
+        its module keys silently truncated.
     """
     path = file_path.replace("\\", "/")
 
@@ -200,7 +205,7 @@ def build_dependency_graph(
         final_edges = list(dict.fromkeys(raw_edges))
         g.add_edges(final_edges)
 
-    metadata: dict = {
+    metadata: dict[str, int] = {
         "unresolved_count": unresolved_count,
         "self_import_count": self_import_count,
     }
