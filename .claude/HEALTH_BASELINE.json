@@ -1,12 +1,14 @@
 {
-  "timestamp": "2026-04-10T20:22:14Z",
-  "composite": 9,
-  "belt": "White Belt",
+  "timestamp": "2026-04-11T03:10:37Z",
+  "composite": 58,
+  "belt": "Orange Belt",
+  "previous_composite": 9,
+  "delta": 49,
   "dimensions": {
-    "test_health": {"score": 0, "weight": 30, "details": {"ratio":0,"command":0,"naming":0,"framework":0,"execution":0,"test_files":0,"source_files":0,"note":"Estimated from file presence. Run with HEALTH_RUN_TESTS=true for actual pass rate."}},
-    "code_quality": {"score": 0, "weight": 25, "details": {"linter":0,"precommit":0,"todo_density":0,"magic_numbers":0,"type_safety":0,"function_length":0}},
-    "dependency_health": {"score": 0, "weight": 15, "details": {"lock_file":0,"dep_ratio":0,"vuln_scanner":0,"manifest":0}},
-    "doc_quality": {"score": 20, "weight": 15, "details": {"source":"m12","details":"readme:0/30(missing);contributing:0/15;api-docs:0/15;architecture:20/20;inline:0/20"}},
-    "project_hygiene": {"score": 40, "weight": 15, "details": {"gitignore":20,"env_safety":20,"ci_cd":0,"setup_docs":0,"changelog":0}}
+    "test_health": {"score": 65, "weight": 30, "previous": 0, "delta": 65, "details": {"ratio":20,"command":10,"naming":20,"framework":15,"execution":0,"test_files":12,"source_files":50,"note":"Estimated from file presence. Run with HEALTH_RUN_TESTS=true for actual pass rate."}},
+    "code_quality": {"score": 85, "weight": 25, "previous": 0, "delta": 85, "details": {"linter":20,"precommit":0,"todo_density":20,"magic_numbers":15,"type_safety":15,"function_length":15}},
+    "dependency_health": {"score": 40, "weight": 15, "previous": 0, "delta": 40, "details": {"lock_file":0,"dep_ratio":15,"vuln_scanner":0,"manifest":25}},
+    "doc_quality": {"score": 40, "weight": 15, "previous": 20, "delta": 20, "details": {"source":"m12","details":"readme:0/30(missing);contributing:0/15;api-docs:0/15;architecture:20/20;inline:20/20"}},
+    "project_hygiene": {"score": 40, "weight": 15, "previous": 40, "delta": 0, "details": {"gitignore":20,"env_safety":20,"ci_cd":0,"setup_docs":0,"changelog":0}}
   }
 }
