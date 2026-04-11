@@ -1,4 +1,9 @@
 ### Milestone 7: Snapshot Assembly, Delta Computation, and Trend Analysis
+<!-- milestone-meta
+id: "07"
+status: "done"
+-->
+
 
 **Scope:** Build Stage 5 of the pipeline — assemble complete snapshots from all pipeline stage outputs, compute deltas between two snapshots across all four SDI dimensions, and compute trends across multiple snapshots. This is the "math" milestone — it takes raw stage outputs and produces the composite SDI metric.
 

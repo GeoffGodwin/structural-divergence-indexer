@@ -2,12 +2,18 @@
 PASS
 
 ## Confidence
-84
+80
 
 ## Reasoning
-- **Scope Definition:** Clear — four source files, one fixture directory, and two test files are named explicitly. The public API signature for `build_pattern_catalog` is fully typed. What's in scope (Python queries only) and what's deferred (other-language adapters) is stated.
-- **Testability:** Acceptance criteria are concrete and measurable: entropy ≥ 4 for the high-entropy fixture, null velocity on first snapshot, integer delta when prev_catalog exists, JSON round-trip, empty category yields entropy 0 not an error. The PM additions (registry lookup, unknown category returns empty not exception) close the one gap that would otherwise exist.
-- **Ambiguity:** The structural hash normalization spec in "Watch For" is precise — keep node types, replace identifier values with a placeholder, replace literals with a type token. Two developers could differ on implementation detail but not on observable behavior (same AST shape → same hash, different shape → different hash), which is what the tests enforce.
-- **Implicit Assumptions:** `FeatureRecord`, `SDIConfig`, and `CommunityResult` are produced by M01–M05 — reasonable cross-milestone dependencies for a developer following the sequence. `prev_catalog` origin (previous snapshot's catalog) is implicit but inferable from context.
-- **Migration Impact:** No new user-facing config keys — `min_pattern_nodes` and `categories` are already declared in the CLAUDE.md default config block. `PatternCatalog` serialization seeding the snapshot schema is covered by "Seeds Forward" and the snapshot versioning rules in CLAUDE.md. No dedicated "Migration impact" section needed.
-- **UI Testability:** N/A — pure library/pipeline milestone, no UI components.
+- Scope is well-defined: three specific files to create, two test files, clear function signatures with typed parameters and return types
+- Acceptance criteria are specific and testable — null vs zero distinction is called out explicitly, pytest command is provided
+- Watch For section anticipates the three key implementation traps: convention_drift_rate vs entropy_delta confusion, coupling_topology_delta composite weighting, and partition-shift false positives in boundary_violation_velocity
+- The `coupling_topology_delta` weighting ambiguity is pre-empted by "simple sum of normalized sub-deltas is sufficient" — developer has a concrete path
+- `config_hash` is explained (hash analysis-affecting config values, not output formatting) — a developer can implement this without guessing
+
+**Minor implicit assumptions a developer will need to resolve but can handle:**
+- `src/sdi/snapshot/model.py` (containing `Snapshot` and `DivergenceSummary` dataclasses) is not in the deliverables list but is required for the return types of all three functions. The CLAUDE.md layout lists it under `snapshot/`. Developer should check if M01 stubbed it; if not, they need to create it as part of this milestone.
+- `src/sdi/snapshot/storage.py` is referenced in the acceptance criteria (`storage.enforce_retention()`) but is not listed as a deliverable. Same resolution path.
+- `TrendData` return type of `compute_trend` has no definition or field specification — developer must infer its structure from the acceptance criteria ("per-dimension time series data"). A minimal definition (list of time-stamped dimension values per dimension) is derivable but could be made explicit.
+
+None of these gaps are blockers — a competent developer reads CLAUDE.md's repo layout and fills them in. The core math and acceptance criteria are unambiguous.

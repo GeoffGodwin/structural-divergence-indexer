@@ -18,3 +18,8 @@ Each entry captures why a structural change was made, preventing future develope
 - **Date**: 2026-04-11
 - **Rationale**: - ACP: `_partition_cache.py` extraction — ACCEPT: 300-line ceiling compliance with clean concern separation. Cache I/O + debounce is a distinct concern from algorithm coordination. Private module, n
 - **Source**: Accepted ACP from pipeline run
+
+## ADL-4: assemble_snapshot() signature differs from milestone spec (Task: "M07")
+- **Date**: 2026-04-11
+- **Rationale**: dropping `graph: igraph.Graph` correctly avoids coupling assembly to igraph; `repo_root: Path` is a necessary addition for resolving the relative `config.snapshots.dir` string.
+- **Source**: Accepted ACP from pipeline run
