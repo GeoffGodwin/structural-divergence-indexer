@@ -2,34 +2,37 @@
 ## Status: COMPLETE
 
 ## What Was Implemented
+All M01 implementation code was already in place from prior work. This run completed
+the missing test deliverables and the `.gitignore` update:
 
-All Milestone 2 deliverables were already implemented by the prior run. This continuation
-run verified correctness, fixed two issues, and confirmed all tests pass.
+- Created `tests/unit/test_config.py` (28 tests across 7 test classes):
+  - `TestDefaults` — verifies all built-in defaults load correctly
+  - `TestProjectConfigPrecedence` — project `.sdi/config.toml` overrides defaults
+  - `TestExplicitConfigPath` — explicit `config_path` arg takes effect
+  - `TestEnvVarPrecedence` — `SDI_LOG_LEVEL`, `SDI_WORKERS`, `SDI_SNAPSHOT_DIR`, `NO_COLOR`, `SDI_CONFIG_PATH` all override project config
+  - `TestMalformedTOML` — invalid TOML exits with code 2, error message includes file path
+  - `TestThresholdOverrides` — missing `expires` exits 2; invalid date format exits 2; expired entries silently ignored; active entries included
+  - `TestUnknownKeys` — unknown top-level config keys emit `DeprecationWarning`
 
-**Core implementation (completed in prior run):**
-- `src/sdi/parsing/__init__.py` — public API re-exporting `parse_repository`, `FeatureRecord`, `LanguageAdapter`, `discover_files`, `detect_language`
-- `src/sdi/parsing/discovery.py` — file tree walking with `.gitignore` filtering (via `pathspec`), configurable exclude patterns, language detection by extension
-- `src/sdi/parsing/base.py` — `LanguageAdapter` ABC with `language_name`, `file_extensions`, `parse_file`, and `parse_file_safe` interface
-- `src/sdi/parsing/python.py` — Python tree-sitter adapter: import extraction (regular, from-, relative), symbol extraction (functions, classes, top-level constants, decorated definitions), CST discarded before return
-- `src/sdi/parsing/_python_patterns.py` — pattern instance extraction (try/except → `error_handling`, logging calls → `logging`, ORM-like calls → `data_access`), structural AST hashing, LOC counting
-- `src/sdi/parsing/_runner.py` — `parse_repository()` orchestrator: `ProcessPoolExecutor` parallelism, `SDI_WORKERS` env var support, missing-grammar warnings, exit-3 on all-missing
-- `tests/fixtures/simple-python/` — 9 Python files with known import graph, cross-module dependencies, try/except and logging patterns
-- `tests/unit/test_discovery.py` — 24 tests covering language detection, `.gitignore`, exclude patterns, `.git` exclusion, nested dirs
-- `tests/unit/test_python_adapter.py` — 36 tests covering imports, symbols, pattern instances, FeatureRecord metadata, LOC counting
+- Created `tests/unit/test_snapshot_model.py` (24 tests across 4 test classes):
+  - `TestFeatureRecordConstruction` — field types, `to_dict`/`from_dict` round-trip
+  - `TestDivergenceSummaryNullDeltas` — delta fields are `None` (not 0) on first snapshot
+  - `TestSnapshotVersionField` — `snapshot_version` present in instance, dict, and JSON
+  - `TestSnapshotJSONRoundTrip` — full `to_json`/`from_json` round-trip including feature_records and null commit_sha
 
-**Fixes applied in this run:**
-- Added `pathspec>=0.11` to `pyproject.toml` required dependencies (was used but not declared)
-- Changed `pathspec.PathSpec.from_lines("gitwildmatch", ...)` → `"gitignore"` in `discovery.py` to eliminate deprecation warnings
+- Created `tests/unit/test_storage.py` (20 tests across 4 test classes):
+  - `TestWriteAtomic` — creates file, overwrites, no partial artifact on simulated failure, tempfile in same directory
+  - `TestWriteSnapshot` — creates file, filename format, valid JSON, round-trip read, creates dir if absent
+  - `TestListSnapshots` — empty/nonexistent dir, sorted chronologically, ignores non-snapshot files
+  - `TestEnforceRetention` — no deletion under limit, oldest deleted when exceeded, 0 = unlimited, exact limit = no deletion
 
-## Root Cause (bugs only)
-N/A — feature implementation
+- Added `.sdi/cache/` to `.gitignore`
 
 ## Files Modified
-- `pyproject.toml` — added `pathspec>=0.11` to required dependencies
-- `src/sdi/parsing/discovery.py` — fixed pathspec pattern name `gitwildmatch` → `gitignore`
+- `tests/unit/test_config.py` (NEW) — 231 lines
+- `tests/unit/test_snapshot_model.py` (NEW) — 152 lines
+- `tests/unit/test_storage.py` (NEW) — 189 lines
+- `.gitignore` — added `.sdi/cache/` entry
 
 ## Human Notes Status
-No human notes present in this milestone.
-
-## Observed Issues (out of scope)
-- `tests/conftest.py:55` — `sample_feature_record` fixture uses `pattern_instances` dict with `"type"` key but the actual schema uses `"category"`, `"ast_hash"`, `"location"`. This may cause failures in future tests that validate pattern_instances shape. Not fixed here as no current test depends on it.
+N/A — no Human Notes section in this task

@@ -1,4 +1,9 @@
 ### Milestone 1: Project Skeleton, Config System, and Core Data Structures
+<!-- milestone-meta
+id: "01"
+status: "done"
+-->
+
 
 **Scope:** Establish the project foundation — `pyproject.toml`, package structure, the `sdi` CLI entry point with Click, the complete configuration loading system with five-level precedence, and the core data structures (`FeatureRecord`, `Snapshot`, `DivergenceSummary`) as dataclasses. No analysis logic — this milestone produces a CLI that can load config, print its version, and validate configuration. The `sdi init` command creates the `.sdi/` directory with a default config file.
 
