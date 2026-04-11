@@ -1,4 +1,9 @@
 ### Milestone 2: File Discovery and Tree-Sitter Parsing
+<!-- milestone-meta
+id: "02"
+status: "done"
+-->
+
 
 **Scope:** Build Stage 1 of the pipeline — file discovery with `.gitignore` filtering and configured exclude patterns, language detection by file extension, the base language adapter interface, and the Python language adapter as the first concrete implementation. This milestone produces `FeatureRecord` objects from Python source files via tree-sitter. Other language adapters (TypeScript, JavaScript, Go, Java, Rust) are deferred to Milestone 3.
 
