@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
+from click.testing import CliRunner
 
+from sdi.cli import cli
 from sdi.detection.leiden import CommunityResult
 from sdi.parsing import FeatureRecord
 from sdi.patterns.catalog import CategoryStats, PatternCatalog, ShapeStats
@@ -135,3 +138,49 @@ def sample_community_result() -> CommunityResult:
         surface_area_ratios={0: 0.0, 1: 0.0},
         vertex_names=["src/a.py", "src/b.py", "src/c.py", "src/d.py"],
     )
+
+
+@pytest.fixture
+def cli_runner() -> CliRunner:
+    """A Click CliRunner for invoking SDI commands in tests."""
+    return CliRunner()
+
+
+def run_sdi(
+    runner: CliRunner,
+    args: list[str],
+    cwd: Path,
+    **kwargs: Any,
+) -> Any:
+    """Invoke the SDI CLI with a specified working directory.
+
+    Args:
+        runner: Click CliRunner instance.
+        args: CLI argument list (e.g., ["show", "--format", "json"]).
+        cwd: Directory to use as the working directory for the invocation.
+        **kwargs: Extra kwargs forwarded to runner.invoke().
+
+    Returns:
+        Click Result object.
+    """
+    import os
+
+    orig_cwd = os.getcwd()
+    try:
+        os.chdir(cwd)
+        return runner.invoke(cli, args, catch_exceptions=False, **kwargs)
+    finally:
+        os.chdir(orig_cwd)
+
+
+@pytest.fixture
+def sdi_project_with_snapshot(
+    sdi_project_dir: Path,
+    sample_snapshot: Snapshot,
+) -> Path:
+    """An initialized SDI project directory with one snapshot on disk."""
+    from sdi.snapshot.storage import write_snapshot
+
+    snapshots_dir = sdi_project_dir / ".sdi" / "snapshots"
+    write_snapshot(sample_snapshot, snapshots_dir)
+    return sdi_project_dir

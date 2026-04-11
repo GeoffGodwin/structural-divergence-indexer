@@ -9,7 +9,13 @@ from typing import Any
 import click
 
 from sdi import __version__
+from sdi.cli.catalog_cmd import catalog_cmd
+from sdi.cli.check_cmd import check_cmd
+from sdi.cli.diff_cmd import diff_cmd
 from sdi.cli.init_cmd import init_cmd
+from sdi.cli.show_cmd import show_cmd
+from sdi.cli.snapshot_cmd import snapshot_cmd
+from sdi.cli.trend_cmd import trend_cmd
 
 
 class _SDIGroup(click.Group):
@@ -58,10 +64,16 @@ def cli(
 
 
 cli.add_command(init_cmd)
+cli.add_command(snapshot_cmd)
+cli.add_command(show_cmd)
+cli.add_command(diff_cmd)
+cli.add_command(trend_cmd)
+cli.add_command(check_cmd)
+cli.add_command(catalog_cmd)
 
 
 # ---------------------------------------------------------------------------
-# Placeholder subcommands (implemented in Milestone 8)
+# Placeholder subcommands (implemented in Milestone 9)
 # ---------------------------------------------------------------------------
 
 def _not_yet_implemented(name: str) -> click.Command:
@@ -74,5 +86,4 @@ def _not_yet_implemented(name: str) -> click.Command:
     return _cmd
 
 
-for _name in ("snapshot", "diff", "trend", "check", "show", "boundaries", "catalog"):
-    cli.add_command(_not_yet_implemented(_name))
+cli.add_command(_not_yet_implemented("boundaries"))
