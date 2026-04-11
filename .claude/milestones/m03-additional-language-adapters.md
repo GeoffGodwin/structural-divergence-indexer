@@ -1,4 +1,9 @@
 ### Milestone 3: Additional Language Adapters
+<!-- milestone-meta
+id: "03"
+status: "done"
+-->
+
 
 **Scope:** Implement tree-sitter language adapters for TypeScript, JavaScript, Go, Java, and Rust. Each adapter implements the `LanguageAdapter` interface from Milestone 2 with language-specific import extraction, symbol detection, and pattern instance identification. Also build the `multi-language` test fixture.
 

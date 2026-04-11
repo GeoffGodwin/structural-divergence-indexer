@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -23,11 +24,23 @@ def _register_adapters() -> None:
     if _ADAPTER_FACTORIES:
         return
 
-    try:
-        from sdi.parsing.python import PythonAdapter
-        _ADAPTER_FACTORIES["python"] = PythonAdapter
-    except ImportError as exc:
-        print(f"[warning] Python adapter unavailable: {exc}", file=sys.stderr)
+    _adapter_modules = [
+        ("python", "sdi.parsing.python", "PythonAdapter"),
+        ("typescript", "sdi.parsing.typescript", "TypeScriptAdapter"),
+        ("javascript", "sdi.parsing.javascript", "JavaScriptAdapter"),
+        ("go", "sdi.parsing.go", "GoAdapter"),
+        ("java", "sdi.parsing.java", "JavaAdapter"),
+        ("rust", "sdi.parsing.rust", "RustAdapter"),
+    ]
+    for lang, module_path, class_name in _adapter_modules:
+        try:
+            module = importlib.import_module(module_path)
+            _ADAPTER_FACTORIES[lang] = getattr(module, class_name)
+        except ImportError as exc:
+            print(
+                f"[warning] {lang.capitalize()} adapter unavailable: {exc}",
+                file=sys.stderr,
+            )
 
 
 def _parse_one(args: tuple[str, str, str]) -> FeatureRecord | None:
