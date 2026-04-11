@@ -3,55 +3,67 @@
 
 ## What Was Implemented
 
-**Stage 4 of the SDI pipeline — Pattern Fingerprinting and Catalog.**
+- **`src/sdi/snapshot/model.py`**: Added three new optional fields to `Snapshot` — `graph_metrics`, `pattern_catalog`, and `partition_data` — so that `compute_delta()` can compare two snapshots without re-running the pipeline. All fields default to `{}` and are fully round-tripped through `to_dict()` / `from_dict()`.
 
-- **`src/sdi/patterns/fingerprint.py`** — `PatternFingerprint` frozen dataclass (equality/hashing based on `structural_hash` only). `compute_structural_hash(descriptor, min_nodes)` normalizes AST descriptor dicts: identifier types → `"_ID_"`, literal types → `"_STR_"` / `"_INT_"` / etc.; hashes with SHA-256[:16]. `fingerprint_from_instance(instance, min_nodes)` wraps pre-computed `ast_hash` values from FeatureRecord.pattern_instances; filters by `node_count` if present.
+- **`src/sdi/snapshot/delta.py`** (NEW): `compute_delta(current, previous)` computing all four SDI dimensions:
+  - `pattern_entropy` / `pattern_entropy_delta`: sum of distinct shapes across all categories
+  - `convention_drift` / `convention_drift_delta`: fraction non-canonical / net new-minus-lost shapes
+  - `coupling_topology` / `coupling_topology_delta`: normalized composite of density, hub_concentration, cycle_count/n, max_depth/n
+  - `boundary_violations` / `boundary_violations_delta`: sum of inter-cluster edge counts
+  - Returns null deltas when `previous` is None (first snapshot) or when major versions differ (emits UserWarning)
 
-- **`src/sdi/patterns/categories.py`** — `CategoryDefinition` dataclass. `CATEGORY_NAMES` list of all seven built-in categories. Tree-sitter query strings for Python keyed per category. `get_category()`, `get_all_categories()`, `is_registered_category()` — unknown names return `None`, never raise.
+- **`src/sdi/snapshot/trend.py`** (NEW): `TrendData` dataclass and `compute_trend(snapshots, dimensions)`. Extracts per-dimension time series from ordered snapshot list; handles None values for first-snapshot deltas; dimension filter silently omits unknown names.
 
-- **`src/sdi/patterns/catalog.py`** — `ShapeStats`, `CategoryStats`, `PatternCatalog` dataclasses with `to_dict()`/`from_dict()` JSON round-trip support. `CategoryStats.entropy` = `len(shapes)`, `canonical_hash` = highest instance count shape. `build_pattern_catalog(records, config, prev_catalog, partition)`: collects instances, applies `min_pattern_nodes` filter, computes velocity (null on first snapshot, integer delta on subsequent), boundary spread (null without partition, distinct cluster count with). All seven built-in categories always present, even with zero instances.
+- **`src/sdi/snapshot/assembly.py`** (NEW): `assemble_snapshot(records, graph_metrics, community, catalog, config, commit_sha, timestamp, repo_root)`. Loads previous snapshot from disk, calls `compute_delta()`, writes snapshot atomically, enforces retention. Also includes `_compute_config_hash()` that hashes analysis-affecting config only.
 
-- **`src/sdi/patterns/__init__.py`** — Public API: `build_pattern_catalog`, `PatternCatalog`, `PatternFingerprint`, `CategoryStats`, `ShapeStats`, `compute_structural_hash`.
+- **`src/sdi/snapshot/__init__.py`**: Exported `assemble_snapshot`, `compute_delta`, `compute_trend`, `TrendData`, `ALL_DIMENSIONS`.
 
-- **`tests/fixtures/high-entropy/`** — 10 Python files: `error_bare.py`, `error_single.py`, `error_multi.py`, `error_finally.py`, `error_else.py` (5 distinct error handling structures), `data_orm.py`, `data_cursor.py`, `data_dict.py` (3 data access styles), `logging_module.py`, `logging_instance.py` (2 logging styles), `mixed_patterns.py`.
+- **`tests/unit/test_delta.py`** (NEW): 19 tests covering all seven acceptance criteria: first snapshot nulls, identical snapshots zeros, pattern entropy from known catalogs, convention drift rate (new minus lost), coupling topology from known metrics, boundary violation velocity, incompatible version warning.
 
-- **`tests/unit/test_fingerprint.py`** — 22 tests covering structural hash equality/inequality, identifier stripping, literal stripping, min_nodes threshold filtering, PatternFingerprint equality, hashability, fingerprint_from_instance with/without node_count.
-
-- **`tests/unit/test_catalog.py`** — 13 tests covering CategoryStats (entropy, canonical_hash), build_pattern_catalog grouping/counting, all-builtin-categories guarantee, empty category, min_pattern_nodes filtering, JSON round-trip.
-
-- **`tests/unit/test_catalog_velocity_spread.py`** — 11 tests covering velocity (null first snapshot, delta, negative, new shape), boundary spread (null without partition, cross-cluster count, single-cluster), high-entropy fixture assertions (≥4 error_handling, ≥3 data_access, ≥2 logging).
-
-- **`tests/unit/test_categories.py`** — 9 tests covering all seven categories registered, name resolution, unknown returns None, descriptions, Python queries, get_all_categories copy semantics.
-
-- **`tests/conftest.py`** — Added `sample_pattern_fingerprint`, `sample_pattern_catalog`, `sample_community_result` shared fixtures.
+- **`tests/unit/test_trend.py`** (NEW): 14 tests covering five-snapshot time series, dimension filter, single-snapshot baseline, null delta handling, serialization.
 
 ## Root Cause (bugs only)
-N/A — feature implementation.
+N/A — feature implementation
 
 ## Files Modified
-- `src/sdi/patterns/__init__.py` (NEW)
-- `src/sdi/patterns/fingerprint.py` (NEW)
-- `src/sdi/patterns/categories.py` (NEW)
-- `src/sdi/patterns/catalog.py` (NEW)
-- `tests/unit/test_fingerprint.py` (NEW)
-- `tests/unit/test_catalog.py` (NEW)
-- `tests/unit/test_catalog_velocity_spread.py` (NEW)
-- `tests/unit/test_categories.py` (NEW)
-- `tests/fixtures/high-entropy/error_bare.py` (NEW)
-- `tests/fixtures/high-entropy/error_single.py` (NEW)
-- `tests/fixtures/high-entropy/error_multi.py` (NEW)
-- `tests/fixtures/high-entropy/error_finally.py` (NEW)
-- `tests/fixtures/high-entropy/error_else.py` (NEW)
-- `tests/fixtures/high-entropy/data_orm.py` (NEW)
-- `tests/fixtures/high-entropy/data_cursor.py` (NEW)
-- `tests/fixtures/high-entropy/data_dict.py` (NEW)
-- `tests/fixtures/high-entropy/logging_module.py` (NEW)
-- `tests/fixtures/high-entropy/logging_instance.py` (NEW)
-- `tests/fixtures/high-entropy/mixed_patterns.py` (NEW)
-- `tests/conftest.py` (MODIFIED — added 3 shared fixtures)
+- `src/sdi/snapshot/model.py` (modified) — added graph_metrics, pattern_catalog, partition_data fields to Snapshot
+- `src/sdi/snapshot/delta.py` (NEW) — compute_delta() with four SDI dimension computations
+- `src/sdi/snapshot/trend.py` (NEW) — TrendData dataclass and compute_trend()
+- `src/sdi/snapshot/assembly.py` (NEW) — assemble_snapshot() with write+retention enforcement
+- `src/sdi/snapshot/__init__.py` (modified) — export new public APIs
+- `tests/unit/test_delta.py` (NEW) — delta computation unit tests (284 lines)
+- `tests/unit/test_trend.py` (NEW) — trend computation unit tests (226 lines)
 
 ## Human Notes Status
-No Human Notes section present in this milestone.
+No human notes provided.
+
+## Architecture Change Proposals
+
+### assemble_snapshot() signature differs from milestone spec
+
+**Current constraint**: Milestone specifies `assemble_snapshot(records, graph, metrics, community, catalog, config, commit_sha, timestamp)` — includes `graph` (igraph.Graph object) and no `repo_root`.
+
+**What triggered this**: The raw `graph` object is not needed for v1 assembly — all required data is already in `metrics` (pre-computed by `compute_graph_metrics()`) and `community` (which contains `inter_cluster_edges`). Including igraph.Graph would couple assembly to igraph unnecessarily. `repo_root: Path` is required to resolve `config.snapshots.dir` (which is a relative path string in the config).
+
+**Proposed change**:
+- Removed `graph` parameter
+- Added `repo_root: Path` parameter
+- Signature: `assemble_snapshot(records, graph_metrics, community, catalog, config, commit_sha, timestamp, repo_root)`
+
+**Backward compatible**: N/A — new function, no existing callers.
+
+**ARCHITECTURE.md update needed**: No — architecture doc describes modules abstractly.
+
+## Metric Definitions (documented for reviewer)
+
+| Metric | Absolute value | Delta computation |
+|--------|---------------|------------------|
+| `pattern_entropy` | Sum of distinct shape counts across all categories | current - previous |
+| `convention_drift` | Fraction of non-canonical pattern instances (0.0–1.0) | len(new_shapes) - len(lost_shapes) |
+| `coupling_topology` | avg(density, hub_concentration, cycle_count/n, max_depth/n) | current - previous |
+| `boundary_violations` | Sum of all inter_cluster_edge counts | current - previous |
+
+`convention_drift_delta` uses explicit set difference (`new_shapes - lost_shapes`) rather than simple subtraction, capturing the "net new shapes appearing minus shapes being consolidated" semantic described in the milestone "Watch For" section.
 
 ## Observed Issues (out of scope)
-- `src/sdi/detection/_partition_cache.py:45` — `_read_cache()` calls `.get()` on parsed JSON data without first checking `isinstance(data, dict)`. A top-level JSON array causes `AttributeError`. Pre-existing bug, confirmed failing before M06. Test: `tests/unit/test_leiden_internals.py::test_read_cache_toplevel_array_returns_none`.
+- `src/sdi/detection/_partition_cache.py:45`: `_read_cache()` does `data.get("cache_version")` without checking that `data` is a dict first. If the cache file contains a JSON array (not an object), this raises `AttributeError`. The test `test_leiden_internals.py::test_read_cache_toplevel_array_returns_none` documents this as a pre-existing failure.

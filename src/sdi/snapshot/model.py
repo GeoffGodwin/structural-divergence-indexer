@@ -95,6 +95,10 @@ class Snapshot:
 
     The snapshot_version field is mandatory and must always be present.
     Velocity fields (deltas) are None on the first snapshot.
+
+    graph_metrics, pattern_catalog, and partition_data are stored in
+    serialized dict form so that delta.compute_delta() can compare
+    two snapshots without re-running the pipeline.
     """
 
     snapshot_version: str
@@ -105,6 +109,9 @@ class Snapshot:
     file_count: int
     language_breakdown: dict[str, int]
     feature_records: list[FeatureRecord] = field(default_factory=list)
+    graph_metrics: dict[str, Any] = field(default_factory=dict)
+    pattern_catalog: dict[str, Any] = field(default_factory=dict)
+    partition_data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict. Uses dataclasses.asdict for deep nesting."""
@@ -124,6 +131,9 @@ class Snapshot:
             feature_records=[
                 FeatureRecord.from_dict(fr) for fr in data.get("feature_records", [])
             ],
+            graph_metrics=dict(data.get("graph_metrics", {})),
+            pattern_catalog=dict(data.get("pattern_catalog", {})),
+            partition_data=dict(data.get("partition_data", {})),
         )
 
     def to_json(self) -> str:

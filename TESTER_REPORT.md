@@ -1,13 +1,11 @@
 ## Planned Tests
-- [x] `tests/unit/test_fingerprint.py` — deeply nested descriptor produces stable, exact serialized hash
-- [x] `tests/integration/test_high_entropy_parsing.py` — real tree-sitter parsing of fixture files asserts entropy thresholds
+- [x] `tests/unit/test_assembly.py` — assemble_snapshot() integration chain and _compute_config_hash() determinism
 
 ## Test Run Results
-Passed: 455  Failed: 1
+Passed: 40  Failed: 0
 
 ## Bugs Found
 None
 
 ## Files Modified
-- [x] `tests/unit/test_fingerprint.py`
-- [x] `tests/integration/test_high_entropy_parsing.py`
+- [x] `tests/unit/test_assembly.py`
