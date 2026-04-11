@@ -1,72 +1,57 @@
 # Coder Summary
-## Status: COMPLETE (rework cycle 1)
+## Status: COMPLETE
 
 ## What Was Implemented
 
-### Milestone 5: Leiden Community Detection and Partition Stability
+**Stage 4 of the SDI pipeline — Pattern Fingerprinting and Catalog.**
 
-Created the `src/sdi/detection/` package implementing Stage 3 of the pipeline.
+- **`src/sdi/patterns/fingerprint.py`** — `PatternFingerprint` frozen dataclass (equality/hashing based on `structural_hash` only). `compute_structural_hash(descriptor, min_nodes)` normalizes AST descriptor dicts: identifier types → `"_ID_"`, literal types → `"_STR_"` / `"_INT_"` / etc.; hashes with SHA-256[:16]. `fingerprint_from_instance(instance, min_nodes)` wraps pre-computed `ast_hash` values from FeatureRecord.pattern_instances; filters by `node_count` if present.
 
-**`CommunityResult` dataclass** (`leiden.py`):
-- `partition`: cluster assignment per vertex (igraph vertex id → cluster id)
-- `stability_score`: fraction of nodes retaining stable cluster membership (1.0 on cold start or unchanged graph)
-- `cluster_count`: number of distinct clusters detected
-- `inter_cluster_edges`: list of `{"source_cluster", "target_cluster", "count"}` dicts for directed edges crossing boundaries
-- `surface_area_ratios`: per-cluster ratio of boundary-crossing edges to total edges touching that cluster
-- `vertex_names`: ordered file paths corresponding to partition indices (Seeds Forward for M06/M07/M09)
+- **`src/sdi/patterns/categories.py`** — `CategoryDefinition` dataclass. `CATEGORY_NAMES` list of all seven built-in categories. Tree-sitter query strings for Python keyed per category. `get_category()`, `get_all_categories()`, `is_registered_category()` — unknown names return `None`, never raise.
 
-**Leiden wrapper** (`leiden.py` + `_partition_cache.py`):
-- `run_leiden(graph, config, cache_dir)`: main entry point
-- Cold start: seeds from `config.core.random_seed` (default 42) → deterministic results
-- Warm start: builds `initial_membership` from cached stable partition; seeds Leiden from same random seed for reproducibility
-- Graph with `< 10` nodes: emits `warnings.warn("insufficient structure for boundary detection")` and returns trivial partition (all nodes in cluster 0)
-- `leiden_gamma` from `config.boundaries.leiden_gamma` passed as `resolution_parameter`
+- **`src/sdi/patterns/catalog.py`** — `ShapeStats`, `CategoryStats`, `PatternCatalog` dataclasses with `to_dict()`/`from_dict()` JSON round-trip support. `CategoryStats.entropy` = `len(shapes)`, `canonical_hash` = highest instance count shape. `build_pattern_catalog(records, config, prev_catalog, partition)`: collects instances, applies `min_pattern_nodes` filter, computes velocity (null on first snapshot, integer delta on subsequent), boundary spread (null without partition, distinct cluster count with). All seven built-in categories always present, even with zero instances.
 
-**Partition cache** (`_partition_cache.py`):
-- Schema: `{"cache_version": "0.1.0", "vertex_names": [...], "stable_partition": [...], "node_history": {...}}`
-- Includes `cache_version` field for future compatibility (Seeds Forward requirement)
-- Atomic write via `tempfile.mkstemp` + `os.replace()`
-- Missing or corrupt cache → cold start without error
+- **`src/sdi/patterns/__init__.py`** — Public API: `build_pattern_catalog`, `PatternCatalog`, `PatternFingerprint`, `CategoryStats`, `ShapeStats`, `compute_structural_hash`.
 
-**Stability threshold debounce** (`_partition_cache.py/_apply_debounce`):
-- Per-node tracking: `stable_cluster`, `candidate_cluster`, `consecutive_runs`
-- Node only promoted to new cluster after `stability_threshold` consecutive runs in that cluster
-- Flicker (node returns to stable cluster) resets counter to 0
-- New nodes (not in prior cache) accepted immediately
+- **`tests/fixtures/high-entropy/`** — 10 Python files: `error_bare.py`, `error_single.py`, `error_multi.py`, `error_finally.py`, `error_else.py` (5 distinct error handling structures), `data_orm.py`, `data_cursor.py`, `data_dict.py` (3 data access styles), `logging_module.py`, `logging_instance.py` (2 logging styles), `mixed_patterns.py`.
 
-**Tests** (`test_leiden.py` + `test_leiden_internals.py`):
-- 30 tests total, all passing (11 detection-level, 19 internal unit tests)
-- Coverage: cold start determinism, warm start stability (1.0 on unchanged graph), gamma effect on cluster count, trivial partition for small graphs, cache round-trip, corrupt cache fallback, debounce promotion and flicker reset, stability score computation, inter-cluster edge counting, surface area ratio computation
+- **`tests/unit/test_fingerprint.py`** — 22 tests covering structural hash equality/inequality, identifier stripping, literal stripping, min_nodes threshold filtering, PatternFingerprint equality, hashability, fingerprint_from_instance with/without node_count.
 
-## Architecture Change Proposals
+- **`tests/unit/test_catalog.py`** — 13 tests covering CategoryStats (entropy, canonical_hash), build_pattern_catalog grouping/counting, all-builtin-categories guarantee, empty category, min_pattern_nodes filtering, JSON round-trip.
 
-**New file: `_partition_cache.py`** — The 300-line ceiling required splitting `leiden.py`. Cache I/O, debounce, and stability score computation were extracted to `src/sdi/detection/_partition_cache.py`. The milestone only specified `leiden.py` and `__init__.py`, but the ceiling left no alternative. Both `leiden.py` and `tests/unit/test_leiden_internals.py` import directly from `_partition_cache` — the module boundary is clean (cache management is a distinct concern).
+- **`tests/unit/test_catalog_velocity_spread.py`** — 11 tests covering velocity (null first snapshot, delta, negative, new shape), boundary spread (null without partition, cross-cluster count, single-cluster), high-entropy fixture assertions (≥4 error_handling, ≥3 data_access, ≥2 logging).
 
-- **Current constraint**: Milestone spec named `leiden.py` and `__init__.py` as the only files
-- **What triggered this**: `leiden.py` was 431 lines (300-line ceiling is hard)
-- **Proposed change**: Extracted cache/debounce/stability functions to `_partition_cache.py`; `leiden.py` imports from it
-- **Backward compatible**: Yes — `detect_communities` public API is unchanged
-- **ARCHITECTURE.md update needed**: No — `_partition_cache.py` is a private helper within the `detection` package
+- **`tests/unit/test_categories.py`** — 9 tests covering all seven categories registered, name resolution, unknown returns None, descriptions, Python queries, get_all_categories copy semantics.
+
+- **`tests/conftest.py`** — Added `sample_pattern_fingerprint`, `sample_pattern_catalog`, `sample_community_result` shared fixtures.
+
+## Root Cause (bugs only)
+N/A — feature implementation.
 
 ## Files Modified
-
-| File | Change |
-|---|---|
-| `src/sdi/detection/__init__.py` | **New.** Public API: `detect_communities(graph, config, cache_dir) -> CommunityResult`. |
-| `src/sdi/detection/leiden.py` | **New.** `CommunityResult` dataclass, `_compute_inter_cluster_edges`, `_compute_surface_area_ratios`, `run_leiden`. |
-| `src/sdi/detection/_partition_cache.py` | **New.** `PARTITION_CACHE_VERSION`, `_read_cache`, `_write_cache`, `_build_initial_membership`, `_apply_debounce`, `_compute_stability_score`. |
-| `tests/unit/test_leiden.py` | **New.** 11 detection-level tests (cold start, warm start, gamma, trivial partition, cache, community result shape). |
-| `tests/unit/test_leiden_internals.py` | **New.** 20 internal unit tests (debounce, cache I/O, stability score, metrics). |
-
-### Rework cycle 1 changes
-
-| File | Change |
-|---|---|
-| `src/sdi/detection/leiden.py` | **Fixed.** `_compute_surface_area_ratios`: removed `cluster_count` parameter; cluster IDs are now derived from `set(partition)` directly. Updated call site in `run_leiden` (dropped third argument). |
-| `tests/unit/test_leiden_internals.py` | **Fixed.** Removed `cluster_count` keyword argument from all three `_compute_surface_area_ratios` call sites. Updated `test_surface_area_ratios_empty_cluster` to assert `set(ratios.keys()) == {0, 2}` (was masking the bug by passing `cluster_count=3` for a 2-element set). Added `test_surface_area_ratios_non_contiguous_ids` verifying that non-contiguous IDs like `[0, 0, 4, 4]` produce keys `{0, 4}` and not the incorrect range `{0, 1}`. |
+- `src/sdi/patterns/__init__.py` (NEW)
+- `src/sdi/patterns/fingerprint.py` (NEW)
+- `src/sdi/patterns/categories.py` (NEW)
+- `src/sdi/patterns/catalog.py` (NEW)
+- `tests/unit/test_fingerprint.py` (NEW)
+- `tests/unit/test_catalog.py` (NEW)
+- `tests/unit/test_catalog_velocity_spread.py` (NEW)
+- `tests/unit/test_categories.py` (NEW)
+- `tests/fixtures/high-entropy/error_bare.py` (NEW)
+- `tests/fixtures/high-entropy/error_single.py` (NEW)
+- `tests/fixtures/high-entropy/error_multi.py` (NEW)
+- `tests/fixtures/high-entropy/error_finally.py` (NEW)
+- `tests/fixtures/high-entropy/error_else.py` (NEW)
+- `tests/fixtures/high-entropy/data_orm.py` (NEW)
+- `tests/fixtures/high-entropy/data_cursor.py` (NEW)
+- `tests/fixtures/high-entropy/data_dict.py` (NEW)
+- `tests/fixtures/high-entropy/logging_module.py` (NEW)
+- `tests/fixtures/high-entropy/logging_instance.py` (NEW)
+- `tests/fixtures/high-entropy/mixed_patterns.py` (NEW)
+- `tests/conftest.py` (MODIFIED — added 3 shared fixtures)
 
 ## Human Notes Status
-No human notes in this task.
+No Human Notes section present in this milestone.
 
 ## Observed Issues (out of scope)
-None observed.
+- `src/sdi/detection/_partition_cache.py:45` — `_read_cache()` calls `.get()` on parsed JSON data without first checking `isinstance(data, dict)`. A top-level JSON array causes `AttributeError`. Pre-existing bug, confirmed failing before M06. Test: `tests/unit/test_leiden_internals.py::test_read_cache_toplevel_array_returns_none`.

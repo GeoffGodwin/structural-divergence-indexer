@@ -1,17 +1,7 @@
-# Reviewer Report — M05: Leiden Community Detection and Partition Stability
-Review cycle: 2 of 4
+# Reviewer Report — M06 Pattern Fingerprinting and Catalog
 
 ## Verdict
 APPROVED_WITH_NOTES
-
-## ACP Verdicts
-- ACP: `_partition_cache.py` extraction — ACCEPT: 300-line ceiling compliance with clean concern separation. Cache I/O + debounce is a distinct concern from algorithm coordination. Private module, no public API surface change.
-
-## Prior Blocker Verification
-
-**[FIXED] leiden.py `_compute_surface_area_ratios` non-contiguous cluster ID bug**
-
-Evidence: `leiden.py:127` now does `cluster_ids = set(partition)` and the function signature no longer accepts a `cluster_count` parameter. The return dict on `leiden.py:142-145` iterates `cluster_ids` directly — no range-based assumption. The call site at `leiden.py:236` passes only `(graph, stable_partition)`. `test_leiden_internals.py:284-291` now asserts `set(ratios.keys()) == {0, 2}` for partition `[0, 0, 2]`. `test_leiden_internals.py:293-307` adds the `test_surface_area_ratios_non_contiguous_ids` test explicitly covering partition `[0, 0, 4, 4]` with expected keys `{0, 4}`. Blocker is fully resolved.
 
 ## Complex Blockers (senior coder)
 - None
@@ -20,14 +10,16 @@ Evidence: `leiden.py:127` now does `cluster_ids = set(partition)` and the functi
 - None
 
 ## Non-Blocking Notes
-- `leiden.py:32-37,43-48`: module-level `ImportError` guard still uses `print(file=sys.stderr)` rather than `click.echo(..., err=True)`. Acceptable at import time (Click context unavailable); carry forward from cycle 1 for cleanup pass.
-- `_partition_cache.py` `_read_cache`: exception tuple still does not include `AttributeError` or `TypeError`. A top-level JSON array parses without error but `.get()` raises `AttributeError`. Stated contract is "corrupt cache → cold start without error." Add `AttributeError, TypeError` or an `isinstance(data, dict)` guard. Carry forward from cycle 1.
-- `_partition_cache.py` `_read_cache` return type: `dict | None` is still unparameterized — should be `dict[str, Any] | None` for mypy strictness. Minor.
+- `categories.py:67-70` — The `async_patterns` query includes `(function_definition) @async_def` which matches ALL function definitions, not just async ones. The correct tree-sitter query for Python async functions requires a field predicate (`"async"` keyword marker). As-written, the category will include every function definition, inflating entropy for non-async codebases. Not urgent since these queries are not executed in M06, but should be corrected before the parsing adapters run them.
+- `catalog.py:21` — TYPE_CHECKING import of `CommunityResult` from `sdi.detection.leiden` creates a type-level dependency from patterns → detection, which CLAUDE.md prohibits ("sdi/patterns/ depends on sdi/parsing/ output — NOT on graph or detection"). At runtime this is a no-op (guarded by TYPE_CHECKING + `from __future__ import annotations`), but the conceptual boundary is still crossed. Consider defining a `PartitionProtocol` in patterns (or accepting the duck-typed dict) to keep the type boundary clean.
+- `catalog.py:22` — TYPE_CHECKING import of `FeatureRecord` from `sdi.snapshot.model` instead of `sdi.parsing`. Per CLAUDE.md, patterns depends on parsing output, and `sdi.parsing.__init__` is the declared home of `FeatureRecord`. Using the snapshot module as the import source inverts the intended layer ordering (snapshot depends on patterns, not the other way around).
+- `catalog.py:240-264` — `_compute_velocity` takes both `prev_catalog` and `prev_cat` as arguments. `prev_cat` is derived from `prev_catalog` by the caller, making the `prev_catalog` argument exist solely for a None-check. The function would be cleaner as `_compute_velocity(hash_val, current_count, prev_cat, *, has_prev: bool)` or by folding the None-guard into the call site.
 
 ## Coverage Gaps
-- `_read_cache` still not tested with a top-level JSON array as file content (e.g., `[1,2,3]`); should return `None` without raising. Carry forward from cycle 1.
-- `_build_initial_membership` still not tested with a cache that passes `_read_cache` validation but is missing `vertex_names` or `stable_partition` keys — KeyError would propagate to caller. Carry forward from cycle 1.
-- Non-contiguous cluster ID coverage gap from cycle 1 is now resolved by `test_surface_area_ratios_non_contiguous_ids`.
+- The 11 Python files in `tests/fixtures/high-entropy/` are never parsed by any test in M06. The "high-entropy" assertions in `test_catalog_velocity_spread.py` use fully synthetic in-memory records with hardcoded hash strings, not the fixture files. An integration test that actually parses these fixtures with tree-sitter and asserts `entropy >= 4` for `error_handling` would validate that the queries and the parsing adapters agree with the fixture design intent.
+- No test exercises `compute_structural_hash` with a deeply nested descriptor to confirm that recursive `_normalize_serialize` produces a stable, expected hash string. Current tests confirm hash equality/inequality properties but not the actual serialized form.
 
 ## Drift Observations
-- `test_leiden.py:36-40` and `test_leiden_internals.py:36-40` still duplicate the `_make_graph` helper verbatim. Consolidation into `tests/conftest.py` or a shared `tests/unit/helpers.py` remains a pending cleanup.
+- `tests/unit/test_catalog.py:24-49` and `tests/unit/test_catalog_velocity_spread.py:23-44` — `make_record()`, `make_instance()`, and `default_config()` helpers are duplicated verbatim across both test files. These could be promoted to `conftest.py` (where `sample_pattern_catalog` and `sample_community_result` already live) to remove the duplication.
+- `sdi.snapshot.model.FeatureRecord` vs `sdi.parsing.FeatureRecord` — `conftest.py` imports from `sdi.parsing`, but `test_catalog.py` and `test_catalog_velocity_spread.py` import from `sdi.snapshot.model`. These should agree on a single canonical location per CLAUDE.md.
+- `ShapeStats.to_dict()` deduplicates `file_paths` via `sorted(set(...))` on serialization but the in-memory `file_paths` list may contain duplicates (one entry per instance occurrence). This means `instance_count` and `len(file_paths)` mean different things (instances vs unique files), which is intentional but undocumented — a comment on `ShapeStats.file_paths` clarifying "one path per occurrence, may contain duplicates" would prevent future confusion.

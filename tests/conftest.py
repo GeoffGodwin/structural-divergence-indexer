@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from sdi.detection.leiden import CommunityResult
 from sdi.parsing import FeatureRecord
+from sdi.patterns.catalog import CategoryStats, PatternCatalog, ShapeStats
+from sdi.patterns.fingerprint import PatternFingerprint
 from sdi.snapshot.model import (
     SNAPSHOT_VERSION,
     DivergenceSummary,
@@ -86,3 +89,49 @@ def sdi_project_dir(git_repo_dir: Path) -> Path:
     sdi_dir.mkdir()
     (sdi_dir / "snapshots").mkdir()
     return git_repo_dir
+
+
+@pytest.fixture
+def sample_pattern_fingerprint() -> PatternFingerprint:
+    """A PatternFingerprint with a known structural hash."""
+    return PatternFingerprint(
+        category="error_handling",
+        structural_hash="abc12345def67890",
+        node_count=10,
+    )
+
+
+@pytest.fixture
+def sample_pattern_catalog() -> PatternCatalog:
+    """A PatternCatalog with two error_handling shapes for round-trip and velocity tests."""
+    shapes = {
+        "hash_a": ShapeStats(
+            structural_hash="hash_a",
+            instance_count=3,
+            file_paths=["src/a.py", "src/b.py"],
+            velocity=None,
+            boundary_spread=None,
+        ),
+        "hash_b": ShapeStats(
+            structural_hash="hash_b",
+            instance_count=1,
+            file_paths=["src/c.py"],
+            velocity=None,
+            boundary_spread=None,
+        ),
+    }
+    cat = CategoryStats(name="error_handling", shapes=shapes)
+    return PatternCatalog(categories={"error_handling": cat})
+
+
+@pytest.fixture
+def sample_community_result() -> CommunityResult:
+    """A CommunityResult with two clusters over four files."""
+    return CommunityResult(
+        partition=[0, 0, 1, 1],
+        stability_score=1.0,
+        cluster_count=2,
+        inter_cluster_edges=[],
+        surface_area_ratios={0: 0.0, 1: 0.0},
+        vertex_names=["src/a.py", "src/b.py", "src/c.py", "src/d.py"],
+    )

@@ -1,11 +1,13 @@
 ## Planned Tests
-- [x] `tests/unit/test_leiden_internals.py` — add _read_cache JSON-array coverage and _build_initial_membership missing-keys coverage
+- [x] `tests/unit/test_fingerprint.py` — deeply nested descriptor produces stable, exact serialized hash
+- [x] `tests/integration/test_high_entropy_parsing.py` — real tree-sitter parsing of fixture files asserts entropy thresholds
 
 ## Test Run Results
-Passed: 22  Failed: 1
+Passed: 455  Failed: 1
 
 ## Bugs Found
-- BUG: [src/sdi/detection/_partition_cache.py:45] _read_cache raises AttributeError when partition.json contains a top-level JSON array (e.g. [1,2,3]) because AttributeError is not in the except tuple; stated contract is corrupt cache → cold start (return None)
+None
 
 ## Files Modified
-- [x] `tests/unit/test_leiden_internals.py`
+- [x] `tests/unit/test_fingerprint.py`
+- [x] `tests/integration/test_high_entropy_parsing.py`
