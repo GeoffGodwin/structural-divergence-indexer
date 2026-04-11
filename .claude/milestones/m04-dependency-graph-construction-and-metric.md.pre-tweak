@@ -1,10 +1,8 @@
-
 ### Milestone 4: Dependency Graph Construction and Metrics
 <!-- milestone-meta
 id: "04"
-status: "done"
+status: "in_progress"
 -->
-<!-- PM-tweaked: 2026-04-11 -->
 
 
 **Scope:** Build Stage 2 of the pipeline — construct a directed dependency graph from `FeatureRecord` objects using igraph. Compute graph metrics: node count, edge count, density, connected components, cycle count, and hub concentration. Support both weighted (by import symbol count) and unweighted edges via config toggle.
@@ -37,10 +35,10 @@ status: "done"
 - Import resolution must handle the case where the target file does not exist in the analyzed set (external dependency) — these edges are silently dropped, not errored
 - Go and Java use package-based imports not file-based — the builder needs a resolution step that maps package names to file nodes, possibly via a mapping built during discovery
 - Graph density for large sparse graphs can be very small (0.001) — ensure the metric is reported with sufficient decimal precision
-- [PM: The `dict` in `build_dependency_graph`'s return type should contain import-resolution metadata: `{"unresolved_count": int, "self_import_count": int}`. The file-path-to-node-ID mapping is stored as vertex attributes on the graph itself (`graph.vs["name"]`), not in this dict. Returning it separately would duplicate data already in the graph.]
-- [PM: `hub_concentration` in the metrics dict is a **scalar float**: the ratio of nodes whose in-degree exceeds a fixed threshold (in-degree ≥ 3, or equivalently the top 10% by in-degree, whichever is smaller) to total node count. Report it as `0.0` for graphs with fewer than 3 nodes. A separate `hub_nodes` key (list of file paths for nodes meeting the hub threshold) may be included in the metrics dict alongside the scalar for downstream use, but `hub_concentration` itself must be a float in [0.0, 1.0]. N for "top N" in the acceptance criteria refers to this threshold-based selection, not a fixed count.]
 
 **Seeds Forward:**
 - The `igraph.Graph` object is passed directly to `detection/leiden.py` in Milestone 5 — vertex names and edge structure must be stable
 - The metrics dict is included in the snapshot JSON — its key names (`node_count`, `edge_count`, `density`, `cycle_count`, `hub_concentration`, `component_count`, `max_depth`) become part of the snapshot schema
 - Cycle count delta and hub concentration delta are components of the "coupling topology delta" SDI dimension — Milestone 7 computes these deltas
+
+---

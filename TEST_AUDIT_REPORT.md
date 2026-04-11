@@ -1,50 +1,54 @@
 ## Test Audit Report
 
 ### Audit Summary
-Tests audited: 3 files, 87 test functions
-- `tests/unit/test_go_adapter.py`: 26 tests
-- `tests/unit/test_java_adapter.py`: 29 tests
-- `tests/unit/test_rust_adapter.py`: 32 tests
-
+Tests audited: 1 file (`tests/unit/test_graph_builder.py`), 44 test functions  
 Verdict: PASS
+
+> **Note on audit context:** The "Test Files Under Audit" field listed `tests/unit/test_graph_builder.py` twice (duplicate entry). `tests/unit/test_graph_metrics.py` was read for implementation context only; issues in that file are not reported per audit rules ("Do not flag issues in test files that were NOT listed in the audit context").
 
 ---
 
 ### Findings
 
-#### INTEGRITY: Vacuous assertions in test_pattern_has_required_keys
-- File: `tests/unit/test_go_adapter.py:138`
-- File: `tests/unit/test_java_adapter.py:159`
-- File: `tests/unit/test_rust_adapter.py:190`
-- Issue: Each `test_pattern_has_required_keys` test iterates over `record.pattern_instances` and asserts that each element contains `"category"`, `"ast_hash"`, and `"location"` keys. If the list is empty — e.g., due to a regression in pattern detection — the `for` loop body never executes and all assertions pass vacuously. This is functionally equivalent to `assert True`. The tests do not guard with `assert len(record.pattern_instances) > 0` before the loop. In the current implementation the list is non-empty for the given inputs and the real code path is exercised; but any future regression that silently returns `[]` from `_extract_patterns` would not be caught by these tests.
+#### NAMING: Misleading test name claims an untestable scenario
+- File: `tests/unit/test_graph_builder.py:436`
+- Issue: `TestResolveImportTieBreaking.test_genuinely_ambiguous_equal_length_returns_a_result` promises to test a "genuinely ambiguous" equal-length tie-breaking case, but the test's own inline comments explicitly acknowledge the scenario is mathematically impossible with distinct module keys: *"only ONE of these can match as a suffix."* The test body makes two separate, unambiguous calls — each resolves against exactly one matching key. No tie exists and none is tested. The name creates a false expectation about the code path being exercised.
+- Severity: LOW
+- Action: Rename to `test_equal_length_distinct_keys_each_resolve_correctly` and update the docstring to describe what is actually asserted (two independent unambiguous resolutions). The assertions themselves are correct — only the framing is wrong.
+
+#### INTEGRITY: Test adds no unique behavioral coverage over its siblings
+- File: `tests/unit/test_graph_builder.py:436`
+- Issue: The two assertions in `test_genuinely_ambiguous_equal_length_returns_a_result` are structurally identical to scenarios already covered in the same class: `_resolve_import("x.b.c", ...)` duplicates the pattern in `test_two_equal_length_suffix_keys_returns_one_result` (line 409) and `_resolve_import("x.a.c", ...)` duplicates `test_ambiguous_single_segment_tie` (line 424). The implementation behavior under true equal-length contention (first-encountered key wins because the loop uses strict `>`) is never exercised — it cannot be, because two distinct keys cannot both be valid dotted suffixes of the same import string at the same length.
+- Severity: LOW
+- Action: Consider removing this test to eliminate the misleading "genuinely ambiguous" framing. If retained, rename as above and update the comment to acknowledge it tests two non-competing cases, not a tie.
+
+#### INTEGRITY: CODER_SUMMARY.md documents inflated test counts
+- File: `CODER_SUMMARY.md` (documentation only — not a test code defect)
+- Issue: CODER_SUMMARY.md claims "70 tests" for `tests/unit/test_graph_builder.py`. The actual file contains 44 test functions, confirmed by the tester's own run ("Passed: 44 Failed: 0"). Independently, `tests/unit/test_graph_metrics.py` contains 37 test functions, not 70. The inflated counts suggest the coder summarized without verifying. This does not affect runtime test integrity but degrades trust in coder self-reporting.
 - Severity: MEDIUM
-- Action: Add an explicit length assertion immediately before each `for` loop. Example for Go (`test_go_adapter.py:147`):
-  ```python
-  assert len(record.pattern_instances) > 0, "expected at least one error_handling pattern"
-  for pi in record.pattern_instances:
-      assert "category" in pi
-      assert "ast_hash" in pi
-      assert "location" in pi
-  ```
-  Apply the same fix in `test_java_adapter.py:168` and `test_rust_adapter.py:199`.
+- Action: Correct CODER_SUMMARY.md: `test_graph_builder.py` = 44 tests, `test_graph_metrics.py` = 37 tests. No changes to test code required.
 
-#### NAMING: Misleading comment in test_block_comment_opening_and_close_on_same_line
-- File: `tests/unit/test_go_adapter.py:224`
-- Issue: The opening comment reads `# "/* ... */" on the same line should not enter block-comment mode`. This is imprecise: the `count_loc` implementation does set `in_block_comment = True` before immediately resetting it when `*/` is found in `line[2:]`. The relevant behavior — that the whole line is unconditionally skipped via `continue` regardless of the inline close — is explained two lines later, but the first comment creates a contradictory impression of what the implementation does. The assertion (`assert count_loc(source) == 0`) is correct.
+#### COVERAGE: Weakened assertion on a deterministically-countable value
+- File: `tests/unit/test_graph_builder.py:355`
+- Issue: `TestBuildDependencyGraphNonPythonRecords.test_typescript_record_silently_ignored_as_node` asserts `assert meta["unresolved_count"] >= 1` instead of `== 1`. Given the three input records (a.py imports "b" → resolves; b.py imports nothing; frontend/app.ts imports "some.ts.dep" → unresolved), the unresolved count is deterministically 1. The `>= 1` form would pass silently if a regression caused TypeScript imports to be double-counted (count returns 2+) or if `unresolved_count` accumulated across records incorrectly.
 - Severity: LOW
-- Action: Replace the opening comment with a precise description such as: `# A line opening a block comment is skipped entirely even when */ appears on the same line; any code after */ is not counted.`
+- Action: Change `assert meta["unresolved_count"] >= 1` to `assert meta["unresolved_count"] == 1`.
 
-#### COVERAGE: No negative pattern-detection tests
-- File: `tests/unit/test_go_adapter.py`, `tests/unit/test_java_adapter.py`, `tests/unit/test_rust_adapter.py`
-- Issue: Pattern detection is only tested via happy-path inputs (source that contains the target construct). No test asserts that `pattern_instances` is empty for source that should produce zero matches (e.g., a Go file with no `if` statements, a Java file with no `try` blocks, a Rust file with no `match` expressions). A regression that emits false positives on all code would not be caught. By comparison, symbol detection does include negative cases (`test_unexported_function_excluded`, `test_private_function_excluded`, `test_private_function_excluded`).
-- Severity: LOW
-- Action: Add one negative case per adapter, e.g. for Go in `TestPatternInstances`:
-  ```python
-  def test_no_patterns_in_clean_file(self, adapter, repo_root):
-      path = repo_root / "clean.go"
-      record = _parse(adapter, path, "package main\nfunc add(a, b int) int { return a + b }\n")
-      assert record.pattern_instances == []
-  ```
+---
+
+### Passing Checks (no findings)
+
+**Assertion Honesty:** All 44 assertions derive expected values from traceable inputs. No hardcoded magic numbers that aren't explained by the test inputs. Edge counts of 1, 2, 3 correspond to explicitly stated import lists; weights of 1 and 2 correspond to single and duplicate import occurrences. All values are independently verifiable from the implementation logic in `builder.py`.
+
+**Implementation Exercise:** Tests call the real functions — `build_dependency_graph`, `_build_module_map`, `_file_path_to_module_key`, `_resolve_import` — directly with real `FeatureRecord` objects. No over-mocking. No test that only validates mock setup.
+
+**Test Isolation:** All fixture data is constructed in-memory via `_make_record` and `_make_config` helpers. No test reads mutable project state (no `CODER_SUMMARY.md`, build logs, `.sdi/` artifacts, or pipeline reports). All inputs are self-contained within each test method.
+
+**Scope Alignment:** All imports resolve to current implementation symbols: `SDIConfig().boundaries.weighted_edges` is confirmed present at `src/sdi/config.py:62`. The four private helpers tested directly (`_build_module_map`, `_file_path_to_module_key`, `_resolve_import`) exist in `builder.py`. No orphaned, stale, or renamed references.
+
+**Test Naming (overall):** Outside the one flagged case, names are descriptive and encode scenario plus expected outcome: `test_no_partial_segment_match`, `test_duplicate_weighted_sums_weight`, `test_self_import_not_in_unresolved`, `test_src_prefix_only_stripped_once`. The three coverage-gap classes are clearly labeled as targeting specific reviewer-identified gaps.
+
+**Test Weakening:** TESTER_REPORT.md states only additions were made (three new classes: `TestFilePathToModuleKeyDeepSrcLayout`, `TestBuildDependencyGraphNonPythonRecords`, `TestResolveImportTieBreaking`). Verified by inspection — original tests are structurally unchanged; no assertions were broadened or removed.
 
 ---
 
@@ -52,10 +56,10 @@ Verdict: PASS
 
 | Rubric Point | Verdict | Notes |
 |---|---|---|
-| 1. Assertion Honesty | PASS | All assertions derive from real implementation calls. No hard-coded values unrelated to logic. |
-| 2. Edge Case Coverage | PASS | Aliased/blank imports, deduplication, empty files, inline vs external mods, unexported symbols, static imports, wildcard use, Rust doc comments all covered. `count_loc` has thorough block-comment edge cases in all three files. |
-| 3. Implementation Exercise | PASS | All tests call `parse_file()` or `count_loc()` against real tree-sitter parsers via `tmp_path` files. No over-mocking. |
-| 4. Test Weakening | PASS | Tester only added new test classes (TestCountLoc, TestStaticImports, wildcard use test). Zero modifications to existing assertions. |
-| 5. Naming and Intent | PASS (one LOW) | Names are descriptive and encode scenario plus expected outcome. One misleading comment (not test name) flagged above. |
-| 6. Scope Alignment | PASS | All imports (`GoAdapter`, `JavaAdapter`, `RustAdapter`, `count_loc`, `FeatureRecord`) exist in the current implementation. No orphaned tests. |
-| 7. Isolation | PASS | All file-creating tests use pytest's `tmp_path`. No tests read mutable project-state files (pipeline reports, logs, build artifacts). |
+| 1. Assertion Honesty | PASS | All expected values traceable to implementation logic and test inputs. |
+| 2. Edge Case Coverage | PASS (one LOW) | Empty inputs, self-imports, duplicates (weighted/unweighted), stdlib/third-party exclusion, non-Python records, and suffix-based resolution all covered. One weakened `>= 1` assertion. |
+| 3. Implementation Exercise | PASS | Real functions called with real objects. No test only validates mock setup. |
+| 4. Test Weakening | PASS | Tester added new tests only; zero modifications to existing assertions. |
+| 5. Naming and Intent | PASS (one LOW) | One test name promises a scenario it does not test. All other names descriptive. |
+| 6. Scope Alignment | PASS | All referenced symbols exist in current codebase. No orphaned tests. |
+| 7. Isolation | PASS | All fixture data is in-memory. No reads from mutable project-state files. |
