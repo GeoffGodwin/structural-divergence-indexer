@@ -219,7 +219,7 @@ class TestHubConcentration:
         assert m["hub_nodes"] == []
 
     def test_hub_detected_at_threshold(self) -> None:
-        # Node 0 has in-degree 3 (exactly at threshold)
+        # Node 0 has in-degree 4 (above threshold of 3)
         g = _make_graph(
             5,
             [(1, 0), (2, 0), (3, 0), (4, 0)],

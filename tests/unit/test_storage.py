@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -93,11 +95,9 @@ class TestWriteSnapshot:
     def test_filename_matches_pattern(self, tmp_path: Path) -> None:
         snap = _make_snapshot("2026-04-10T00:00:00Z")
         path = write_snapshot(snap, tmp_path)
-        import re
         assert re.match(r"^snapshot_\d{8}T\d{6}Z_[0-9a-f]{6}\.json$", path.name)
 
     def test_written_file_is_valid_json(self, tmp_path: Path) -> None:
-        import json
         snap = _make_snapshot("2026-04-10T17:25:00Z")
         path = write_snapshot(snap, tmp_path)
         json.loads(path.read_text(encoding="utf-8"))  # must not raise

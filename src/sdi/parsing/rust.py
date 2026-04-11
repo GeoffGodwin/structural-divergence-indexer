@@ -194,7 +194,10 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
     instances: list[dict[str, Any]] = []
     for node in _walk_nodes(root):
         if node.type == "match_expression":
-            # Heuristic: if any arm has Ok/Err/Some/None it's error handling
+            # Heuristic: if any arm has Ok/Err/Some/None it's error handling.
+            # Acknowledged approximation: "None" as a substring could match
+            # enum variants like `NoneType` or string literals. Accepted per
+            # SDI's measurement-not-judgment principle.
             text = _node_text(node)
             if any(kw in text for kw in ("Err", "Ok", "Some", "None")):
                 instances.append({

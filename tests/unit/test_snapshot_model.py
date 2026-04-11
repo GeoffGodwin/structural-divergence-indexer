@@ -6,10 +6,10 @@ import json
 
 import pytest
 
+from sdi.parsing import FeatureRecord
 from sdi.snapshot.model import (
     SNAPSHOT_VERSION,
     DivergenceSummary,
-    FeatureRecord,
     Snapshot,
 )
 
