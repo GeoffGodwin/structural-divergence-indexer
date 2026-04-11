@@ -5,6 +5,9 @@ Items are auto-collected from `## Non-Blocking Notes` in REVIEWER_REPORT.md.
 The coder is prompted to address these when the count exceeds the threshold.
 
 ## Open
+- [ ] [2026-04-11 | "M04"] `src/sdi/graph/metrics.py:24-25` — `if TYPE_CHECKING: pass` empty dead block was NOT removed (carried over from cycle 1 non-blocking note). Remove it in a cleanup pass.
+- [ ] [2026-04-11 | "M04"] `src/sdi/graph/builder.py:127` — Return type still uses bare `dict` instead of `dict[str, int]`. More precise annotation; fix in cleanup pass.
+- [ ] [2026-04-11 | "M04"] `tests/unit/test_graph_metrics.py:229` — Misleading comment "Node 0 has in-degree 3 (exactly at threshold)" was NOT corrected (actual in-degree is 4). Fix in cleanup pass.
 - [ ] [2026-04-10 | "M03"] Security agent LOW finding (outside M03 scope): `src/sdi/parsing/discovery.py:50` still passes `"gitwildmatch"` to `pathspec.PathSpec.from_lines()` in the empty-spec branch. Line 52 was fixed to `"gitignore"` but line 50 was missed. Low-risk but will emit deprecation warnings when no `.gitignore` is present. Should be fixed independently.
 - [ ] [2026-04-10 | "M03"] Go pattern detection at `go.py:197` uses `"err" in _node_text(cond)` substring match — will match any `if` condition whose text contains "err" (e.g. `if stderr != ""`, `if locker != nil`). Accepted heuristic per SDI's measurement-not-judgment principle, but worth documenting in-code as an acknowledged limitation.
 - [ ] [2026-04-10 | "M03"] Rust match pattern at `rust.py:199` matches `"None"` as a substring — could trigger on enum variants like `NoneType` or string literals. Same caveat: accepted approximation; worth a comment.

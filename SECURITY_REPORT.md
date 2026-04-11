@@ -1,9 +1,9 @@
 ## Summary
-Milestone 2 changes are minimal: `pyproject.toml` adds the `pathspec>=0.11` dependency, and `discovery.py` corrects a deprecated pattern name used with pathspec. The attack surface is extremely limited — this is a local CLI tool with no network calls, no authentication surface, and no user-controlled code execution paths. The file discovery module reads the local filesystem within an explicitly provided root, with path traversal defended by a `relative_to(root)` ValueError catch that silently skips out-of-root paths (including symlink targets resolving outside root). No hardcoded secrets, injection vectors, or unsafe deserialization were found.
+M04 adds three new source modules (`src/sdi/graph/__init__.py`, `builder.py`, `metrics.py`) and two test files implementing Stage 2 of the SDI pipeline: dependency graph construction and structural metric computation. The change is purely analytical — no file I/O, no network calls, no shell execution, no authentication surfaces, and no user-facing input validation boundaries. Input arrives as internal `FeatureRecord` objects from Stage 1 parsing. The implementation is structurally clean and presents no meaningful attack surface.
 
 ## Findings
 
-- [LOW] [category:A05] [src/sdi/parsing/discovery.py:50] fixable:yes — Incomplete fix: the empty-spec branch on line 50 still passes `"gitwildmatch"` to `pathspec.PathSpec.from_lines()` while line 52 was correctly updated to `"gitignore"`. This is the deprecated factory name and will emit deprecation warnings when no `.gitignore` file is present. Not a security issue but a correctness gap in the stated fix. Change line 50 to `pathspec.PathSpec.from_lines("gitignore", [])`.
+- [LOW] [category:A05] [src/sdi/graph/metrics.py:130] fixable:yes — `graph.simple_cycles()` has exponential worst-case time complexity (O((n+e) * cycle_count)). For a dense, adversarially constructed dependency graph this could cause resource exhaustion during analysis. In practice SDI operates on real codebases where cycle counts are bounded, but if FeatureRecords are ever accepted from untrusted external sources a cycle count cap should be added (e.g., short-circuit after N cycles and return the cap value with a warning).
 
 ## Verdict
-CLEAN
+FINDINGS_PRESENT
