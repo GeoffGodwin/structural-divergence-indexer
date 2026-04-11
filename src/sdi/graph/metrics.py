@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import math
 import sys
-from typing import TYPE_CHECKING
 
 try:
     import igraph
@@ -20,9 +19,6 @@ except ImportError:
         file=sys.stderr,
     )
     raise
-
-if TYPE_CHECKING:
-    pass
 
 # Nodes with in-degree >= this threshold are considered hubs.
 HUB_INDEGREE_THRESHOLD = 3

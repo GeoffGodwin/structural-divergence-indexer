@@ -192,6 +192,10 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
     instances: list[dict[str, Any]] = []
     for node in _walk_nodes(root):
         # Go error handling: `if err != nil { ... }`
+        # Acknowledged limitation: substring match on "err" will also trigger
+        # on conditions like `if stderr != ""` or `if locker != nil`. This is
+        # an accepted approximation consistent with SDI's measurement-not-
+        # judgment principle — pattern counts are measurements, not verdicts.
         if node.type == "if_statement":
             cond = node.child_by_field_name("condition")
             if cond is not None and "err" in _node_text(cond):

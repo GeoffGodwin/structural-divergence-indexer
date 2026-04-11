@@ -124,7 +124,7 @@ def _resolve_import(import_str: str, module_map: dict[str, str]) -> str | None:
 def build_dependency_graph(
     records: list[FeatureRecord],
     config: SDIConfig,
-) -> tuple[igraph.Graph, dict]:
+) -> tuple[igraph.Graph, dict[str, int]]:
     """Build a directed dependency graph from parsed FeatureRecord objects.
 
     Nodes represent source files. Directed edges represent import dependencies
