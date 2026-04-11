@@ -1,7 +1,7 @@
 """Core data structures for SDI snapshots.
 
 FeatureRecord is defined here as the contract between Stage 1 (parsing)
-and Stages 2-4. It will also be re-exported from sdi.parsing in M02.
+and Stages 2-4. Also re-exported as `sdi.parsing.FeatureRecord` for external callers.
 """
 
 from __future__ import annotations

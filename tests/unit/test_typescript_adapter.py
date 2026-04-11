@@ -8,7 +8,7 @@ import pytest
 
 from sdi.parsing.typescript import TypeScriptAdapter, _build_imports, _extract_type_only_imports
 from sdi.parsing._js_ts_common import extract_symbols, count_loc
-from sdi.snapshot.model import FeatureRecord
+from sdi.parsing import FeatureRecord
 
 # ---------------------------------------------------------------------------
 # Helpers

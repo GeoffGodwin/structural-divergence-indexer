@@ -14,7 +14,7 @@ from sdi.parsing.python import (
     _resolve_relative_import,
 )
 from sdi.parsing._python_patterns import count_loc, extract_pattern_instances
-from sdi.snapshot.model import FeatureRecord
+from sdi.parsing import FeatureRecord
 
 
 # ---------------------------------------------------------------------------

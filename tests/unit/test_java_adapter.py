@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from sdi.parsing.java import JavaAdapter, count_loc
-from sdi.snapshot.model import FeatureRecord
+from sdi.parsing import FeatureRecord
 
 
 # ---------------------------------------------------------------------------

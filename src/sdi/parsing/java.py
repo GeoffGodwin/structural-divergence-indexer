@@ -7,13 +7,13 @@ Import paths are stored as dot-separated qualified names (e.g.
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
-from tree_sitter import Language, Node, Parser
 import tree_sitter_java as _tsja
+from tree_sitter import Language, Node, Parser
 
+from sdi.parsing._lang_common import _location, _structural_hash, _walk_nodes, count_loc
 from sdi.parsing.base import LanguageAdapter
 from sdi.snapshot.model import FeatureRecord
 
@@ -89,30 +89,6 @@ def _extract_symbols(root: Node) -> list[str]:
     return symbols
 
 
-def _structural_hash(node: Node, max_depth: int = 6) -> str:
-    """Hash the structural shape of an AST subtree."""
-    def _serialize(n: Node, depth: int) -> str:
-        if depth == 0:
-            return n.type
-        children = [_serialize(c, depth - 1) for c in n.children if not c.is_extra]
-        return f"{n.type}({','.join(children)})"
-
-    serialized = _serialize(node, max_depth)
-    return hashlib.sha256(serialized.encode()).hexdigest()[:8]
-
-
-def _location(node: Node) -> dict[str, int]:
-    """Return the start line and column of a node (1-indexed line)."""
-    return {"line": node.start_point[0] + 1, "col": node.start_point[1]}
-
-
-def _walk_nodes(node: Node):
-    """Yield all descendant nodes via depth-first traversal."""
-    yield node
-    for child in node.children:
-        yield from _walk_nodes(child)
-
-
 def _extract_patterns(root: Node) -> list[dict[str, Any]]:
     """Extract structural pattern instances from a Java source file.
 
@@ -134,36 +110,6 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
                 "location": _location(node),
             })
     return instances
-
-
-def count_loc(source_bytes: bytes) -> int:
-    """Count non-blank, non-comment lines in Java source.
-
-    Args:
-        source_bytes: Raw file bytes.
-
-    Returns:
-        Integer line count.
-    """
-    count = 0
-    in_block_comment = False
-    for raw_line in source_bytes.decode("utf-8", errors="replace").splitlines():
-        line = raw_line.strip()
-        if in_block_comment:
-            if "*/" in line:
-                in_block_comment = False
-            continue
-        if not line:
-            continue
-        if line.startswith("//"):
-            continue
-        if line.startswith("/*") or line.startswith("/**"):
-            in_block_comment = True
-            if "*/" in line[2:]:
-                in_block_comment = False
-            continue
-        count += 1
-    return count
 
 
 class JavaAdapter(LanguageAdapter):

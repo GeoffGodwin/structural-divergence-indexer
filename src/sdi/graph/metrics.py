@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import sys
+from typing import Any
 
 try:
     import igraph
@@ -82,7 +83,7 @@ def _compute_hub_info(
     return hub_concentration, hub_nodes
 
 
-def compute_graph_metrics(graph: igraph.Graph) -> dict:
+def compute_graph_metrics(graph: igraph.Graph) -> dict[str, Any]:
     """Compute structural metrics for a dependency graph.
 
     All returned keys are part of the snapshot JSON schema and must not

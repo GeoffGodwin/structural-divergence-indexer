@@ -13,3 +13,8 @@ Each entry captures why a structural change was made, preventing future develope
 - **Date**: 2026-04-10
 - **Rationale**: `./` prefix unambiguously distinguishes implicit file dependencies from package paths; inline `mod { }` blocks are correctly excluded. Convention is self-documenting and backward-compatible.
 - **Source**: Accepted ACP from pipeline run
+
+## ADL-3: `_partition_cache.py` extraction (Task: "M05")
+- **Date**: 2026-04-11
+- **Rationale**: - ACP: `_partition_cache.py` extraction — ACCEPT: 300-line ceiling compliance with clean concern separation. Cache I/O + debounce is a distinct concern from algorithm coordination. Private module, n
+- **Source**: Accepted ACP from pipeline run
