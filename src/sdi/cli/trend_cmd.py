@@ -6,7 +6,12 @@ from pathlib import Path
 
 import click
 
-from sdi.cli._helpers import emit_json, emit_rows_csv, require_initialized
+from sdi.cli._helpers import (
+    emit_json,
+    emit_rows_csv,
+    require_initialized,
+    resolve_snapshots_dir,
+)
 from sdi.snapshot import ALL_DIMENSIONS, compute_trend
 from sdi.snapshot.storage import list_snapshots, read_snapshot
 
@@ -81,7 +86,7 @@ def trend_cmd(
     repo_root, config = require_initialized(cwd)
     output_format = ctx.obj.get("format", "text")
 
-    snapshots_dir = repo_root / config.snapshots.dir
+    snapshots_dir = resolve_snapshots_dir(repo_root, config)
     paths = list_snapshots(snapshots_dir)
 
     if not paths:

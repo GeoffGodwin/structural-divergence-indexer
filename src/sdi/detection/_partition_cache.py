@@ -42,7 +42,7 @@ def _read_cache(cache_dir: Path) -> dict | None:
     try:
         with open(cache_path) as fh:
             data = json.load(fh)
-        if not isinstance(data.get("cache_version"), str):
+        if not isinstance(data, dict) or not isinstance(data.get("cache_version"), str):
             return None
         return data
     except (json.JSONDecodeError, OSError, KeyError):

@@ -22,6 +22,29 @@ from sdi.snapshot.model import Snapshot
 from sdi.snapshot.storage import list_snapshots, read_snapshot
 
 
+def resolve_snapshots_dir(repo_root: Path, config: SDIConfig) -> Path:
+    """Resolve and validate the snapshots directory is within the repository root.
+
+    Args:
+        repo_root: Repository root directory.
+        config: SDI configuration.
+
+    Returns:
+        Resolved path to the snapshots directory.
+
+    Raises:
+        SystemExit(2): If snapshots_dir resolves outside the repository root.
+    """
+    snapshots_dir = repo_root / config.snapshots.dir
+    if not snapshots_dir.resolve().is_relative_to(repo_root.resolve()):
+        click.echo(
+            f"[error] snapshots.dir resolves outside repository root: {snapshots_dir}",
+            err=True,
+        )
+        raise SystemExit(2)
+    return snapshots_dir
+
+
 def find_git_root(start: Path) -> Path | None:
     """Walk up from start to find the nearest directory containing .git.
 

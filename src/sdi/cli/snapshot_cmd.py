@@ -9,7 +9,12 @@ from typing import Any
 
 import click
 
-from sdi.cli._helpers import require_initialized
+from sdi.cli._helpers import (
+    emit_rows_csv,
+    format_delta,
+    require_initialized,
+    resolve_snapshots_dir,
+)
 from sdi.config import SDIConfig
 from sdi.patterns import PatternCatalog, build_pattern_catalog
 from sdi.snapshot import assemble_snapshot
@@ -122,8 +127,6 @@ def _print_snapshot_summary(snap: Snapshot, output_format: str) -> None:
 
     div = snap.divergence
     if output_format == "csv":
-        from sdi.cli._helpers import emit_rows_csv
-
         emit_rows_csv(
             ["dimension", "value", "delta"],
             [
@@ -142,8 +145,6 @@ def _print_snapshot_summary(snap: Snapshot, output_format: str) -> None:
             ],
         )
         return
-
-    from sdi.cli._helpers import format_delta
 
     langs = ", ".join(
         f"{lang}: {cnt}" for lang, cnt in snap.language_breakdown.items()
@@ -181,7 +182,7 @@ def snapshot_cmd(ctx: click.Context) -> None:
     output_format = ctx.obj.get("format", "text")
     quiet = ctx.obj.get("quiet", False)
 
-    snapshots_dir = repo_root / config.snapshots.dir
+    snapshots_dir = resolve_snapshots_dir(repo_root, config)
 
     if not quiet:
         click.echo("Stage 1/5: Parsing source files...", err=True)

@@ -12,6 +12,7 @@ from sdi.cli._helpers import (
     emit_rows_csv,
     load_snapshot_by_ref,
     require_initialized,
+    resolve_snapshots_dir,
 )
 from sdi.patterns import PatternCatalog
 
@@ -99,7 +100,7 @@ def catalog_cmd(ctx: click.Context, snapshot_ref: str | None) -> None:
     repo_root, config = require_initialized(cwd)
     output_format = ctx.obj.get("format", "text")
 
-    snapshots_dir = repo_root / config.snapshots.dir
+    snapshots_dir = resolve_snapshots_dir(repo_root, config)
     snap, path = load_snapshot_by_ref(snapshots_dir, snapshot_ref)
 
     if not snap.pattern_catalog:

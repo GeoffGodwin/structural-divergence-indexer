@@ -13,6 +13,7 @@ from sdi.cli._helpers import (
     format_delta,
     require_initialized,
     resolve_snapshot_ref,
+    resolve_snapshots_dir,
 )
 from sdi.snapshot.delta import compute_delta
 from sdi.snapshot.model import DivergenceSummary, Snapshot
@@ -27,11 +28,13 @@ def _load_pair(
     """Load snapshot pair for diffing.
 
     Defaults: A = second-to-latest, B = latest.
+    If only one ref is provided, the other defaults to the latest snapshot.
 
     Args:
         snapshots_dir: Snapshot directory.
-        ref_a: Reference for the earlier snapshot.
-        ref_b: Reference for the later snapshot.
+        ref_a: Reference for the earlier snapshot (None = second-to-latest when
+            ref_b is also None, otherwise None = latest).
+        ref_b: Reference for the later snapshot (None = latest).
 
     Returns:
         Tuple of (snap_a, name_a, snap_b, name_b).
@@ -48,6 +51,7 @@ def _load_pair(
             raise SystemExit(1)
         path_a, path_b = paths[-2], paths[-1]
     else:
+        # Either or both refs specified; None resolves to the latest snapshot.
         path_a_resolved = resolve_snapshot_ref(snapshots_dir, ref_a)
         path_b_resolved = resolve_snapshot_ref(snapshots_dir, ref_b)
         if path_a_resolved is None:
@@ -111,6 +115,7 @@ def diff_cmd(
     """Show structural divergence delta between two snapshots.
 
     With no arguments, diffs the last two snapshots.
+    With only SNAPSHOT_A, diffs A against the latest snapshot.
     SNAPSHOT_A and SNAPSHOT_B accept 1-based indices, negative indices,
     or filename prefixes.
     """
@@ -118,7 +123,7 @@ def diff_cmd(
     repo_root, config = require_initialized(cwd)
     output_format = ctx.obj.get("format", "text")
 
-    snapshots_dir = repo_root / config.snapshots.dir
+    snapshots_dir = resolve_snapshots_dir(repo_root, config)
     snap_a, name_a, snap_b, name_b = _load_pair(snapshots_dir, snapshot_a, snapshot_b)
 
     # Recompute delta of B relative to A regardless of stored values.

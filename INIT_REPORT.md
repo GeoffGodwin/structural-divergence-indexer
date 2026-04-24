@@ -2,9 +2,9 @@
 
 <!-- init-report-meta
 project: structural-divergence-indexer
-timestamp: 2026-04-10 16:22:14
-tekhton_version: 3.71.0
-file_count: 19
+timestamp: 2026-04-23 22:53:51
+tekhton_version: 3.125.0
+file_count: 146
 project_type: custom
 -->
 
@@ -14,7 +14,7 @@ project_type: custom
 
 | Language | Confidence | Source |
 |----------|------------|--------|
-| python | low | CLAUDE.md |
+| python | high | pyproject.toml |
 
 ### Frameworks
 
@@ -22,7 +22,10 @@ project_type: custom
 
 ### Commands
 
-(none detected)
+| Type | Command | Source | Confidence |
+|------|---------|--------|------------|
+| test | `pytest` | pyproject.toml [tool.pytest] | high |
+| analyze | `ruff check .` | pyproject.toml [tool.ruff] | high |
 
 ### Entry Points
 
@@ -32,6 +35,8 @@ project_type: custom
 
 | Key | Value | Source | Confidence |
 |-----|-------|--------|------------|
+| TEST_CMD | `pytest` | pyproject.toml [tool.pytest] | high |
+| ANALYZE_CMD | `ruff check .` | pyproject.toml [tool.ruff] | high |
 
 ## Items Needing Review
 
@@ -41,6 +46,6 @@ project_type: custom
 
 - **Project name:** structural-divergence-indexer
 - **Project type:** custom
-- **Tracked files:** 19
-- **Init timestamp:** 2026-04-10 16:22:14
+- **Tracked files:** 146
+- **Init timestamp:** 2026-04-23 22:53:51
 
