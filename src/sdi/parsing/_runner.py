@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from sdi.config import SDIConfig
+from sdi.parsing._parse_cache import compute_file_hash, read_parse_cache, write_parse_cache
 from sdi.parsing.discovery import discover_files
 from sdi.snapshot.model import FeatureRecord
 
@@ -43,49 +44,77 @@ def _register_adapters() -> None:
             )
 
 
-def _parse_one(args: tuple[str, str, str]) -> FeatureRecord | None:
+def _parse_one(args: tuple[str, str, str, str]) -> FeatureRecord | None:
     """Worker function for ProcessPoolExecutor.
 
     All arguments and return values must be picklable (no CST objects).
 
+    Checks the parse cache before invoking tree-sitter. On a cache miss,
+    parses the file and writes the result to the cache atomically.
+
     Args:
-        args: Tuple of (file_path_str, language, repo_root_str).
+        args: Tuple of (file_path_str, language, repo_root_str, cache_dir_str).
 
     Returns:
-        FeatureRecord or None if parsing failed.
+        FeatureRecord with content_hash populated, or None if parsing failed.
     """
-    file_path_str, language, repo_root_str = args
+    file_path_str, language, repo_root_str, cache_dir_str = args
     path = Path(file_path_str)
     repo_root = Path(repo_root_str)
+    cache_dir = Path(cache_dir_str)
 
     _register_adapters()
     factory = _ADAPTER_FACTORIES.get(language)
     if factory is None:
         return None
 
-    adapter = factory(repo_root)
     try:
         source_bytes = path.read_bytes()
-        return adapter.parse_file(path, source_bytes)
+    except OSError as exc:
+        rel = path.relative_to(repo_root)
+        print(f"[warning] Skipping {rel}: {exc}", file=sys.stderr)
+        return None
+
+    file_hash = compute_file_hash(source_bytes)
+
+    cached = read_parse_cache(cache_dir, file_hash)
+    if cached is not None:
+        cached.content_hash = file_hash
+        return cached
+
+    adapter = factory(repo_root)
+    try:
+        record = adapter.parse_file(path, source_bytes)
     except Exception as exc:
         rel = path.relative_to(repo_root)
         print(f"[warning] Skipping {rel}: {exc}", file=sys.stderr)
         return None
+
+    if record is not None:
+        record.content_hash = file_hash
+        try:
+            write_parse_cache(cache_dir, file_hash, record)
+        except OSError:
+            pass
+
+    return record
 
 
 def parse_repository(root: Path, config: SDIConfig) -> list[FeatureRecord]:
     """Parse all source files in the repository and return FeatureRecords.
 
     Stage 1 of the SDI pipeline. Parallelized via ProcessPoolExecutor.
-    Files with unsupported or missing grammars are skipped with warnings.
-    If ALL files lack grammars, exits with code 3.
+    Checks the parse cache (keyed by file content SHA-256) before running
+    tree-sitter. Files with unsupported or missing grammars are skipped with
+    warnings. If ALL files lack grammars, exits with code 3.
 
     Args:
         root: Repository root directory (absolute path).
         config: Resolved SDI configuration.
 
     Returns:
-        List of FeatureRecord objects, one per successfully parsed file.
+        List of FeatureRecord objects (with content_hash set), one per
+        successfully parsed file.
 
     Raises:
         SystemExit(3): If no files could be parsed (all languages missing grammars).
@@ -120,9 +149,11 @@ def parse_repository(root: Path, config: SDIConfig) -> list[FeatureRecord]:
         )
         raise SystemExit(3)
 
+    cache_dir_str = str(root / ".sdi" / "cache")
+
     # Build work items for supported files only
     work_items = [
-        (str(path), language, str(root))
+        (str(path), language, str(root), cache_dir_str)
         for language, paths in files_by_language.items()
         if language in supported_languages
         for path in paths

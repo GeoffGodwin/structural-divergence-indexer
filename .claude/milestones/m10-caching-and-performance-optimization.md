@@ -1,4 +1,9 @@
 ### Milestone 10: Caching and Performance Optimization
+<!-- milestone-meta
+id: "10"
+status: "done"
+-->
+
 
 **Scope:** Implement the parse cache (keyed by file content hash) and fingerprint cache to make incremental snapshots near-instant when few files change. Add orphan cache cleanup. Verify performance targets (< 30s for 10K–100K LOC projects).
 

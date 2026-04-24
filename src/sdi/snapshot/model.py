@@ -27,6 +27,8 @@ class FeatureRecord:
         symbols: List of top-level defined names (classes, functions, constants).
         pattern_instances: List of AST subtree descriptors for pattern matching.
         lines_of_code: Non-blank, non-comment line count.
+        content_hash: SHA-256 hex of the file bytes at parse time. Empty string
+            when deserialized from snapshots that predate M10 caching.
     """
 
     file_path: str
@@ -35,6 +37,7 @@ class FeatureRecord:
     symbols: list[str]
     pattern_instances: list[dict[str, Any]]
     lines_of_code: int
+    content_hash: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict (JSON-safe)."""
@@ -50,6 +53,7 @@ class FeatureRecord:
             symbols=list(data["symbols"]),
             pattern_instances=list(data["pattern_instances"]),
             lines_of_code=data["lines_of_code"],
+            content_hash=data.get("content_hash", ""),
         )
 
 

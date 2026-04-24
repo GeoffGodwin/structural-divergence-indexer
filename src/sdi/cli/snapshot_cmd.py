@@ -42,7 +42,7 @@ def _get_commit_sha(repo_root: Path) -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired):
         pass
     return None
 
@@ -200,7 +200,8 @@ def snapshot_cmd(ctx: click.Context) -> None:
         click.echo("Stage 4/5: Pattern fingerprinting...", err=True)
 
     prev_catalog = _load_previous_catalog(snapshots_dir)
-    catalog = build_pattern_catalog(records, config, prev_catalog, community)
+    cache_dir = repo_root / ".sdi" / "cache"
+    catalog = build_pattern_catalog(records, config, prev_catalog, community, cache_dir)
 
     if not quiet:
         click.echo("Stage 5/5: Assembling snapshot...", err=True)

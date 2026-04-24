@@ -45,7 +45,7 @@ def _read_cache(cache_dir: Path) -> dict | None:
         if not isinstance(data, dict) or not isinstance(data.get("cache_version"), str):
             return None
         return data
-    except (json.JSONDecodeError, OSError, KeyError):
+    except (json.JSONDecodeError, OSError):
         logger.warning(
             "Partition cache at %s is corrupt; using cold start.", cache_path
         )

@@ -68,6 +68,7 @@ def _effective_threshold(
         Effective threshold as a float.
     """
     base = getattr(thresholds, key)
+    # overrides dict is pre-filtered by _build_overrides; expired entries are already excluded
     for override in thresholds.overrides.values():
         override_val = getattr(override, key, None)
         if override_val is not None:

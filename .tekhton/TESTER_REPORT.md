@@ -6,9 +6,11 @@
 - [x] `tests/unit/test_boundaries_cmd.py` — display helpers and sub-operations for boundaries_cmd.py (M9 primary CLI behavior)
 - [x] `tests/unit/test_delta.py` — add _count_boundary_violations tests for intent_divergence M9 addition
 - [x] `tests/unit/test_assembly.py` — add _attach_intent_divergence happy path and fallback tests
+- [x] `tests/unit/test_fingerprint_cache.py` — unit tests for all four public functions in sdi.patterns._fingerprint_cache (M10)
+- [x] `tests/unit/test_assembly.py` — add _cleanup_caches integration path: orphan cleanup called with correct active_hashes (M10)
 
 ## Test Run Results
-Passed: 606  Failed: 0
+Passed: 654  Failed: 0
 
 ## Bugs Found
 None
@@ -21,3 +23,4 @@ None
 - [x] `tests/unit/test_boundaries_cmd.py`
 - [x] `tests/unit/test_delta.py`
 - [x] `tests/unit/test_assembly.py`
+- [x] `tests/unit/test_fingerprint_cache.py`

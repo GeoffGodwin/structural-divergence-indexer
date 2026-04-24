@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sdi.parsing._parse_cache import cleanup_orphan_parse_cache
+from sdi.patterns._fingerprint_cache import cleanup_orphan_fingerprint_cache
 from sdi.snapshot.delta import compute_delta
 from sdi.snapshot.model import SNAPSHOT_VERSION, Snapshot
 from sdi.snapshot.storage import (
@@ -153,6 +155,10 @@ def assemble_snapshot(
     write_snapshot(snap, snapshots_dir)
     enforce_retention(snapshots_dir, config.snapshots.retention)
 
+    cache_dir = repo_root / ".sdi" / "cache"
+    active_hashes = {r.content_hash for r in records if r.content_hash}
+    _cleanup_caches(cache_dir, active_hashes)
+
     return snap
 
 
@@ -181,6 +187,17 @@ def _attach_intent_divergence(
     if spec is not None:
         intent_div = compute_intent_divergence(spec, part_dict)
         part_dict["intent_divergence"] = intent_div.to_dict()
+
+
+def _cleanup_caches(cache_dir: Path, active_hashes: set[str]) -> None:
+    """Remove orphan parse and fingerprint cache entries after a snapshot.
+
+    Args:
+        cache_dir: Root cache directory (e.g. .sdi/cache).
+        active_hashes: Content hashes of all files processed in this run.
+    """
+    cleanup_orphan_parse_cache(cache_dir, active_hashes)
+    cleanup_orphan_fingerprint_cache(cache_dir, active_hashes)
 
 
 def _null_divergence() -> Any:

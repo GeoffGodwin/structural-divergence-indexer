@@ -11,11 +11,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sdi.config import SDIConfig
+from sdi.patterns._fingerprint_cache import get_file_fingerprints
 from sdi.patterns.categories import CATEGORY_NAMES
-from sdi.patterns.fingerprint import fingerprint_from_instance
 
 if TYPE_CHECKING:
     from sdi.detection.leiden import CommunityResult
@@ -169,12 +170,14 @@ def build_pattern_catalog(
     config: SDIConfig,
     prev_catalog: PatternCatalog | None,
     partition: CommunityResult | None,
+    cache_dir: Path | None = None,
 ) -> PatternCatalog:
     """Build a PatternCatalog from a list of FeatureRecords.
 
     Reads pattern_instances from each FeatureRecord, applies the min_pattern_nodes
     filter, groups instances by (category, structural_hash), then computes per-shape
-    velocity and boundary spread.
+    velocity and boundary spread. Uses the fingerprint cache (keyed by file content
+    hash) when cache_dir is provided.
 
     Args:
         records: Parsed feature records from Stage 1 (tree-sitter parsing).
@@ -183,6 +186,7 @@ def build_pattern_catalog(
             If None, all velocity values are null (first snapshot).
         partition: Community detection result for boundary spread computation.
             If None, all boundary_spread values are null.
+        cache_dir: Root cache directory for fingerprint caching, or None to skip.
 
     Returns:
         PatternCatalog with entropy, canonical, velocity, and boundary spread
@@ -196,10 +200,7 @@ def build_pattern_catalog(
     )
 
     for record in records:
-        for instance in record.pattern_instances:
-            fp = fingerprint_from_instance(instance, min_nodes)
-            if fp is None:
-                continue
+        for fp in get_file_fingerprints(record, min_nodes, cache_dir):
             entry = raw[fp.category][fp.structural_hash]
             entry["count"] += 1
             entry["files"].append(record.file_path)

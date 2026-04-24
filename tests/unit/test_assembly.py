@@ -882,3 +882,214 @@ class TestAttachIntentDivergence:
         }
         _attach_intent_divergence(part_dict, cfg, tmp_path)
         assert part_dict["intent_divergence"]["total_violations"] == 0
+
+
+# ---------------------------------------------------------------------------
+# _cleanup_caches integration: orphan cleanup called after write + retention
+# ---------------------------------------------------------------------------
+
+_CLEANUP_PARSE = "sdi.snapshot.assembly.cleanup_orphan_parse_cache"
+_CLEANUP_FP = "sdi.snapshot.assembly.cleanup_orphan_fingerprint_cache"
+
+
+def _make_records_with_hashes(hashes: list[str]) -> list[FeatureRecord]:
+    """Build FeatureRecords with specified content_hash values."""
+    return [
+        FeatureRecord(
+            file_path=f"src/file_{i}.py",
+            language="python",
+            imports=[],
+            symbols=[],
+            pattern_instances=[],
+            lines_of_code=5,
+            content_hash=h,
+        )
+        for i, h in enumerate(hashes)
+    ]
+
+
+class TestAssembleSnapshotCleanupCaches:
+    """assemble_snapshot must invoke orphan cache cleanup after write and retention."""
+
+    def test_cleanup_parse_cache_called(self, tmp_path: Path) -> None:
+        cfg = _make_config()
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE) as mock_parse_cleanup,
+            patch(_CLEANUP_FP),
+        ):
+            assemble_snapshot(
+                records=_make_records(["python"]),
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        mock_parse_cleanup.assert_called_once()
+
+    def test_cleanup_fingerprint_cache_called(self, tmp_path: Path) -> None:
+        cfg = _make_config()
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE),
+            patch(_CLEANUP_FP) as mock_fp_cleanup,
+        ):
+            assemble_snapshot(
+                records=_make_records(["python"]),
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        mock_fp_cleanup.assert_called_once()
+
+    def test_cleanup_receives_repo_root_cache_dir(self, tmp_path: Path) -> None:
+        """Cleanup must be called with repo_root/.sdi/cache as the cache_dir."""
+        cfg = _make_config()
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE) as mock_parse_cleanup,
+            patch(_CLEANUP_FP),
+        ):
+            assemble_snapshot(
+                records=_make_records(["python"]),
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        called_cache_dir = mock_parse_cleanup.call_args[0][0]
+        assert called_cache_dir == tmp_path / ".sdi" / "cache"
+
+    def test_active_hashes_derived_from_record_content_hashes(self, tmp_path: Path) -> None:
+        """active_hashes passed to cleanup must equal the set of non-empty content_hashes."""
+        cfg = _make_config()
+        hash_a = "a" * 64
+        hash_b = "b" * 64
+        records = _make_records_with_hashes([hash_a, hash_b])
+
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE) as mock_parse_cleanup,
+            patch(_CLEANUP_FP),
+        ):
+            assemble_snapshot(
+                records=records,
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        called_active_hashes = mock_parse_cleanup.call_args[0][1]
+        assert called_active_hashes == {hash_a, hash_b}
+
+    def test_empty_content_hash_excluded_from_active_hashes(self, tmp_path: Path) -> None:
+        """Records with empty content_hash must NOT be included in active_hashes."""
+        cfg = _make_config()
+        hash_a = "c" * 64
+        records = _make_records_with_hashes([hash_a, ""])  # second record has no hash
+
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE) as mock_parse_cleanup,
+            patch(_CLEANUP_FP),
+        ):
+            assemble_snapshot(
+                records=records,
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        called_active_hashes = mock_parse_cleanup.call_args[0][1]
+        assert "" not in called_active_hashes
+        assert hash_a in called_active_hashes
+        assert len(called_active_hashes) == 1
+
+    def test_all_empty_content_hashes_gives_empty_active_set(self, tmp_path: Path) -> None:
+        """When all records have empty content_hash, active_hashes is an empty set."""
+        cfg = _make_config()
+        records = _make_records_with_hashes(["", "", ""])
+
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(f"{_STORAGE_MODULE}.write_snapshot"),
+            patch(f"{_STORAGE_MODULE}.enforce_retention"),
+            patch(_CLEANUP_PARSE) as mock_parse_cleanup,
+            patch(_CLEANUP_FP),
+        ):
+            assemble_snapshot(
+                records=records,
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        called_active_hashes = mock_parse_cleanup.call_args[0][1]
+        assert called_active_hashes == set()
+
+    def test_cleanup_called_after_write_and_retention(self, tmp_path: Path) -> None:
+        """Cleanup must happen after write_snapshot and enforce_retention."""
+        cfg = _make_config()
+        call_order: list[str] = []
+
+        with (
+            patch(f"{_STORAGE_MODULE}.list_snapshots", return_value=[]),
+            patch(
+                f"{_STORAGE_MODULE}.write_snapshot",
+                side_effect=lambda *a, **kw: call_order.append("write"),
+            ),
+            patch(
+                f"{_STORAGE_MODULE}.enforce_retention",
+                side_effect=lambda *a, **kw: call_order.append("retain"),
+            ),
+            patch(
+                _CLEANUP_PARSE,
+                side_effect=lambda *a, **kw: call_order.append("cleanup_parse"),
+            ),
+            patch(
+                _CLEANUP_FP,
+                side_effect=lambda *a, **kw: call_order.append("cleanup_fp"),
+            ),
+        ):
+            assemble_snapshot(
+                records=_make_records(["python"]),
+                graph_metrics=_make_graph_metrics(),
+                community=None,
+                catalog=_make_catalog(),
+                config=cfg,
+                commit_sha=None,
+                timestamp="2026-04-24T12:00:00Z",
+                repo_root=tmp_path,
+            )
+        assert call_order.index("write") < call_order.index("retain")
+        assert call_order.index("retain") < call_order.index("cleanup_parse")
+        assert call_order.index("retain") < call_order.index("cleanup_fp")

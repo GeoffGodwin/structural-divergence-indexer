@@ -2,17 +2,15 @@
 PASS
 
 ## Confidence
-78
+88
 
 ## Reasoning
-- Scope is well-defined: exact files to create and modify are listed, with clear purpose for each
-- Acceptance criteria are specific and testable — each maps directly to a pytest test case or CLI invocation with observable output
-- Watch For section covers the key API pitfall (ruamel.yaml `YAML(typ='rt')`), the $EDITOR fallback, and the conceptual distinction between detected vs. ratified boundaries
-- Layer direction validation semantics are explained clearly (ordering list = top-to-bottom, downward = upper may depend on lower, not reverse)
-- YAML schema is fully documented in CLAUDE.md with a concrete example, eliminating guesswork on the data model
-- Two minor edge cases are underspecified but easily inferred by a competent developer:
-  1. `sdi boundaries` (no flags) when no spec file exists — the "missing spec is normal operation" principle implies the command should print a helpful "no boundary spec found" message and exit 0, not error
-  2. `sdi boundaries --propose` when no existing spec exists — "diff against the current spec" has no base; reasonable inference is to display the full Leiden proposal as plain YAML with a note that no spec has been ratified yet
-- Neither gap rises to the level requiring a human decision — both have one obvious correct interpretation consistent with the project's principles
-- No UI components affected; CLI output criteria are sufficient
-- No migration impact section needed — the boundary spec file is new and optional; existing users see no change in behavior
+- Scope is well-defined: two cache subsystems (parse cache, fingerprint cache) plus orphan cleanup, with explicit file paths for both cache directories (`.sdi/cache/parse_cache/<hash>.json`, `.sdi/cache/fingerprints/<hash>.json`) and source files to modify
+- Acceptance criteria are specific and testable: cold-start behavior, cache key semantics (SHA-256 of file bytes), transparency guarantee, atomic writes, SDI_WORKERS=1 compatibility
+- "Significantly faster" phrasing in AC1 is slightly soft, but the < 30s target in the Scope section and the benchmark test structure anchor it concretely enough
+- Watch For section covers the two subtlest risks: renamed-but-identical-content cache hit (correct behavior) and orphan cleanup false-positive prevention
+- Test file names and scenario list are explicit — a developer knows exactly what to write
+- Benchmark tests are correctly gated behind `pytest.mark.benchmark` / separate target, consistent with the project's existing CI philosophy
+- No migration impact section needed — cache directories are purely additive new infrastructure; the cold-start acceptance criterion already covers the deletion/recovery case
+- No UI components; UI testability dimension is N/A
+- Historical pattern: all 10 prior milestones passed; scope and structure here match that pattern
