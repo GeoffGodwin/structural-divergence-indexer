@@ -1,4 +1,9 @@
 ### Milestone 8: CLI Commands — snapshot, show, diff, trend, check, catalog
+<!-- milestone-meta
+id: "8"
+status: "done"
+-->
+
 
 **Scope:** Wire the full analysis pipeline into the CLI commands. Implement `sdi snapshot` (full pipeline execution), `sdi show`, `sdi diff`, `sdi trend`, `sdi check`, and `sdi catalog` with all flags, output formats (text/json/csv), and exit codes. This is the integration milestone — each command orchestrates the pipeline stages from previous milestones.
 

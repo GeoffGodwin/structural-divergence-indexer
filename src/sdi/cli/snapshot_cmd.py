@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -121,7 +122,6 @@ def _print_snapshot_summary(snap: Snapshot, output_format: str) -> None:
         output_format: One of 'text', 'json', 'csv'.
     """
     if output_format == "json":
-        import json
         click.echo(json.dumps(snap.to_dict(), indent=2))
         return
 

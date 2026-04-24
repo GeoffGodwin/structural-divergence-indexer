@@ -1,4 +1,4 @@
-# Reviewer Report — M08 (Cycle 1)
+# Reviewer Report — M08 Cycle 2 (re-review)
 
 ## Verdict
 APPROVED_WITH_NOTES
@@ -10,13 +10,17 @@ APPROVED_WITH_NOTES
 - None
 
 ## Non-Blocking Notes
-- `snapshot_cmd.py:124` — `import json` remains as an inline import inside `_print_snapshot_summary`. The task correctly moved `emit_rows_csv` and `format_delta` to module level, but this stdlib import was left in place. Harmless (stdlib, always available), but inconsistent with the now-clean import style of the rest of the file. Pre-existing; can be addressed in cleanup.
-- `check_cmd.py:70-73` — `_effective_threshold` applies overrides without checking expiry dates. CLAUDE.md rule 5 mandates stale overrides resume default thresholds after expiry. This is safe only if the config layer pre-filters expired overrides before they appear in `thresholds.overrides`. This concern is pre-existing and not introduced by M08; noting for tracking.
+- None
 
 ## Coverage Gaps
-- `_helpers.py:resolve_snapshots_dir` — no unit test for the path-traversal rejection case (e.g., `config.snapshots.dir = "../../etc"`). This is the security-relevant branch introduced by M08 and should have a test asserting `SystemExit(2)` is raised when the resolved path escapes the repo root.
-- `tests/unit/test_check_cmd.py` — no test for an expired threshold override (pre-existing gap; not introduced by M08, but flagged here to track).
+- `_helpers.py:resolve_snapshots_dir` — no unit test for the path-traversal rejection case (e.g., `config.snapshots.dir = "../../etc"`). This is the security-relevant branch introduced by M08 and should have a test asserting `SystemExit(2)` is raised when the resolved path escapes the repo root. (Carried from prior cycle.)
+- `tests/unit/test_check_cmd.py` — no test for an expired threshold override (pre-existing gap; not introduced by M08). (Carried from prior cycle.)
 
 ## Drift Observations
-- `_partition_cache.py:48` — `KeyError` in the `except (json.JSONDecodeError, OSError, KeyError)` clause is dead after the `isinstance(data, dict)` guard. The only remaining code in the try block uses `.get()` which does not raise `KeyError`. Misleading to future readers; could be trimmed to `except (json.JSONDecodeError, OSError)`.
-- `diff_cmd.py:54-56` — the `_load_pair` docstring and Click help string are now accurate, but the behavior when `ref_a` is provided and `ref_b` is `None` silently resolves `ref_b` to "latest" via `resolve_snapshot_ref(snapshots_dir, None)`. This is now documented in the Click command help, which is correct. Observation only.
+- `src/sdi/cli/snapshot_cmd.py:46` — exception tuple `(FileNotFoundError, subprocess.TimeoutExpired)` in `_get_commit_sha` does not cover `PermissionError` (e.g., git binary not executable). Low-risk gap, not a blocker.
+- `check_cmd.py:70-73` — `_effective_threshold` applies overrides without checking expiry dates; safe only if config layer pre-filters expired overrides. Pre-existing from prior cycle; not introduced by this change.
+- `_partition_cache.py:48` — `KeyError` in `except (json.JSONDecodeError, OSError, KeyError)` is dead after the `isinstance(data, dict)` guard. Carried from prior cycle.
+
+## Prior Blocker Resolution
+
+- **FIXED** — `src/sdi/cli/snapshot_cmd.py`: `import json` is now in the contiguous stdlib imports block at line 5, alongside `import subprocess`, `from datetime import ...`, `from pathlib import ...`, and `from typing import ...`. No extraneous blank line separating it from the stdlib group. Blocker is resolved.
