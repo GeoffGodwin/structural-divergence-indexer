@@ -20,6 +20,42 @@ from sdi.snapshot.model import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Adapter availability guards (used by integration tests)
+# ---------------------------------------------------------------------------
+
+
+def _has_python_adapter() -> bool:
+    """Return True if the Python tree-sitter grammar is importable."""
+    try:
+        from sdi.parsing.python import PythonAdapter  # noqa: F401
+
+        return True
+    except Exception:  # grammar init can raise OSError, RuntimeError, etc.
+        return False
+
+
+def _has_ts_adapter() -> bool:
+    """Return True if the TypeScript tree-sitter adapter is importable."""
+    try:
+        from sdi.parsing.typescript import TypeScriptAdapter  # noqa: F401
+
+        return True
+    except Exception:  # grammar init can raise OSError, RuntimeError, etc.
+        return False
+
+
+requires_python_adapter = pytest.mark.skipif(
+    not _has_python_adapter(),
+    reason="tree-sitter Python grammar not available",
+)
+
+requires_ts_adapter = pytest.mark.skipif(
+    not _has_ts_adapter(),
+    reason="tree-sitter TypeScript grammar not available",
+)
+
+
 @pytest.fixture
 def sample_divergence() -> DivergenceSummary:
     """A DivergenceSummary with non-null current values but null deltas (first snapshot)."""

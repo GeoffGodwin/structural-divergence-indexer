@@ -1,3 +1,5 @@
+# Reviewer Report — Milestone 12: Integration Tests, Polish, and Packaging
+
 ## Verdict
 APPROVED_WITH_NOTES
 
@@ -8,16 +10,17 @@ APPROVED_WITH_NOTES
 - None
 
 ## Non-Blocking Notes
-- `_hooks.py:66,74`: `write_text` is used directly for hook file writes, inconsistent with `_update_gitignore` which uses `write_atomic`. Critical System Rule 1 scopes the atomic-write mandate to `.sdi/` operations (`.git/hooks/` is excluded), so this is not a strict rule violation — but the inconsistency is worth resolving for clarity.
-- `_hooks.py:17-20`: Branch allowlist (`main|master|develop`) in `_POST_MERGE_BODY` is hardcoded in the template string. Users on non-standard default branch names (`trunk`, `release`, etc.) must manually edit the hook. Consider adding a note in `docs/ci-integration.md` or in the hook comment.
-- `init_cmd.py:229-230`: Lazy imports of `sdi.snapshot.storage` and `sdi.cli.boundaries_cmd` inside a bare `except Exception` block hides import errors in `_infer_boundaries_from_snapshot`. Acceptable for a best-effort fallback but masks misconfiguration silently.
-- `boundaries_cmd.py:166` (pre-existing, security agent): Multi-word `EDITOR` env vars (e.g. `"code --wait"`) cause `FileNotFoundError` because the full string is passed as the executable. Fix: `import shlex; subprocess.run([*shlex.split(editor), str(spec_path)], check=False)`. Predates M11 but flagged LOW/fixable.
+- `test_full_pipeline.py:28` and `test_multi_snapshot.py:42`: `except (ImportError, Exception)` is equivalent to bare `except Exception` since `Exception` is a superclass of `ImportError`. Drop the redundant `ImportError` and add a brief comment explaining why the broad catch is intentional (grammar init can raise OSError, RuntimeError, etc. depending on the tree-sitter backend).
+- `test_multi_snapshot.py:223-248`: `config.toml` is written after both snapshots in `test_check_tight_thresholds_exits_10`. This is functionally correct (thresholds are only read by `sdi check`, not at snapshot time) but the ordering is non-obvious. A short inline comment would help future readers understand the intent.
+- `ci.yml` has no pip dependency caching. Not a correctness issue, but the 3×3 matrix re-downloads and reinstalls on every run. Adding `cache: pip` to `actions/setup-python` is a low-effort improvement worth considering.
+- Security finding from security agent (`boundaries_cmd.py:166` — multi-word EDITOR not split via shlex) is marked NOT_ADDRESSED in the coder summary as out of scope for M12. Confirmed low severity; acceptable to defer.
 
 ## Coverage Gaps
-- `completion_cmd` has no tests — no assertion that `sdi completion bash/zsh/fish` outputs the correct eval string to stdout and hint to stderr.
-- `_maybe_install_hooks` TTY-prompt path (the `click.confirm` branch) has no test coverage.
-- `_infer_boundaries_from_snapshot` success path (snapshot exists with partition data) has no test.
+- `evolving_project` fixture manually creates `.sdi/` and `.sdi/snapshots/` rather than invoking `sdi init`. The `sdi init` command is not exercised by the multi-snapshot lifecycle tests. A test covering the actual `init → snapshot` path would close this gap.
+- `_latest_by_mtime` has no guard against an empty snapshot list — `max()` on an empty sequence raises `ValueError`. If called before any snapshots exist the error message will be confusing rather than diagnostic.
+- No test covers the `sdi boundaries` command path in the context of the multi-snapshot lifecycle (with or without a boundaries spec file).
 
 ## Drift Observations
-- `init_cmd.py:229-230`: `from sdi.cli.boundaries_cmd import _partition_to_proposed_yaml` crosses an intra-CLI boundary via a private function. `_partition_to_proposed_yaml` is a pure formatting utility that belongs closer to `sdi.detection.boundaries` rather than buried in another CLI module.
-- `cli/__init__.py:30`: `signal.signal(signal.SIGTERM, _sigterm_handler)` executes at module import time as a side effect. Acceptable for a pure-CLI entry point, but any test that does `import sdi.cli` will silently install the SIGTERM handler — worth noting if the test suite ever needs to control signal disposition.
+- `test_full_pipeline.py:21-54` and `test_multi_snapshot.py:36-49`: `_has_python_adapter()`, `_has_ts_adapter()`, and the `requires_python_adapter` mark are duplicated across both integration test files. These belong in `tests/conftest.py`.
+- `test_multi_snapshot.py:20-33`: `_latest_by_mtime` patches over a known limitation in `storage.list_snapshots` (alphabetical sort breaks on same-second filenames). If storage is ever fixed to sort by timestamp, this helper becomes dead weight. A `# TODO: remove once list_snapshots uses mtime` comment would track this.
+- `setup_fixture.py:155`: Standalone default output path is `tests/fixtures/evolving` — the same directory as the static reference files. Running the script standalone would overwrite those files and create a git repo in their place. Consider defaulting to a temp path or adding a guard to prevent clobbering the reference files.

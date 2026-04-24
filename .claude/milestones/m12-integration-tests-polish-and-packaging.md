@@ -1,4 +1,9 @@
 ### Milestone 12: Integration Tests, Polish, and Packaging
+<!-- milestone-meta
+id: "12"
+status: "done"
+-->
+
 
 **Scope:** Comprehensive integration testing (multi-snapshot lifecycle, evolving fixture), the `evolving` test fixture with progressive drift across git commits, end-to-end verification of all CLI commands, CI workflow files (`.github/workflows/ci.yml`), and final packaging verification (wheel build, entry point, extras).
 

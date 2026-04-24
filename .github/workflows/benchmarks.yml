@@ -1,0 +1,30 @@
+name: Benchmarks
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install all dependencies
+        run: pip install -e ".[dev,all]" pytest-benchmark
+
+      - name: Run benchmarks
+        run: pytest tests/benchmarks/ --benchmark-only -v --benchmark-json=benchmark-results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json

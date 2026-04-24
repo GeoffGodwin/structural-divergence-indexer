@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.6] - 2026-04-24
+
+### Added
+- **`tests/fixtures/setup_fixture.py`** (NEW): Module + standalone script that creates an evolving git repository fixture with 5 commits of progressive structural drift. Exports `create_evolving_fixture(target_dir)` for use in tests. Each commit adds Python files with distinct structural patterns (single-exception handling, tuple-exception with alias and finally, async functions, multi-handler with else, logging calls). Can also be run standalone: `python setup_fixture.py [output_dir]`. (M12)
 ## [0.1.5] - 2026-04-24
 
 ### Added
