@@ -12,14 +12,18 @@ from tree_sitter import Node
 
 from sdi.parsing._lang_common import _location, _structural_hash, _walk_nodes
 
-# Signal names that indicate error-handling trap handlers.
-_TRAP_SIGNALS: frozenset[str] = frozenset({"ERR", "EXIT", "INT", "TERM", "HUP"})
-
-# Command names that constitute logging patterns.
+_TRAP_SIGNALS: frozenset[str] = frozenset({"ERR", "EXIT", "INT", "TERM", "HUP", "QUIT"})
 _LOGGING_COMMANDS: frozenset[str] = frozenset({"echo", "printf", "logger", "tee"})
-
-# Command names on the right side of || / && that signal error handling.
 _BAIL_COMMANDS: frozenset[str] = frozenset({"exit", "return", "false"})
+_DATA_ACCESS_COMMANDS: frozenset[str] = frozenset({
+    "curl", "wget", "jq", "yq", "psql", "mysql", "mysqldump", "pg_dump",
+    "redis-cli", "mongo", "mongosh", "sqlite3", "aws", "gcloud", "kubectl",
+    "az", "doctl", "terraform",
+})
+# Node types whose direct children may include background `&` operators.
+_BACKGROUND_CONTAINERS: frozenset[str] = frozenset({
+    "program", "compound_statement", "subshell", "function_body", "do_group",
+})
 
 
 def _node_text(node: Node) -> str:
@@ -36,7 +40,6 @@ def _get_command_name(node: Node) -> str:
 
 
 def _get_command_args(node: Node) -> list[Node]:
-    """Return argument nodes from a command node."""
     return node.children_by_field_name("argument")
 
 
@@ -47,8 +50,6 @@ def _shell_structural_hash(node: Node, max_depth: int = 6) -> str:
     structure so that ``set -e``, ``trap ERR``, and ``exit 1`` produce
     distinct hashes even though they share the same node type.
 
-    For all other node types, delegates to _lang_common._structural_hash.
-
     Args:
         node: Root node of the subtree.
         max_depth: Maximum recursion depth.
@@ -58,7 +59,6 @@ def _shell_structural_hash(node: Node, max_depth: int = 6) -> str:
     """
     if node.type != "command":
         return _structural_hash(node, max_depth)
-
     cmd_name = _get_command_name(node)
 
     def _serialize(n: Node, depth: int) -> str:
@@ -72,24 +72,17 @@ def _shell_structural_hash(node: Node, max_depth: int = 6) -> str:
 
 
 def _is_set_error_handling(args: list[Node]) -> bool:
-    """Return True if a ``set`` command's args indicate error-handling mode."""
-    for arg in args:
-        text = _node_text(arg)
-        if text.startswith("-") and ("e" in text or "u" in text or "o" in text):
-            return True
-    return False
+    return any(
+        _node_text(a).startswith("-") and any(c in _node_text(a) for c in "euo")
+        for a in args
+    )
 
 
 def _is_trap_error_handling(args: list[Node]) -> bool:
-    """Return True if a ``trap`` command targets an error-related signal."""
-    if not args:
-        return False
-    last_text = _node_text(args[-1])
-    return last_text in _TRAP_SIGNALS
+    return bool(args) and any(_node_text(a) in _TRAP_SIGNALS for a in args)
 
 
 def _is_nonzero_exit_or_return(args: list[Node]) -> bool:
-    """Return True if exit/return uses a non-zero numeric literal."""
     if not args:
         return False
     text = _node_text(args[0]).strip()
@@ -97,23 +90,66 @@ def _is_nonzero_exit_or_return(args: list[Node]) -> bool:
 
 
 def _check_list_node(node: Node) -> bool:
-    """Return True if a list (||/&&) node's right side bails on error."""
     non_extra = [c for c in node.children if not c.is_extra]
     for i, child in enumerate(non_extra):
         if child.type in ("||", "&&") and i + 1 < len(non_extra):
             right = non_extra[i + 1]
-            if right.type == "command":
-                return _get_command_name(right) in _BAIL_COMMANDS
+            if right.type == "command" and _get_command_name(right) in _BAIL_COMMANDS:
+                return True
     return False
+
+
+def _check_if_exit_or_return(node: Node) -> bool:
+    found_then = False
+    for child in node.children:
+        if child.type == "then":
+            found_then = True
+            continue
+        if found_then and child.type in ("fi", "elif_clause", "else_clause"):
+            break
+        if found_then and child.type == "command":
+            cmd = _get_command_name(child)
+            if cmd in {"exit", "return"} and _is_nonzero_exit_or_return(_get_command_args(child)):
+                return True
+    return False
+
+
+def _has_test_command_substitution(node: Node) -> bool:
+    return any(
+        sub is not node and sub.type == "command_substitution"
+        for sub in _walk_nodes(node)
+    )
+
+
+def _check_background_children(node: Node) -> list[Node]:
+    children = [c for c in node.children if not c.is_extra]
+    return [
+        children[i - 1]
+        for i, child in enumerate(children)
+        if child.type == "&" and i > 0 and children[i - 1].type == "command"
+    ]
+
+
+def _is_wide_pipeline(node: Node) -> bool:
+    return node.type == "pipeline" and sum(1 for c in node.children if c.type == "|") >= 2
+
+
+def _is_parallel_xargs(args: list[Node]) -> bool:
+    return any(_node_text(a) in ("-P", "--max-procs") for a in args)
+
+
+def _is_stderr_redirect(node: Node) -> bool:
+    return node.type == "redirected_statement" and any(
+        c.type == "file_redirect" and ">&2" in _node_text(c)
+        for c in node.children
+    )
 
 
 def extract_pattern_instances(root: Node) -> list[dict[str, Any]]:
     """Extract pattern instances from the root of a parsed shell script.
 
-    Detects:
-    - error_handling: set -e/u/o, trap ERR/EXIT/…, exit/return non-zero,
-      list nodes (||/&&) whose right side is exit/return/false.
-    - logging: echo, printf, logger, tee commands.
+    Detects error_handling, logging, data_access, and async_patterns across
+    all four categories using structural AST analysis.
 
     Args:
         root: Root AST node of the parsed shell script.
@@ -123,42 +159,49 @@ def extract_pattern_instances(root: Node) -> list[dict[str, Any]]:
     """
     instances: list[dict[str, Any]] = []
 
+    def _emit(category: str, hash_val: str, node: Node) -> None:
+        instances.append({"category": category, "ast_hash": hash_val, "location": _location(node)})
+
     for node in _walk_nodes(root):
-        if node.type == "command":
+        ntype = node.type
+
+        if ntype == "command":
             cmd_name = _get_command_name(node)
             args = _get_command_args(node)
 
             if cmd_name == "set" and _is_set_error_handling(args):
-                instances.append({
-                    "category": "error_handling",
-                    "ast_hash": _shell_structural_hash(node),
-                    "location": _location(node),
-                })
+                _emit("error_handling", _shell_structural_hash(node), node)
             elif cmd_name == "trap" and _is_trap_error_handling(args):
-                instances.append({
-                    "category": "error_handling",
-                    "ast_hash": _shell_structural_hash(node),
-                    "location": _location(node),
-                })
+                _emit("error_handling", _shell_structural_hash(node), node)
             elif cmd_name in {"exit", "return"} and _is_nonzero_exit_or_return(args):
-                instances.append({
-                    "category": "error_handling",
-                    "ast_hash": _shell_structural_hash(node),
-                    "location": _location(node),
-                })
+                _emit("error_handling", _shell_structural_hash(node), node)
             elif cmd_name in _LOGGING_COMMANDS:
-                instances.append({
-                    "category": "logging",
-                    "ast_hash": _shell_structural_hash(node),
-                    "location": _location(node),
-                })
+                _emit("logging", _shell_structural_hash(node), node)
+            elif cmd_name == "wait":
+                _emit("async_patterns", _shell_structural_hash(node), node)
+            elif cmd_name in ("xargs", "parallel") and _is_parallel_xargs(args):
+                _emit("async_patterns", _shell_structural_hash(node), node)
+            elif cmd_name in _DATA_ACCESS_COMMANDS:
+                _emit("data_access", _shell_structural_hash(node), node)
 
-        elif node.type == "list" and _check_list_node(node):
-            instances.append({
-                "category": "error_handling",
-                "ast_hash": _structural_hash(node),
-                "location": _location(node),
-            })
+        elif ntype == "list" and _check_list_node(node):
+            _emit("error_handling", _structural_hash(node), node)
+
+        elif ntype == "if_statement" and _check_if_exit_or_return(node):
+            _emit("error_handling", _structural_hash(node), node)
+
+        elif ntype == "test_command" and _has_test_command_substitution(node):
+            _emit("error_handling", _structural_hash(node), node)
+
+        elif ntype == "redirected_statement" and _is_stderr_redirect(node):
+            _emit("logging", _structural_hash(node), node)
+
+        elif ntype in _BACKGROUND_CONTAINERS:
+            for cmd_node in _check_background_children(node):
+                _emit("async_patterns", _shell_structural_hash(cmd_node), cmd_node)
+
+        elif _is_wide_pipeline(node):
+            _emit("async_patterns", _structural_hash(node), node)
 
     return instances
 

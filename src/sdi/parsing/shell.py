@@ -15,7 +15,12 @@ import tree_sitter_bash as _tsbash
 from tree_sitter import Language, Node, Parser
 
 from sdi.parsing._lang_common import _walk_nodes
-from sdi.parsing._shell_patterns import count_loc_shell, extract_pattern_instances
+from sdi.parsing._shell_patterns import (
+    _get_command_name,
+    _node_text,
+    count_loc_shell,
+    extract_pattern_instances,
+)
 from sdi.parsing.base import LanguageAdapter
 from sdi.snapshot.model import FeatureRecord
 
@@ -32,19 +37,6 @@ def _get_parser() -> Parser:
     if _PARSER is None:
         _PARSER = Parser(Language(_tsbash.language()))
     return _PARSER
-
-
-def _node_text(node: Node) -> str:
-    """Decode a node's source text as UTF-8."""
-    return (node.text or b"").decode("utf-8", errors="replace")
-
-
-def _get_command_name(node: Node) -> str:
-    """Return the command name text from a command node."""
-    name_node = node.child_by_field_name("name")
-    if name_node is None:
-        return ""
-    return _node_text(name_node).strip()
 
 
 def _is_static_literal(arg_node: Node) -> bool:

@@ -243,3 +243,53 @@ def test_cached_record_preserves_content_hash(tmp_path: Path):
     assert cached.content_hash == file_hash
     assert cached.file_path == "src/foo.py"
     assert cached.imports == ["os"]
+
+
+# ---------------------------------------------------------------------------
+# Shell parse cache — language-agnostic behaviour (M14)
+# ---------------------------------------------------------------------------
+
+
+def _make_shell_record(file_path: str = "scripts/deploy.sh") -> FeatureRecord:
+    return FeatureRecord(
+        file_path=file_path,
+        language="shell",
+        imports=["lib/common.sh"],
+        symbols=["deploy", "cleanup"],
+        pattern_instances=[
+            {"category": "error_handling", "ast_hash": "abcd1234", "location": {"line": 2, "col": 0}},
+            {"category": "logging", "ast_hash": "ef567890", "location": {"line": 5, "col": 0}},
+        ],
+        lines_of_code=20,
+        content_hash="",
+    )
+
+
+def test_shell_parse_cache_round_trip(tmp_path: Path):
+    """Shell FeatureRecords survive a write→read cache round-trip unchanged."""
+    cache_dir = tmp_path / "cache"
+    shell_src = b"#!/usr/bin/env bash\nset -euo pipefail\necho 'hello'\n"
+    file_hash = compute_file_hash(shell_src)
+    record = _make_shell_record()
+    write_parse_cache(cache_dir, file_hash, record)
+
+    cached = read_parse_cache(cache_dir, file_hash)
+    assert cached is not None
+    assert cached.language == "shell"
+    assert cached.imports == ["lib/common.sh"]
+    assert cached.symbols == ["deploy", "cleanup"]
+    assert len(cached.pattern_instances) == 2
+
+
+def test_shell_different_content_invalidates_cache(tmp_path: Path):
+    """Different shell source bytes produce a cache miss (different hash)."""
+    cache_dir = tmp_path / "cache"
+    src_v1 = b"#!/usr/bin/env bash\nset -e\necho hi\n"
+    src_v2 = b"#!/usr/bin/env bash\nset -euo pipefail\necho hi\n"
+    hash_v1 = compute_file_hash(src_v1)
+    hash_v2 = compute_file_hash(src_v2)
+    assert hash_v1 != hash_v2
+
+    write_parse_cache(cache_dir, hash_v1, _make_shell_record())
+    assert read_parse_cache(cache_dir, hash_v1) is not None
+    assert read_parse_cache(cache_dir, hash_v2) is None

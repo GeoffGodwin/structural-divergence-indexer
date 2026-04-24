@@ -106,12 +106,6 @@ _DESCRIPTIONS: dict[str, str] = {
 }
 
 
-# Shell categories: actual extraction lives in _shell_patterns.py.
-# This empty dict keeps categories.py aware of shell as a registered language
-# without misleading query strings.
-_SHELL_QUERIES: dict[str, str] = {}
-
-
 def _build_registry() -> dict[str, CategoryDefinition]:
     """Construct the category registry from built-in definitions."""
     registry: dict[str, CategoryDefinition] = {}
@@ -119,8 +113,7 @@ def _build_registry() -> dict[str, CategoryDefinition]:
         ts_queries: dict[str, str] = {}
         if name in _PYTHON_QUERIES:
             ts_queries["python"] = _PYTHON_QUERIES[name]
-        if name in _SHELL_QUERIES:
-            ts_queries["shell"] = _SHELL_QUERIES[name]
+        # Shell extraction lives in _shell_patterns.py, not in ts_queries.
         registry[name] = CategoryDefinition(
             name=name,
             description=_DESCRIPTIONS[name],

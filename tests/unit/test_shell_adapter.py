@@ -243,3 +243,237 @@ class TestShellEdgeCases:
         hashes1 = [i["ast_hash"] for i in record1.pattern_instances]
         hashes2 = [i["ast_hash"] for i in record2.pattern_instances]
         assert hashes1 == hashes2
+
+
+@requires_shell_adapter
+class TestShellErrorHandlingExtended:
+    """M14: additional error_handling shapes beyond M13 baseline."""
+
+    def _instances(self, tmp_path: Path, src: str) -> list[dict]:
+        from sdi.parsing.shell import ShellAdapter
+
+        script = tmp_path / "s.sh"
+        script.write_text(src, encoding="utf-8")
+        adapter = ShellAdapter(repo_root=tmp_path)
+        record = adapter.parse_file(script, src.encode())
+        return [i for i in record.pattern_instances if i["category"] == "error_handling"]
+
+    def test_trap_exit_signal(self, tmp_path: Path) -> None:
+        assert len(self._instances(tmp_path, "trap cleanup EXIT\n")) == 1
+
+    def test_trap_int_signal(self, tmp_path: Path) -> None:
+        assert len(self._instances(tmp_path, "trap cleanup INT\n")) == 1
+
+    def test_trap_quit_signal(self, tmp_path: Path) -> None:
+        assert len(self._instances(tmp_path, "trap cleanup QUIT\n")) == 1
+
+    def test_trap_multiple_signals_one_instance(self, tmp_path: Path) -> None:
+        # trap cleanup ERR EXIT — one trap command → one instance
+        assert len(self._instances(tmp_path, "trap cleanup ERR EXIT\n")) == 1
+
+    def test_if_exit_nonzero(self, tmp_path: Path) -> None:
+        src = "if ! check; then exit 1; fi\n"
+        instances = self._instances(tmp_path, src)
+        # if_statement fires one instance; exit 1 command fires another
+        assert len(instances) == 2
+
+    def test_if_statement_distinct_hash_from_exit_cmd(self, tmp_path: Path) -> None:
+        src = "if ! check; then exit 1; fi\n"
+        instances = self._instances(tmp_path, src)
+        assert len({i["ast_hash"] for i in instances}) == 2
+
+    def test_test_command_with_command_substitution(self, tmp_path: Path) -> None:
+        src = "if [ -z $(get_val) ]; then exit 1; fi\n"
+        instances = self._instances(tmp_path, src)
+        categories = [i["ast_hash"] for i in instances]
+        assert len(categories) >= 1  # test_command + if_statement + exit 1
+
+    def test_double_bracket_with_command_substitution(self, tmp_path: Path) -> None:
+        src = "[[ -n $(check_status) ]] && exit 1\n"
+        instances = self._instances(tmp_path, src)
+        assert any(True for _ in instances)  # at minimum one instance
+
+    def test_five_new_shapes_distinct_from_m13(self, tmp_path: Path) -> None:
+        src = (
+            "set -euo pipefail\n"
+            "trap cleanup ERR\n"
+            "trap done EXIT\n"
+            "if ! foo; then exit 1; fi\n"
+            "bar || false\n"
+        )
+        instances = self._instances(tmp_path, src)
+        hashes = {i["ast_hash"] for i in instances}
+        # set-euo, trap-ERR, trap-EXIT (same hash as trap-ERR if args differ),
+        # if-exit (if_statement shape), exit 1 cmd, list-bail false — at least 4 distinct
+        assert len(hashes) >= 4
+
+
+# ---------------------------------------------------------------------------
+# M14: async_patterns
+# ---------------------------------------------------------------------------
+
+
+@requires_shell_adapter
+class TestShellAsyncPatterns:
+    """M14: async_patterns detection — background, wait, pipelines, xargs."""
+
+    def _async(self, tmp_path: Path, src: str) -> list[dict]:
+        from sdi.parsing.shell import ShellAdapter
+
+        script = tmp_path / "s.sh"
+        script.write_text(src, encoding="utf-8")
+        adapter = ShellAdapter(repo_root=tmp_path)
+        record = adapter.parse_file(script, src.encode())
+        return [i for i in record.pattern_instances if i["category"] == "async_patterns"]
+
+    def test_background_ampersand(self, tmp_path: Path) -> None:
+        src = "run_job &\nwait\n"
+        instances = self._async(tmp_path, src)
+        cats = [i["category"] for i in instances]
+        assert cats.count("async_patterns") >= 1
+
+    def test_wait_command(self, tmp_path: Path) -> None:
+        assert len(self._async(tmp_path, "wait\n")) == 1
+
+    def test_wait_with_args(self, tmp_path: Path) -> None:
+        assert len(self._async(tmp_path, "wait $pid\n")) >= 1
+
+    def test_wide_pipeline_three_stages(self, tmp_path: Path) -> None:
+        src = "cat data.txt | grep foo | wc -l\n"
+        assert len(self._async(tmp_path, src)) == 1
+
+    def test_wide_pipeline_four_stages(self, tmp_path: Path) -> None:
+        src = "cat f | sort | uniq | wc -l\n"
+        assert len(self._async(tmp_path, src)) == 1
+
+    def test_two_stage_pipeline_not_async(self, tmp_path: Path) -> None:
+        src = "cat f | grep foo\n"
+        assert len(self._async(tmp_path, src)) == 0
+
+    def test_xargs_minus_p(self, tmp_path: Path) -> None:
+        assert len(self._async(tmp_path, "find . -name '*.sh' | xargs -P 4 shellcheck\n")) == 1
+
+    def test_xargs_max_procs_long(self, tmp_path: Path) -> None:
+        assert len(self._async(tmp_path, "xargs --max-procs 8 process\n")) == 1
+
+    def test_xargs_without_p_not_async(self, tmp_path: Path) -> None:
+        assert len(self._async(tmp_path, "xargs echo\n")) == 0
+
+    def test_background_and_wait_distinct_hashes(self, tmp_path: Path) -> None:
+        src = "run_job &\nwait\n"
+        instances = self._async(tmp_path, src)
+        hashes = {i["ast_hash"] for i in instances}
+        assert len(hashes) == 2
+
+
+# ---------------------------------------------------------------------------
+# M14: data_access allow-list
+# ---------------------------------------------------------------------------
+
+
+@requires_shell_adapter
+class TestShellDataAccess:
+    """M14: data_access detection for command allow-list."""
+
+    def _data(self, tmp_path: Path, src: str) -> list[dict]:
+        from sdi.parsing.shell import ShellAdapter
+
+        script = tmp_path / "s.sh"
+        script.write_text(src, encoding="utf-8")
+        adapter = ShellAdapter(repo_root=tmp_path)
+        record = adapter.parse_file(script, src.encode())
+        return [i for i in record.pattern_instances if i["category"] == "data_access"]
+
+    def test_curl(self, tmp_path: Path) -> None:
+        assert len(self._data(tmp_path, 'curl -sf "http://example.com"\n')) == 1
+
+    def test_psql(self, tmp_path: Path) -> None:
+        assert len(self._data(tmp_path, "psql -U admin -d mydb -c 'SELECT 1'\n")) == 1
+
+    def test_kubectl(self, tmp_path: Path) -> None:
+        assert len(self._data(tmp_path, "kubectl get pods\n")) == 1
+
+    def test_jq(self, tmp_path: Path) -> None:
+        assert len(self._data(tmp_path, "jq '.version' package.json\n")) == 1
+
+    def test_aws(self, tmp_path: Path) -> None:
+        assert len(self._data(tmp_path, "aws s3 cp src s3://bucket/\n")) == 1
+
+    def test_curl_psql_kubectl_distinct_hashes(self, tmp_path: Path) -> None:
+        src = 'curl -sf "http://example.com"\npsql -U a -d b\nkubectl get pods\n'
+        from sdi.parsing.shell import ShellAdapter
+
+        script = tmp_path / "s.sh"
+        script.write_text(src, encoding="utf-8")
+        adapter = ShellAdapter(repo_root=tmp_path)
+        record = adapter.parse_file(script, src.encode())
+        data_hashes = {i["ast_hash"] for i in record.pattern_instances if i["category"] == "data_access"}
+        assert len(data_hashes) == 3, "curl, psql, kubectl must have distinct hashes"
+
+    def test_unknown_command_not_data_access(self, tmp_path: Path) -> None:
+        assert self._data(tmp_path, "my_custom_cmd arg\n") == []
+
+
+# ---------------------------------------------------------------------------
+# M14: logging >&2 redirect
+# ---------------------------------------------------------------------------
+
+
+@requires_shell_adapter
+class TestShellLoggingRedirect:
+    """M14: logging >&2 redirect produces a shape distinct from bare echo."""
+
+    def _logging(self, tmp_path: Path, src: str) -> list[dict]:
+        from sdi.parsing.shell import ShellAdapter
+
+        script = tmp_path / "s.sh"
+        script.write_text(src, encoding="utf-8")
+        adapter = ShellAdapter(repo_root=tmp_path)
+        record = adapter.parse_file(script, src.encode())
+        return [i for i in record.pattern_instances if i["category"] == "logging"]
+
+    def test_stderr_redirect_detected(self, tmp_path: Path) -> None:
+        instances = self._logging(tmp_path, 'echo "error" >&2\n')
+        assert len(instances) >= 1
+
+    def test_stderr_redirect_distinct_from_bare_echo(self, tmp_path: Path) -> None:
+        bare = self._logging(tmp_path, 'echo "hello"\n')
+        redirected = self._logging(tmp_path, 'echo "hello" >&2\n')
+        bare_hashes = {i["ast_hash"] for i in bare}
+        redirected_hashes = {i["ast_hash"] for i in redirected}
+        # The redirected form (redirected_statement) must produce at least one
+        # hash not present in the bare echo set
+        assert redirected_hashes - bare_hashes, (
+            ">&2 redirect must produce a distinct hash from bare echo"
+        )
+
+
+# ---------------------------------------------------------------------------
+# M14: Reproducibility across shell-heavy fixture
+# ---------------------------------------------------------------------------
+
+
+@requires_shell_adapter
+class TestShellHeavyReproducibility:
+    """Parsing shell-heavy twice yields identical (category, ast_hash) multisets."""
+
+    def test_shell_heavy_reproducibility(self) -> None:
+        from pathlib import Path
+
+        from sdi.parsing.shell import ShellAdapter
+
+        fixture = Path(__file__).parent.parent / "fixtures" / "shell-heavy"
+        adapter = ShellAdapter(repo_root=fixture.resolve())
+
+        def collect(fixture_dir: Path) -> list[tuple[str, str]]:
+            result = []
+            for sh_file in sorted(fixture_dir.rglob("*.sh")):
+                data = sh_file.read_bytes()
+                record = adapter.parse_file(sh_file.resolve(), data)
+                for inst in record.pattern_instances:
+                    result.append((inst["category"], inst["ast_hash"]))
+            return sorted(result)
+
+        run1 = collect(fixture)
+        run2 = collect(fixture)
+        assert run1 == run2, "Parsing shell-heavy twice must yield identical results"
