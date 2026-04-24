@@ -2,9 +2,12 @@
 
 ## Metadata
 - Last audit: never
-- Runs since audit: 2
+- Runs since audit: 3
 
 ## Unresolved Observations
+- [2026-04-24 | "Implement Milestone 9: Boundary Specification and Intent Divergence"] `src/sdi/cli/snapshot_cmd.py:46` — exception tuple `(FileNotFoundError, subprocess.TimeoutExpired)` in `_get_commit_sha` does not cover `PermissionError` (e.g., git binary not executable). Low-risk gap, not a blocker.
+- [2026-04-24 | "Implement Milestone 9: Boundary Specification and Intent Divergence"] `check_cmd.py:70-73` — `_effective_threshold` applies overrides without checking expiry dates; safe only if config layer pre-filters expired overrides. Pre-existing from prior cycle; not introduced by this change.
+- [2026-04-24 | "Implement Milestone 9: Boundary Specification and Intent Divergence"] `_partition_cache.py:48` — `KeyError` in `except (json.JSONDecodeError, OSError, KeyError)` is dead after the `isinstance(data, dict)` guard. Carried from prior cycle.
 - [2026-04-23 | "Implement Milestone 8: CLI Commands — snapshot, show, diff, trend, check, catalog"] `src/sdi/cli/snapshot_cmd.py:46` — exception tuple `(FileNotFoundError, subprocess.TimeoutExpired)` in `_get_commit_sha` does not cover `PermissionError` (e.g., git binary not executable). Low-risk gap, not a blocker.
 - [2026-04-23 | "Implement Milestone 8: CLI Commands — snapshot, show, diff, trend, check, catalog"] `check_cmd.py:70-73` — `_effective_threshold` applies overrides without checking expiry dates; safe only if config layer pre-filters expired overrides. Pre-existing from prior cycle; not introduced by this change.
 - [2026-04-23 | "Implement Milestone 8: CLI Commands — snapshot, show, diff, trend, check, catalog"] `_partition_cache.py:48` — `KeyError` in `except (json.JSONDecodeError, OSError, KeyError)` is dead after the `isinstance(data, dict)` guard. Carried from prior cycle.

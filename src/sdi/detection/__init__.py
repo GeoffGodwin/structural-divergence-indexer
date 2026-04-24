@@ -3,6 +3,10 @@
 Public API:
     detect_communities(graph, config, cache_dir) -> CommunityResult
     CommunityResult: dataclass with partition, stability_score, and metrics
+    BoundarySpec: parsed boundary specification from .sdi/boundaries.yaml
+    IntentDivergence: computed violations against a ratified spec
+    load_boundary_spec(path) -> BoundarySpec | None
+    compute_intent_divergence(spec, partition_data) -> IntentDivergence
 """
 
 from __future__ import annotations
@@ -10,6 +14,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from sdi.detection.boundaries import (
+    BoundarySpec,
+    IntentDivergence,
+    compute_intent_divergence,
+    load_boundary_spec,
+)
 from sdi.detection.leiden import CommunityResult, run_leiden
 
 if TYPE_CHECKING:
@@ -18,8 +28,12 @@ if TYPE_CHECKING:
     from sdi.config import SDIConfig
 
 __all__ = [
+    "BoundarySpec",
     "CommunityResult",
+    "IntentDivergence",
+    "compute_intent_divergence",
     "detect_communities",
+    "load_boundary_spec",
 ]
 
 

@@ -9,6 +9,7 @@ from typing import Any
 import click
 
 from sdi import __version__
+from sdi.cli.boundaries_cmd import boundaries_cmd
 from sdi.cli.catalog_cmd import catalog_cmd
 from sdi.cli.check_cmd import check_cmd
 from sdi.cli.diff_cmd import diff_cmd
@@ -70,20 +71,4 @@ cli.add_command(diff_cmd)
 cli.add_command(trend_cmd)
 cli.add_command(check_cmd)
 cli.add_command(catalog_cmd)
-
-
-# ---------------------------------------------------------------------------
-# Placeholder subcommands (implemented in Milestone 9)
-# ---------------------------------------------------------------------------
-
-def _not_yet_implemented(name: str) -> click.Command:
-    @click.command(name)
-    def _cmd(**_kwargs: Any) -> None:
-        click.echo(f"sdi {name}: not yet implemented", err=True)
-        raise SystemExit(1)
-
-    _cmd.help = f"[placeholder] {name.capitalize()} — not yet implemented."
-    return _cmd
-
-
-cli.add_command(_not_yet_implemented("boundaries"))
+cli.add_command(boundaries_cmd)

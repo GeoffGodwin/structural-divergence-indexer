@@ -95,10 +95,26 @@ def _update_gitignore(gitignore_path: Path) -> None:
     write_atomic(gitignore_path, updated)
 
 
+_BOUNDARIES_TEMPLATE = """\
+sdi_boundaries:
+  version: "0.1.0"
+  generated_from: "manual"
+  modules: []
+  allowed_cross_domain: []
+  aspirational_splits: []
+"""
+
+
 @click.command("init")
 @click.option("--force", is_flag=True, help="Overwrite existing .sdi/config.toml.")
+@click.option(
+    "--propose-boundaries",
+    "propose_boundaries",
+    is_flag=True,
+    help="Write a starter boundaries.yaml (from latest snapshot if available).",
+)
 @click.pass_context
-def init_cmd(ctx: click.Context, force: bool) -> None:
+def init_cmd(ctx: click.Context, force: bool, propose_boundaries: bool) -> None:
     """Initialize SDI in the current git repository.
 
     Creates .sdi/config.toml with commented defaults, .sdi/snapshots/,
@@ -120,6 +136,8 @@ def init_cmd(ctx: click.Context, force: bool) -> None:
     already_initialized = config_path.exists()
     if already_initialized and not force:
         click.echo(f"SDI already initialized at {sdi_dir}. Use --force to reinitialize.")
+        if propose_boundaries:
+            _write_starter_boundaries(sdi_dir, force=force)
         return
 
     sdi_dir.mkdir(exist_ok=True)
@@ -129,3 +147,39 @@ def init_cmd(ctx: click.Context, force: bool) -> None:
 
     action = "Reinitialized" if already_initialized else "Initialized"
     click.echo(f"{action} SDI at {sdi_dir}")
+
+    if propose_boundaries:
+        _write_starter_boundaries(sdi_dir, force=force)
+
+
+def _write_starter_boundaries(sdi_dir: Path, force: bool = False) -> None:
+    """Write a starter boundaries.yaml, inferred from the latest snapshot if one exists."""
+    boundaries_path = sdi_dir / "boundaries.yaml"
+    if boundaries_path.exists() and not force:
+        click.echo(f"  boundaries.yaml already exists at {boundaries_path}. Use --force to overwrite.")
+        return
+
+    content = _infer_boundaries_from_snapshot(sdi_dir) or _BOUNDARIES_TEMPLATE
+    write_atomic(boundaries_path, content)
+    click.echo(f"  Wrote starter boundaries.yaml at {boundaries_path}")
+
+
+def _infer_boundaries_from_snapshot(sdi_dir: Path) -> str | None:
+    """Try to infer boundaries from the latest snapshot's partition data."""
+    snapshots_dir = sdi_dir / "snapshots"
+    if not snapshots_dir.exists():
+        return None
+    try:
+        from sdi.snapshot.storage import list_snapshots, read_snapshot
+        from sdi.cli.boundaries_cmd import _partition_to_proposed_yaml
+
+        paths = list_snapshots(snapshots_dir)
+        if not paths:
+            return None
+        snap = read_snapshot(paths[-1])
+        pd = snap.partition_data
+        if not pd or not pd.get("vertex_names"):
+            return None
+        return _partition_to_proposed_yaml(pd)
+    except Exception:
+        return None

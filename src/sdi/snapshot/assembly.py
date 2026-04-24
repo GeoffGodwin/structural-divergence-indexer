@@ -132,6 +132,7 @@ def assemble_snapshot(
 
     catalog_dict = catalog.to_dict()
     part_dict = _partition_data(community)
+    _attach_intent_divergence(part_dict, config, repo_root)
 
     snap = Snapshot(
         snapshot_version=SNAPSHOT_VERSION,
@@ -153,6 +154,33 @@ def assemble_snapshot(
     enforce_retention(snapshots_dir, config.snapshots.retention)
 
     return snap
+
+
+def _attach_intent_divergence(
+    part_dict: dict[str, Any],
+    config: SDIConfig,
+    repo_root: Path,
+) -> None:
+    """Compute and attach intent divergence to partition_data if a spec exists.
+
+    Modifies part_dict in-place by adding an 'intent_divergence' key when
+    a boundary spec is found at config.boundaries.spec_file. Does nothing if
+    the spec is absent or partition_data is empty.
+
+    Args:
+        part_dict: Mutable partition dict (from _partition_data).
+        config: SDI configuration for spec file path.
+        repo_root: Repository root for resolving spec_file path.
+    """
+    if not part_dict:
+        return
+    spec_path = repo_root / config.boundaries.spec_file
+    from sdi.detection.boundaries import compute_intent_divergence, load_boundary_spec
+
+    spec = load_boundary_spec(spec_path)
+    if spec is not None:
+        intent_div = compute_intent_divergence(spec, part_dict)
+        part_dict["intent_divergence"] = intent_div.to_dict()
 
 
 def _null_divergence() -> Any:

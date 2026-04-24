@@ -17,7 +17,7 @@ from sdi.config import (
 )
 from sdi.detection.leiden import CommunityResult
 from sdi.patterns.catalog import CategoryStats, PatternCatalog, ShapeStats
-from sdi.snapshot.assembly import _compute_config_hash, assemble_snapshot
+from sdi.snapshot.assembly import _attach_intent_divergence, _compute_config_hash, assemble_snapshot
 from sdi.snapshot.model import SNAPSHOT_VERSION, DivergenceSummary, FeatureRecord, Snapshot
 
 
@@ -768,3 +768,117 @@ class TestAssembleSnapshotRealDiskRoundTrip:
         )
         assert second.divergence.pattern_entropy_delta is not None
         assert second.divergence.boundary_violations_delta is not None
+
+
+# ---------------------------------------------------------------------------
+# _attach_intent_divergence: M9 addition — attaches intent_divergence to partition_data
+# ---------------------------------------------------------------------------
+
+
+_MINIMAL_BOUNDARIES_YAML = """\
+sdi_boundaries:
+  version: "0.1.0"
+  modules:
+    - name: billing
+      paths: ["src/billing/"]
+"""
+
+
+def _config_with_spec(spec_file: str) -> SDIConfig:
+    """Build an SDIConfig with the given boundaries spec_file path."""
+    cfg = _make_config()
+    cfg.boundaries = BoundariesConfig(spec_file=spec_file)
+    return cfg
+
+
+class TestAttachIntentDivergence:
+    """_attach_intent_divergence() attaches or skips intent_divergence on partition_data."""
+
+    def test_does_nothing_on_empty_partition_dict(self, tmp_path: Path) -> None:
+        """Empty part_dict is returned unchanged — no key inserted."""
+        cfg = _config_with_spec("boundaries.yaml")
+        part_dict: dict = {}
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        assert part_dict == {}
+
+    def test_does_nothing_when_no_spec_file(self, tmp_path: Path) -> None:
+        """Absent boundaries.yaml → intent_divergence key is not added."""
+        cfg = _config_with_spec("nonexistent_boundaries.yaml")
+        part_dict = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+        }
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        assert "intent_divergence" not in part_dict
+
+    def test_attaches_intent_divergence_when_spec_exists(self, tmp_path: Path) -> None:
+        """When boundaries.yaml exists, intent_divergence is inserted into part_dict."""
+        spec_path = tmp_path / "boundaries.yaml"
+        spec_path.write_text(_MINIMAL_BOUNDARIES_YAML, encoding="utf-8")
+
+        cfg = _config_with_spec("boundaries.yaml")
+        part_dict = {
+            "partition": [0, 1],
+            "vertex_names": ["src/billing/a.py", "src/other/b.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+        }
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        assert "intent_divergence" in part_dict
+
+    def test_intent_divergence_key_has_expected_structure(self, tmp_path: Path) -> None:
+        """intent_divergence dict must contain total_violations and list fields."""
+        spec_path = tmp_path / "boundaries.yaml"
+        spec_path.write_text(_MINIMAL_BOUNDARIES_YAML, encoding="utf-8")
+
+        cfg = _config_with_spec("boundaries.yaml")
+        part_dict = {
+            "partition": [0],
+            "vertex_names": ["src/billing/a.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 1,
+            "stability_score": 1.0,
+        }
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        intent_div = part_dict["intent_divergence"]
+        assert "total_violations" in intent_div
+        assert "misplaced_files" in intent_div
+        assert "unauthorized_cross_boundary" in intent_div
+        assert "layer_violations" in intent_div
+
+    def test_misplaced_file_detected_via_assembly(self, tmp_path: Path) -> None:
+        """A file in billing/ but in a different cluster is reflected in total_violations > 0."""
+        spec_path = tmp_path / "boundaries.yaml"
+        spec_path.write_text(_MINIMAL_BOUNDARIES_YAML, encoding="utf-8")
+
+        cfg = _config_with_spec("boundaries.yaml")
+        # billing/a.py and billing/b.py are in different clusters → one is misplaced
+        part_dict = {
+            "partition": [0, 1],
+            "vertex_names": ["src/billing/a.py", "src/billing/b.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+        }
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        assert part_dict["intent_divergence"]["total_violations"] > 0
+
+    def test_no_violations_when_partition_matches_spec(self, tmp_path: Path) -> None:
+        """All billing files in one cluster → zero misplaced files, zero total_violations."""
+        spec_path = tmp_path / "boundaries.yaml"
+        spec_path.write_text(_MINIMAL_BOUNDARIES_YAML, encoding="utf-8")
+
+        cfg = _config_with_spec("boundaries.yaml")
+        part_dict = {
+            "partition": [0, 0, 0],
+            "vertex_names": ["src/billing/a.py", "src/billing/b.py", "src/billing/c.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 1,
+            "stability_score": 1.0,
+        }
+        _attach_intent_divergence(part_dict, cfg, tmp_path)
+        assert part_dict["intent_divergence"]["total_violations"] == 0

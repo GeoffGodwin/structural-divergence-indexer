@@ -89,17 +89,25 @@ def _coupling_composite(metrics: dict[str, Any]) -> float:
 
 
 def _count_boundary_violations(partition_data: dict[str, Any]) -> int:
-    """Total count of cross-boundary directed edges.
+    """Total count of cross-boundary violations from partition and intent divergence.
+
+    Combines two measurements:
+    - Partition-based: sum of inter-cluster edge counts (structural divergence).
+    - Intent-based: total_violations from intent_divergence (spec divergence).
 
     Args:
-        partition_data: Partition info dict stored on a snapshot. Must contain
-            an ``inter_cluster_edges`` list of dicts with a ``count`` field.
+        partition_data: Partition info dict stored on a snapshot. May contain
+            ``inter_cluster_edges`` and/or ``intent_divergence`` sub-dicts.
 
     Returns:
-        Sum of all inter-cluster edge counts, or 0 if no data.
+        Combined violation count, or 0 if no data.
     """
     edges = partition_data.get("inter_cluster_edges", [])
-    return sum(int(e.get("count", 1)) for e in edges)
+    partition_count = sum(int(e.get("count", 1)) for e in edges)
+    intent_count = int(
+        partition_data.get("intent_divergence", {}).get("total_violations", 0)
+    )
+    return partition_count + intent_count
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""Unit tests for sdi.snapshot.delta — compute_delta()."""
+"""Unit tests for sdi.snapshot.delta — compute_delta() and _count_boundary_violations()."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import warnings
 
 import pytest
 
-from sdi.snapshot.delta import compute_delta
+from sdi.snapshot.delta import _count_boundary_violations, compute_delta
 from sdi.snapshot.model import SNAPSHOT_VERSION, DivergenceSummary, Snapshot
 
 _INCOMPAT_VERSION = "99.0.0"
@@ -241,6 +241,94 @@ class TestBoundaryViolationVelocity:
         )
         result = compute_delta(_make_snap(partition_data=partition), None)
         assert result.boundary_violations == 5
+
+
+# ---------------------------------------------------------------------------
+# _count_boundary_violations: M9 addition — includes intent_divergence
+# ---------------------------------------------------------------------------
+
+
+class TestCountBoundaryViolationsIntentDivergence:
+    """_count_boundary_violations combines inter-cluster edges AND intent violations."""
+
+    def test_intent_divergence_total_violations_added_to_partition_count(self) -> None:
+        """Intent divergence violations are added on top of inter-cluster edge counts."""
+        pd = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [{"source_cluster": 0, "target_cluster": 1, "count": 3}],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+            "intent_divergence": {"total_violations": 4},
+        }
+        assert _count_boundary_violations(pd) == 7  # 3 + 4
+
+    def test_intent_divergence_alone_without_inter_cluster_edges(self) -> None:
+        """Intent violations count when there are no inter-cluster edges."""
+        pd = {
+            "partition": [0],
+            "vertex_names": ["src/a.py"],
+            "inter_cluster_edges": [],
+            "cluster_count": 1,
+            "stability_score": 1.0,
+            "intent_divergence": {"total_violations": 5},
+        }
+        assert _count_boundary_violations(pd) == 5
+
+    def test_zero_intent_violations_does_not_change_partition_count(self) -> None:
+        """A zero total_violations in intent_divergence leaves the edge count unchanged."""
+        pd = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [{"source_cluster": 0, "target_cluster": 1, "count": 2}],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+            "intent_divergence": {"total_violations": 0},
+        }
+        assert _count_boundary_violations(pd) == 2
+
+    def test_missing_intent_divergence_key_returns_only_edge_count(self) -> None:
+        """Absence of intent_divergence in partition_data is not an error."""
+        pd = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [{"source_cluster": 0, "target_cluster": 1, "count": 6}],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+        }
+        assert _count_boundary_violations(pd) == 6
+
+    def test_both_intent_and_edges_are_additive(self) -> None:
+        """Verifies the two sources are strictly additive, not de-duplicated."""
+        pd = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [
+                {"source_cluster": 0, "target_cluster": 1, "count": 2},
+                {"source_cluster": 1, "target_cluster": 0, "count": 1},
+            ],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+            "intent_divergence": {"total_violations": 10},
+        }
+        assert _count_boundary_violations(pd) == 13  # 2 + 1 + 10
+
+    def test_empty_partition_data_returns_zero(self) -> None:
+        assert _count_boundary_violations({}) == 0
+
+    def test_intent_divergence_with_snapshot_compute_delta_integration(self) -> None:
+        """boundary_violations on a snapshot with intent_divergence includes those violations."""
+        pd = {
+            "partition": [0, 1],
+            "vertex_names": ["src/a.py", "src/b.py"],
+            "inter_cluster_edges": [{"source_cluster": 0, "target_cluster": 1, "count": 2}],
+            "cluster_count": 2,
+            "stability_score": 1.0,
+            "intent_divergence": {"total_violations": 3},
+        }
+        snap = _make_snap(partition_data=pd)
+        result = compute_delta(snap, None)
+        assert result.boundary_violations == 5  # 2 + 3
 
 
 # ---------------------------------------------------------------------------

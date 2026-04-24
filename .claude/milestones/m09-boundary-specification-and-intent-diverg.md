@@ -1,4 +1,9 @@
 ### Milestone 9: Boundary Specification and Intent Divergence
+<!-- milestone-meta
+id: "9"
+status: "done"
+-->
+
 
 **Scope:** Implement boundary specification management — parsing `.sdi/boundaries.yaml`, the `sdi boundaries` command with `--propose`, `--ratify`, and `--export` flags, and intent divergence computation (comparing detected Leiden partitions against ratified boundary specs). Extend `sdi init` to optionally propose and write a starter boundary spec.
 
