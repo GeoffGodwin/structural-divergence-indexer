@@ -1,4 +1,9 @@
 ### Milestone 11: Git Hooks, CI Integration, and Shell Completion
+<!-- milestone-meta
+id: "11"
+status: "done"
+-->
+
 
 **Scope:** Implement git hook installation (post-merge for automatic snapshots, pre-push for drift gate), document CI integration patterns, add Click shell completion support, and handle signal interrupts cleanly.
 

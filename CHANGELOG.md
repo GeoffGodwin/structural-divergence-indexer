@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.5] - 2026-04-24
+
+### Added
+- **`src/sdi/cli/_hooks.py`** (NEW): Git hook script templates (`POST_MERGE_MARKER`, `PRE_PUSH_MARKER`, `_POST_MERGE_BODY`, `_PRE_PUSH_BODY`) and installation utilities (`install_hook`, `install_post_merge_hook`, `install_pre_push_hook`). Non-destructive append: if the hook already contains the SDI marker it is a no-op; if it already exists without the marker, SDI block is appended; otherwise a new file with shebang is created. All hook files are made executable (u+x g+x o+x). (M11)
 
 ## [0.1.4] - 2026-04-24
 

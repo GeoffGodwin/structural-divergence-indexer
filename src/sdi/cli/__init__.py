@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
 from typing import Any
 
@@ -12,11 +13,21 @@ from sdi import __version__
 from sdi.cli.boundaries_cmd import boundaries_cmd
 from sdi.cli.catalog_cmd import catalog_cmd
 from sdi.cli.check_cmd import check_cmd
+from sdi.cli.completion_cmd import completion_cmd
 from sdi.cli.diff_cmd import diff_cmd
 from sdi.cli.init_cmd import init_cmd
 from sdi.cli.show_cmd import show_cmd
 from sdi.cli.snapshot_cmd import snapshot_cmd
 from sdi.cli.trend_cmd import trend_cmd
+
+
+def _sigterm_handler(signum: int, frame: object) -> None:
+    """Convert SIGTERM into a clean SystemExit(1) so tempfiles are cleaned up."""
+    click.echo("Terminated.", err=True)
+    raise SystemExit(1)
+
+
+signal.signal(signal.SIGTERM, _sigterm_handler)
 
 
 class _SDIGroup(click.Group):
@@ -27,6 +38,9 @@ class _SDIGroup(click.Group):
             return super().invoke(ctx)
         except SystemExit:
             raise  # Preserve all SystemExit codes as-is
+        except KeyboardInterrupt:
+            click.echo("\nInterrupted.", err=True)
+            raise SystemExit(1)
         except Exception as exc:
             verbose = ctx.obj.get("verbose", False) if ctx.obj else False
             if verbose:
@@ -72,3 +86,4 @@ cli.add_command(trend_cmd)
 cli.add_command(check_cmd)
 cli.add_command(catalog_cmd)
 cli.add_command(boundaries_cmd)
+cli.add_command(completion_cmd)

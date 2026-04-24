@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 
+from sdi.cli._hooks import install_post_merge_hook, install_pre_push_hook
 from sdi.snapshot.storage import write_atomic
 
 _CONFIG_TEMPLATE = """\
@@ -113,8 +114,28 @@ sdi_boundaries:
     is_flag=True,
     help="Write a starter boundaries.yaml (from latest snapshot if available).",
 )
+@click.option(
+    "--install-post-merge-hook",
+    "install_post_merge",
+    is_flag=True,
+    default=False,
+    help="Install git post-merge hook: runs 'sdi snapshot --quiet' after each merge.",
+)
+@click.option(
+    "--install-pre-push-hook",
+    "install_pre_push",
+    is_flag=True,
+    default=False,
+    help="(Opt-in) Install git pre-push hook: blocks push when drift thresholds exceeded.",
+)
 @click.pass_context
-def init_cmd(ctx: click.Context, force: bool, propose_boundaries: bool) -> None:
+def init_cmd(
+    ctx: click.Context,
+    force: bool,
+    propose_boundaries: bool,
+    install_post_merge: bool,
+    install_pre_push: bool,
+) -> None:
     """Initialize SDI in the current git repository.
 
     Creates .sdi/config.toml with commented defaults, .sdi/snapshots/,
@@ -138,6 +159,7 @@ def init_cmd(ctx: click.Context, force: bool, propose_boundaries: bool) -> None:
         click.echo(f"SDI already initialized at {sdi_dir}. Use --force to reinitialize.")
         if propose_boundaries:
             _write_starter_boundaries(sdi_dir, force=force)
+        _maybe_install_hooks(git_root, install_post_merge, install_pre_push)
         return
 
     sdi_dir.mkdir(exist_ok=True)
@@ -150,6 +172,40 @@ def init_cmd(ctx: click.Context, force: bool, propose_boundaries: bool) -> None:
 
     if propose_boundaries:
         _write_starter_boundaries(sdi_dir, force=force)
+
+    _maybe_install_hooks(git_root, install_post_merge, install_pre_push)
+
+
+def _maybe_install_hooks(
+    git_root: Path,
+    install_post_merge: bool,
+    install_pre_push: bool,
+) -> None:
+    """Prompt for and/or install git hooks based on flags and TTY state."""
+    hooks_dir = git_root / ".git" / "hooks"
+    if not hooks_dir.exists():
+        return
+
+    do_post_merge = install_post_merge
+    do_pre_push = install_pre_push
+
+    if not install_post_merge and not install_pre_push and sys.stdin.isatty():
+        do_post_merge = click.confirm(
+            "Install post-merge snapshot hook (runs `sdi snapshot --quiet` after merge)?",
+            default=True,
+        )
+        do_pre_push = click.confirm(
+            "Install pre-push drift gate hook? (opt-in — blocks push on threshold breach)",
+            default=False,
+        )
+
+    if do_post_merge:
+        status = install_post_merge_hook(hooks_dir)
+        click.echo(f"  post-merge hook {status} at {hooks_dir / 'post-merge'}")
+
+    if do_pre_push:
+        status = install_pre_push_hook(hooks_dir)
+        click.echo(f"  pre-push hook {status} at {hooks_dir / 'pre-push'}")
 
 
 def _write_starter_boundaries(sdi_dir: Path, force: bool = False) -> None:
