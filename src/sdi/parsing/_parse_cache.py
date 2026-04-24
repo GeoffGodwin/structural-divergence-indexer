@@ -50,7 +50,7 @@ def read_parse_cache(cache_dir: Path, file_hash: str) -> FeatureRecord | None:
     try:
         data = json.loads(path.read_bytes())
         return FeatureRecord.from_dict(data)
-    except (json.JSONDecodeError, KeyError, OSError):
+    except (json.JSONDecodeError, KeyError, OSError, TypeError, ValueError):
         logger.debug("Parse cache entry %s is corrupt; ignoring.", path)
         return None
 

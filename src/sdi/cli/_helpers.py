@@ -22,6 +22,18 @@ from sdi.snapshot.model import Snapshot
 from sdi.snapshot.storage import list_snapshots, read_snapshot
 
 
+def cache_dir(repo_root: Path) -> Path:
+    """Return the SDI cache directory path for a repository root.
+
+    Args:
+        repo_root: Repository root directory.
+
+    Returns:
+        Path to .sdi/cache under the repository root.
+    """
+    return repo_root / ".sdi" / "cache"
+
+
 def resolve_snapshots_dir(repo_root: Path, config: SDIConfig) -> Path:
     """Resolve and validate the snapshots directory is within the repository root.
 

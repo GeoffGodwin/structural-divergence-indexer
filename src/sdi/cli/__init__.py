@@ -27,7 +27,7 @@ def _sigterm_handler(signum: int, frame: object) -> None:
     raise SystemExit(1)
 
 
-signal.signal(signal.SIGTERM, _sigterm_handler)
+signal.signal(signal.SIGTERM, _sigterm_handler)  # Runs at import time — installs a SIGTERM handler so tempfile cleanup completes on kill.
 
 
 class _SDIGroup(click.Group):

@@ -189,6 +189,46 @@ def load_boundary_spec(path: Path) -> BoundarySpec | None:
 
 
 # ---------------------------------------------------------------------------
+# Proposal utilities
+# ---------------------------------------------------------------------------
+
+
+def partition_to_proposed_yaml(partition_data: dict) -> str:
+    """Generate a starter boundaries.yaml body from partition data.
+
+    Args:
+        partition_data: Partition dict from a snapshot (vertex_names, partition).
+
+    Returns:
+        YAML string suitable for writing to .sdi/boundaries.yaml.
+    """
+    vertex_names: list[str] = partition_data.get("vertex_names", [])
+    partition: list[int] = partition_data.get("partition", [])
+
+    cluster_files: dict[int, list[str]] = {}
+    for file_path, cid in zip(vertex_names, partition):
+        cluster_files.setdefault(cid, []).append(file_path)
+
+    lines = [
+        "sdi_boundaries:",
+        '  version: "0.1.0"',
+        '  generated_from: "leiden-community-detection"',
+        "  modules:",
+    ]
+    for cid, files in sorted(cluster_files.items()):
+        name = f"cluster_{cid}"
+        lines.append(f"    - name: {name!r}")
+        lines.append("      paths:")
+        for f in sorted(files)[:5]:
+            lines.append(f"        - {f!r}")
+        if len(files) > 5:
+            lines.append(f"        # ... and {len(files) - 5} more file(s)")
+    lines.append("  allowed_cross_domain: []")
+    lines.append("  aspirational_splits: []")
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # Public API (delegates to _intent module for computation)
 # ---------------------------------------------------------------------------
 

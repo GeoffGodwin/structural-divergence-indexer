@@ -219,17 +219,27 @@ def test_orphan_cleanup_removes_all_when_active_empty(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# content_hash is propagated on cache hit
+# content_hash round-trips through cache
 # ---------------------------------------------------------------------------
 
 
-def test_cached_record_gets_content_hash_populated(tmp_path: Path):
+def test_cached_record_preserves_content_hash(tmp_path: Path):
+    """Records written with a content_hash are read back with the same hash."""
     cache_dir = tmp_path / "cache"
-    record = _make_record()
     file_hash = compute_file_hash(b"my source")
+    record = FeatureRecord(
+        file_path="src/foo.py",
+        language="python",
+        imports=["os"],
+        symbols=["foo"],
+        pattern_instances=[],
+        lines_of_code=5,
+        content_hash=file_hash,
+    )
     write_parse_cache(cache_dir, file_hash, record)
 
     cached = read_parse_cache(cache_dir, file_hash)
     assert cached is not None
-    cached.content_hash = file_hash
     assert cached.content_hash == file_hash
+    assert cached.file_path == "src/foo.py"
+    assert cached.imports == ["os"]

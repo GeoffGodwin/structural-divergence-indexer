@@ -11,6 +11,7 @@ from typing import Any
 import click
 
 from sdi.cli._helpers import (
+    cache_dir,
     emit_rows_csv,
     format_delta,
     require_initialized,
@@ -109,8 +110,7 @@ def _run_graph_and_detection(
 
     from sdi.detection import detect_communities
 
-    cache_dir = repo_root / ".sdi" / "cache"
-    community = detect_communities(graph, config, cache_dir)
+    community = detect_communities(graph, config, cache_dir(repo_root))
     return metrics, community
 
 
@@ -200,8 +200,7 @@ def snapshot_cmd(ctx: click.Context) -> None:
         click.echo("Stage 4/5: Pattern fingerprinting...", err=True)
 
     prev_catalog = _load_previous_catalog(snapshots_dir)
-    cache_dir = repo_root / ".sdi" / "cache"
-    catalog = build_pattern_catalog(records, config, prev_catalog, community, cache_dir)
+    catalog = build_pattern_catalog(records, config, prev_catalog, community, cache_dir(repo_root))
 
     if not quiet:
         click.echo("Stage 5/5: Assembling snapshot...", err=True)

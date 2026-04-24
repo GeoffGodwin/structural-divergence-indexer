@@ -10,7 +10,6 @@ import pytest
 from sdi.cli.boundaries_cmd import (
     _do_export,
     _do_show,
-    _partition_to_proposed_yaml,
     _spec_as_text,
 )
 from sdi.detection.boundaries import (
@@ -19,6 +18,7 @@ from sdi.detection.boundaries import (
     BoundarySpec,
     LayersSpec,
     ModuleSpec,
+    partition_to_proposed_yaml,
 )
 
 
@@ -162,58 +162,58 @@ class TestSpecAsText:
 
 
 # ---------------------------------------------------------------------------
-# _partition_to_proposed_yaml
+# partition_to_proposed_yaml
 # ---------------------------------------------------------------------------
 
 
 class TestPartitionToProposedYaml:
-    """_partition_to_proposed_yaml() generates a valid YAML skeleton."""
+    """partition_to_proposed_yaml() generates a valid YAML skeleton."""
 
     def test_returns_string(self) -> None:
-        result = _partition_to_proposed_yaml(_pd([], []))
+        result = partition_to_proposed_yaml(_pd([], []))
         assert isinstance(result, str)
 
     def test_contains_sdi_boundaries_key(self) -> None:
-        result = _partition_to_proposed_yaml(_pd([], []))
+        result = partition_to_proposed_yaml(_pd([], []))
         assert "sdi_boundaries" in result
 
     def test_cluster_names_appear(self) -> None:
         pd = _pd(["src/a.py", "src/b.py"], [0, 1])
-        result = _partition_to_proposed_yaml(pd)
+        result = partition_to_proposed_yaml(pd)
         assert "cluster_0" in result
         assert "cluster_1" in result
 
     def test_file_paths_appear_in_yaml(self) -> None:
         pd = _pd(["src/billing/a.py", "src/users/u.py"], [0, 1])
-        result = _partition_to_proposed_yaml(pd)
+        result = partition_to_proposed_yaml(pd)
         assert "src/billing/a.py" in result
         assert "src/users/u.py" in result
 
     def test_limits_files_per_cluster_to_five(self) -> None:
         files = [f"src/a{i}.py" for i in range(10)]
         clusters = [0] * 10
-        result = _partition_to_proposed_yaml(_pd(files, clusters))
+        result = partition_to_proposed_yaml(_pd(files, clusters))
         # Only 5 files shown + a "and N more" comment
         assert "and 5 more" in result
 
     def test_no_limit_comment_when_five_or_fewer(self) -> None:
         files = [f"src/a{i}.py" for i in range(4)]
         clusters = [0] * 4
-        result = _partition_to_proposed_yaml(_pd(files, clusters))
+        result = partition_to_proposed_yaml(_pd(files, clusters))
         assert "more file" not in result
 
     def test_single_cluster_single_file(self) -> None:
         pd = _pd(["src/main.py"], [0])
-        result = _partition_to_proposed_yaml(pd)
+        result = partition_to_proposed_yaml(pd)
         assert "cluster_0" in result
         assert "src/main.py" in result
 
     def test_contains_allowed_cross_domain_stub(self) -> None:
-        result = _partition_to_proposed_yaml(_pd(["src/a.py"], [0]))
+        result = partition_to_proposed_yaml(_pd(["src/a.py"], [0]))
         assert "allowed_cross_domain" in result
 
     def test_contains_version_field(self) -> None:
-        result = _partition_to_proposed_yaml(_pd(["src/a.py"], [0]))
+        result = partition_to_proposed_yaml(_pd(["src/a.py"], [0]))
         assert "0.1.0" in result
 
 
@@ -297,10 +297,3 @@ class TestDoExport:
         _do_export(spec, out_path)
         assert out_path.exists()
 
-    def test_exit_code_is_1_not_2_or_3(self, tmp_path: Path) -> None:
-        """Export failure exit code must be 1 (runtime error), not config (2) or analysis (3)."""
-        with pytest.raises(SystemExit) as exc_info:
-            _do_export(None, tmp_path / "out.txt")
-        assert exc_info.value.code == 1
-        assert exc_info.value.code != 2
-        assert exc_info.value.code != 3

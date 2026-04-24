@@ -22,16 +22,6 @@ from tests.conftest import (
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
 
-def _has_igraph() -> bool:
-    """Check whether igraph is available."""
-    try:
-        import igraph  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

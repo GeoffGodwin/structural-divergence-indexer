@@ -1,8 +1,8 @@
 ## Summary
-Milestone 9 introduces YAML-based boundary spec parsing (ruamel.yaml, round-trip mode), intent divergence computation, and a new `sdi boundaries` CLI command with editor invocation. The code avoids shell injection by calling `subprocess.run` with a list and `shell=False`. YAML loading does not use PyYAML's `unsafe` loader; ruamel.yaml round-trip mode does not execute arbitrary Python objects. Path traversal is explicitly guarded in `assembly.py` for the snapshots directory. No hardcoded secrets, no network calls, no SQL, no cryptographic operations. One low-severity robustness issue exists in the `$EDITOR` invocation path.
+This change addresses 11 non-blocking notes across 8 source files and `pyproject.toml`. The most security-relevant change is `boundaries_cmd.py`'s adoption of `shlex.split(editor)` before passing `$EDITOR` to `subprocess.run`, which closes the previously noted LOW finding from the prior report. Other changes are additive (exception type broadening in `_parse_cache.py`, DEBUG-only exception logging in `init_cmd.py`, test rewrites, and `pytest-benchmark` dependency addition) and introduce no new attack surface. No network calls, no credential handling, no cryptographic changes, and no `shell=True` usage appear in this diff.
 
 ## Findings
-- [LOW] [category:A05] [boundaries_cmd.py:166] fixable:yes — `subprocess.run([editor, str(spec_path)], check=False)` passes `os.environ.get("EDITOR")` as a single token in the argument list. Users who set `EDITOR="code --wait"` or any other multi-word editor command (common for VS Code, Sublime, etc.) will receive a `FileNotFoundError` because the entire string is treated as the executable name rather than as a command with arguments. Shell injection is not possible (shell=False, list form), but the invocation is broken for the most common multi-word EDITOR values. Fix: `import shlex` and replace with `subprocess.run([*shlex.split(editor), str(spec_path)], check=False)`.
+None
 
 ## Verdict
-FINDINGS_PRESENT
+CLEAN

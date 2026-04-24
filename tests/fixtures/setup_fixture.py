@@ -152,6 +152,9 @@ def create_evolving_fixture(target_dir: Path) -> Path:
 
 
 if __name__ == "__main__":
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("tests/fixtures/evolving")
+    if len(sys.argv) < 2:
+        print("Usage: python setup_fixture.py <output-path>", file=sys.stderr)
+        sys.exit(1)
+    out = Path(sys.argv[1])
     create_evolving_fixture(out)
     print(f"Evolving fixture created at {out}")

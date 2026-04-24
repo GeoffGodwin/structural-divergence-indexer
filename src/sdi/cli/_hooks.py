@@ -67,10 +67,13 @@ def install_hook(
         if marker in existing:
             return "already_present"
         updated = existing.rstrip("\n") + "\n\n" + script_body
+        # Direct write is intentional: .git/hooks/ is outside .sdi/, so the
+        # atomic-write mandate (Critical System Rule 1) does not apply here.
         hook_path.write_text(updated, encoding="utf-8")
         _make_executable(hook_path)
         return "appended"
 
+    # Direct write — same rationale as above (.git/hooks/ is not a .sdi/ path).
     hook_path.write_text("#!/bin/sh\n" + script_body, encoding="utf-8")
     _make_executable(hook_path)
     return "installed"

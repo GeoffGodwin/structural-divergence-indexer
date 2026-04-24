@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -14,7 +15,7 @@ from sdi.cli._helpers import (
     require_initialized,
     resolve_snapshots_dir,
 )
-from sdi.detection.boundaries import BoundarySpec, load_boundary_spec
+from sdi.detection.boundaries import BoundarySpec, load_boundary_spec, partition_to_proposed_yaml
 from sdi.snapshot.storage import list_snapshots, read_snapshot
 from sdi.snapshot.storage import write_atomic
 
@@ -52,29 +53,6 @@ def _spec_as_text(spec: BoundarySpec) -> str:
             target = f"  target={s.target_date}" if s.target_date else ""
             lines.append(f"  {s.current_module} → {', '.join(s.intended_boundary)}{target}")
     return "\n".join(lines)
-
-
-def _partition_to_proposed_yaml(partition_data: dict) -> str:
-    """Generate a starter boundaries.yaml body from partition data."""
-    vertex_names: list[str] = partition_data.get("vertex_names", [])
-    partition: list[int] = partition_data.get("partition", [])
-
-    cluster_files: dict[int, list[str]] = {}
-    for file_path, cid in zip(vertex_names, partition):
-        cluster_files.setdefault(cid, []).append(file_path)
-
-    lines = ["sdi_boundaries:", '  version: "0.1.0"', '  generated_from: "leiden-community-detection"', "  modules:"]
-    for cid, files in sorted(cluster_files.items()):
-        name = f"cluster_{cid}"
-        lines.append(f"    - name: {name!r}")
-        lines.append("      paths:")
-        for f in sorted(files)[:5]:
-            lines.append(f"        - {f!r}")
-        if len(files) > 5:
-            lines.append(f"        # ... and {len(files) - 5} more file(s)")
-    lines.append("  allowed_cross_domain: []")
-    lines.append("  aspirational_splits: []")
-    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -131,14 +109,14 @@ def _do_propose(repo_root: Path, config: object, spec_path: Path) -> None:
             "Proposed boundaries based on latest snapshot:\n"
         )
 
-    click.echo(_partition_to_proposed_yaml(pd))
+    click.echo(partition_to_proposed_yaml(pd))
 
 
 def _do_ratify(spec_path: Path, partition_data: dict | None = None) -> None:
     """Open the boundary spec in $EDITOR. Writes a starter if the file is absent."""
     if not spec_path.exists():
         if partition_data:
-            starter = _partition_to_proposed_yaml(partition_data)
+            starter = partition_to_proposed_yaml(partition_data)
         else:
             starter = (
                 "sdi_boundaries:\n"
@@ -163,7 +141,7 @@ def _do_ratify(spec_path: Path, partition_data: dict | None = None) -> None:
         editor = "vi"
 
     try:
-        subprocess.run([editor, str(spec_path)], check=False)
+        subprocess.run([*shlex.split(editor), str(spec_path)], check=False)
     except FileNotFoundError:
         click.echo(f"[error] Editor not found: {editor!r}", err=True)
         raise SystemExit(1)
