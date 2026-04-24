@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Extensionless script discovered via shebang detection.
+
+greet() {
+    echo "Hello, ${1:-world}"
+}
+
+greet "$@"

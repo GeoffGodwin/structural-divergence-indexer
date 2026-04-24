@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from sdi.parsing.discovery import detect_language, discover_files
 
 
@@ -45,6 +43,73 @@ class TestDetectLanguage:
 
     def test_markdown_is_unsupported(self) -> None:
         assert detect_language(Path("README.md")) is None
+
+
+class TestShellExtensions:
+    """Shell extension mapping and fish exclusion."""
+
+    def test_sh_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.sh")) == "shell"
+
+    def test_bash_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.bash")) == "shell"
+
+    def test_zsh_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.zsh")) == "shell"
+
+    def test_ksh_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.ksh")) == "shell"
+
+    def test_dash_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.dash")) == "shell"
+
+    def test_ash_maps_to_shell(self) -> None:
+        assert detect_language(Path("foo.ash")) == "shell"
+
+    def test_fish_not_mapped(self) -> None:
+        assert detect_language(Path("foo.fish")) is None
+
+
+class TestShebangDetection:
+    """Shebang-based discovery for extensionless scripts."""
+
+    def _make_executable(self, path: Path) -> None:
+        import stat
+
+        path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    def test_env_bash_shebang_discovered(self, tmp_path: Path) -> None:
+        script = tmp_path / "myscript"
+        script.write_text("#!/usr/bin/env bash\necho hi\n", encoding="utf-8")
+        self._make_executable(script)
+        results = discover_files(tmp_path)
+        langs = {lang for _, lang in results}
+        assert "shell" in langs
+
+    def test_env_python3_shebang_not_discovered(self, tmp_path: Path) -> None:
+        script = tmp_path / "myscript"
+        script.write_text("#!/usr/bin/env python3\nprint('hi')\n", encoding="utf-8")
+        self._make_executable(script)
+        results = discover_files(tmp_path)
+        langs = {lang for _, lang in results}
+        assert "shell" not in langs
+
+    def test_no_exec_bit_not_discovered(self, tmp_path: Path) -> None:
+        script = tmp_path / "myscript"
+        script.write_text("#!/bin/bash\necho hi\n", encoding="utf-8")
+        # No exec bit set
+        results = discover_files(tmp_path)
+        langs = {lang for _, lang in results}
+        assert "shell" not in langs
+
+    def test_extension_takes_precedence_no_content_read(self, tmp_path: Path) -> None:
+        # .txt file with a bash shebang — extension does NOT map to shell
+        script = tmp_path / "script.txt"
+        script.write_text("#!/bin/bash\necho hi\n", encoding="utf-8")
+        self._make_executable(script)
+        results = discover_files(tmp_path)
+        langs = {lang for _, lang in results}
+        assert "shell" not in langs
 
 
 class TestDiscoverFiles:

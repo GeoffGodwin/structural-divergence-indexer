@@ -45,6 +45,16 @@ def _has_ts_adapter() -> bool:
         return False
 
 
+def _has_shell_adapter() -> bool:
+    """Return True if the shell tree-sitter adapter is importable."""
+    try:
+        from sdi.parsing.shell import ShellAdapter  # noqa: F401
+
+        return True
+    except Exception:  # grammar init can raise OSError, RuntimeError, etc.
+        return False
+
+
 requires_python_adapter = pytest.mark.skipif(
     not _has_python_adapter(),
     reason="tree-sitter Python grammar not available",
@@ -53,6 +63,11 @@ requires_python_adapter = pytest.mark.skipif(
 requires_ts_adapter = pytest.mark.skipif(
     not _has_ts_adapter(),
     reason="tree-sitter TypeScript grammar not available",
+)
+
+requires_shell_adapter = pytest.mark.skipif(
+    not _has_shell_adapter(),
+    reason="tree-sitter Bash grammar not available",
 )
 
 

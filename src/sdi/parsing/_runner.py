@@ -32,6 +32,7 @@ def _register_adapters() -> None:
         ("go", "sdi.parsing.go", "GoAdapter"),
         ("java", "sdi.parsing.java", "JavaAdapter"),
         ("rust", "sdi.parsing.rust", "RustAdapter"),
+        ("shell", "sdi.parsing.shell", "ShellAdapter"),
     ]
     for lang, module_path, class_name in _adapter_modules:
         try:

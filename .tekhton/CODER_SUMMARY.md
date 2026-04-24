@@ -3,61 +3,53 @@
 
 ## What Was Implemented
 
-### Complex Blocker (REVIEWER_REPORT.md)
-- `boundaries_cmd.py:111,118`: Fixed both call sites from `_partition_to_proposed_yaml(...)` to `partition_to_proposed_yaml(...)` (dropped leading underscore to match the moved public function).
+Milestone 13: Shell Language Discovery and Adapter Foundation.
 
-### Non-Blocking Items
-
-1. **Item 1** — Removed unused `_has_igraph()` dead code from `test_full_pipeline.py`. The function was defined but never referenced (no `requires_igraph` decorator or any call site). The `conftest.py` equivalents (`_has_python_adapter`, `_has_ts_adapter`) already use `except Exception:` with explanatory comment — the correct pattern was already in place.
-
-2. **Item 2** — Already done in a prior run: comment at `test_multi_snapshot.py:230-231` already explains why `config.toml` is written after both snapshots.
-
-3. **Item 3 / Item 6** — Fixed multi-word `EDITOR` handling in `boundaries_cmd.py`: added `import shlex` and changed `subprocess.run([editor, ...])` to `subprocess.run([*shlex.split(editor), ...])` so editors like `"code --wait"` work correctly.
-
-4. **Item 4** — Added explanatory comments to both `write_text` call sites in `_hooks.py` (lines 70 and 74) clarifying that `.git/hooks/` is outside `.sdi/`, so the atomic-write mandate (Critical System Rule 1) does not apply.
-
-5. **Item 5** — Added `logger = logging.getLogger(__name__)` to `init_cmd.py` and changed the bare `except Exception: return None` in `_infer_boundaries_from_snapshot` to log at DEBUG level, making misconfiguration visible when `SDI_LOG_LEVEL=DEBUG`.
-
-6. **Item 7** — Added `TypeError, ValueError` to the except tuple in `read_parse_cache` in `_parse_cache.py`. Defends against corrupt cache entries with valid JSON but wrong field types (e.g., `imports` is an integer instead of a list).
-
-7. **Item 8** — Rewrote `test_cached_record_gets_content_hash_populated` → `test_cached_record_preserves_content_hash`. New test writes a record with a known non-empty `content_hash`, reads it back, and asserts the hash and other fields survived the round-trip. The old test only exercised Python attribute assignment.
-
-8. **Item 9** — Added `pytest-benchmark>=4.0` to `[project.optional-dependencies.dev]` in `pyproject.toml`.
-
-9. **Item 10** — Already done: `import json` was already at module level in `snapshot_cmd.py` (line 5). No action required.
-
-10. **Item 11** — Already done: `check_cmd.py:71` already has the comment explaining `_build_overrides` pre-filters expired overrides. Verified that `config.py:_build_overrides` (lines 200-202) does indeed silently skip expired entries.
-
-### Bonus Fix (stale reference cleanup)
-- `tests/unit/test_boundaries_cmd.py`: Updated import of `_partition_to_proposed_yaml` from `sdi.cli.boundaries_cmd` to `partition_to_proposed_yaml` from `sdi.detection.boundaries` (reflecting the function move from a prior run). Updated all 9 call sites in `TestPartitionToProposedYaml` to use the new public name. Also removed one redundant test method (`test_exit_code_is_1_not_2_or_3`) that duplicated `test_exits_1_when_spec_is_none`; this brought the file from 306 → 299 lines to satisfy the 300-line ceiling.
+- **`pyproject.toml`**: Added `tree-sitter-bash` to `[project.optional-dependencies] all` and to `[[tool.mypy.overrides]] module` list.
+- **`src/sdi/parsing/discovery.py`**: Extended `_EXTENSION_TO_LANGUAGE` with `.sh`, `.bash`, `.zsh`, `.ksh`, `.dash`, `.ash` → `"shell"`. Added `_SHELL_INTERPRETERS` frozenset. Added `_detect_shell_shebang(path)` private helper for extensionless executable scripts (256-byte read, first-line-only, allow-list token matching via `Path.name`). Integrated shebang check into `discover_files` after gitignore/exclude filtering: extensionless files with exec bit invoke shebang detection.
+- **`src/sdi/parsing/_shell_patterns.py`** (NEW): Shell pattern extraction module. Implements `_shell_structural_hash` (folds command_name into hash for command nodes so `set -e`, `trap ERR`, `exit 1` get distinct fingerprints), `extract_pattern_instances` (detects `error_handling` and `logging`), and `count_loc_shell`. Error-handling detection covers: `set -e/u/o` family, `trap ERR/EXIT/INT/TERM/HUP`, `exit/return` non-zero literal, `||/&&` list nodes with bail commands on right side.
+- **`src/sdi/parsing/shell.py`** (NEW): `ShellAdapter(LanguageAdapter)` using tree-sitter-bash. Lazy `_PARSER` singleton pattern. `_extract_imports` resolves static `source`/`.` includes to repo-relative POSIX paths, silently dropping dynamic forms (non-`word` arg types). `_extract_symbols` walks `function_definition` nodes (both `foo() {}` and `function foo {}` forms). Delegates pattern extraction to `_shell_patterns.py`.
+- **`src/sdi/parsing/_runner.py`**: Appended `("shell", "sdi.parsing.shell", "ShellAdapter")` to `_adapter_modules` list. Existing `try/except ImportError` block emits warning automatically when tree-sitter-bash is absent.
+- **`src/sdi/patterns/categories.py`**: Added `_SHELL_QUERIES: dict[str, str] = {}` (empty — actual extraction is in `_shell_patterns.py`). Updated `_build_registry` to register shell queries for parity.
+- **`tests/conftest.py`**: Added `_has_shell_adapter()` and `requires_shell_adapter` marker mirroring the existing python/ts guards.
+- **`tests/fixtures/simple-shell/deploy.sh`** (NEW): ~18 LOC fixture with `set -euo pipefail`, `source ./lib/util.sh`, `trap cleanup ERR`, function definition, `echo`, `logger`.
+- **`tests/fixtures/simple-shell/lib/util.sh`** (NEW): ~12 LOC fixture with two functions and `printf` logging.
+- **`tests/fixtures/simple-shell/extensionless-script`** (NEW): Exec-bit set, `#!/usr/bin/env bash` shebang, one function, one `echo`.
+- **`tests/unit/test_shell_adapter.py`** (NEW): 8 test classes covering import extraction, dynamic rejection, both function forms, 4 error_handling shapes, 3 logging shapes, empty file, broken script (no exception escape), and hash stability.
+- **`tests/unit/test_discovery.py`**: Extended with `TestShellExtensions` (7 cases: 6 extensions + fish exclusion) and `TestShebangDetection` (4 cases: env bash discovered, env python3 rejected, no exec bit rejected, txt extension takes precedence).
+- **`tests/integration/test_shell_pipeline.py`** (NEW): Dedicated integration test file (70 lines) with `TestShellPipeline` asserting `language_breakdown["shell"] == 3` and presence of `error_handling` + `logging` categories.
+- **`CHANGELOG.md`**: Added shell support entry under `[Unreleased]`.
 
 ## Root Cause (bugs only)
-- **Complex blocker**: The previous sr coder moved `_partition_to_proposed_yaml` out of `boundaries_cmd.py` to `sdi.detection.boundaries`, updated the import at the top of the file, but left two internal call sites (`_do_propose:111` and `_do_ratify:118`) calling the old private name — causing `NameError` at runtime on `sdi boundaries --propose` and `sdi boundaries --ratify`.
-- **Stale test import**: The same function move left `tests/unit/test_boundaries_cmd.py` importing the old private name from the old location, breaking that test module's imports.
+N/A — feature implementation.
 
 ## Files Modified
-- `src/sdi/cli/boundaries_cmd.py` — complex blocker (2 call sites) + shlex EDITOR fix + import shlex
-- `src/sdi/cli/_hooks.py` — added explanatory comments for write_text call sites
-- `src/sdi/cli/init_cmd.py` — added logging import + logger + debug log in except block
-- `src/sdi/parsing/_parse_cache.py` — added TypeError, ValueError to except tuple
-- `tests/integration/test_full_pipeline.py` — removed dead _has_igraph() function
-- `tests/unit/test_parse_cache.py` — rewrote test_cached_record_gets_content_hash_populated
-- `tests/unit/test_boundaries_cmd.py` — fixed stale import + all 9 call sites + removed redundant test
-- `pyproject.toml` — added pytest-benchmark>=4.0 to dev dependencies
-- `NON_BLOCKING_LOG.md` — moved all 11 items from Open to Resolved
+
+- `pyproject.toml` — added tree-sitter-bash dependency and mypy override
+- `src/sdi/parsing/discovery.py` — shell extensions + shebang detection
+- `src/sdi/parsing/_shell_patterns.py` (NEW) — shell pattern extraction
+- `src/sdi/parsing/shell.py` (NEW) — ShellAdapter
+- `src/sdi/parsing/_runner.py` — shell adapter registration
+- `src/sdi/patterns/categories.py` — _SHELL_QUERIES declaration + registry update
+- `tests/conftest.py` — _has_shell_adapter + requires_shell_adapter
+- `tests/fixtures/simple-shell/deploy.sh` (NEW) — fixture script
+- `tests/fixtures/simple-shell/lib/util.sh` (NEW) — fixture library
+- `tests/fixtures/simple-shell/extensionless-script` (NEW) — shebang fixture
+- `tests/unit/test_shell_adapter.py` (NEW) — 22 unit tests
+- `tests/unit/test_discovery.py` — 11 new test cases
+- `tests/integration/test_shell_pipeline.py` (NEW) — 2 integration tests
+- `CHANGELOG.md` — unreleased entry
 
 ## Human Notes Status
-1. COMPLETED — removed dead `_has_igraph()` from test_full_pipeline.py; conftest.py already had correct except Exception pattern
-2. COMPLETED — comment already present at test_multi_snapshot.py:230-231 from prior run
-3. COMPLETED — added shlex.split(editor) to boundaries_cmd.py
-4. COMPLETED — added explanatory comments at both write_text call sites in _hooks.py
-5. COMPLETED — added logger.debug(exc) call in _infer_boundaries_from_snapshot
-6. COMPLETED — same as item 3 (deduped)
-7. COMPLETED — added TypeError, ValueError to except tuple in read_parse_cache
-8. COMPLETED — rewrote test as test_cached_record_preserves_content_hash with meaningful assertions
-9. COMPLETED — added pytest-benchmark>=4.0 to dev optional-dependencies in pyproject.toml
-10. COMPLETED — import json was already at module level in snapshot_cmd.py; no action required
-11. COMPLETED — check_cmd.py:71 already has the explanatory comment; _build_overrides verified to filter expired entries
+No Human Notes section in this task.
+
+## Observed Issues (out of scope)
+- `src/sdi/parsing/_python_patterns.py:139` — `in_multiline_string` variable declared but never used (pre-existing ruff F841)
+- `src/sdi/parsing/_python_patterns.py:78` — line too long in data_methods dict (pre-existing ruff E501)
+- `src/sdi/parsing/python.py` — `hashlib` and `sys` imports unused (pre-existing ruff F401)
+- `src/sdi/parsing/javascript.py` — `node_text` import unused (pre-existing ruff F401)
+- `src/sdi/parsing/_lang_common.py:40` — `_walk_nodes` missing return type annotation (pre-existing mypy)
+- `src/sdi/parsing/typescript.py:49,75` — missing type annotations (pre-existing mypy)
 
 ## Docs Updated
-None — no public-surface changes in this task.
+`CHANGELOG.md` — added shell support entry under `[Unreleased]`.

@@ -1,72 +1,40 @@
 ## Test Audit Report
 
 ### Audit Summary
-Tests audited: 4 files, ~30 test functions directly inspected (plus ~773 in full suite per tester claim)
+Tests audited: 1 file, 29 test functions
 Verdict: PASS
-
-Files audited (modified this run):
-- `.tekhton/TESTER_REPORT.md` — tester verification artifact
-
-Files audited (freshness sample):
-- `tests/fixtures/evolving/__init__.py`
-- `tests/fixtures/evolving/module_a.py`
-- `tests/fixtures/evolving/module_b.py`
-
-Implementation files cross-referenced to verify tester claims:
-- `tests/integration/test_full_pipeline.py`
-- `tests/unit/test_parse_cache.py`
-- `tests/unit/test_boundaries_cmd.py`
-- `tests/conftest.py`
-- `src/sdi/parsing/_parse_cache.py`
-- `src/sdi/cli/boundaries_cmd.py`
-- `src/sdi/cli/_hooks.py`
-- `src/sdi/cli/init_cmd.py`
-- `src/sdi/detection/boundaries.py`
-- `pyproject.toml`
 
 ---
 
 ### Findings
 
-#### COVERAGE: TypeError/ValueError exception paths in _parse_cache.py are untested
-- File: `tests/unit/test_parse_cache.py` (gap — no specific line, test is absent)
-- Issue: The coder added `TypeError, ValueError` to the `except` tuple in `read_parse_cache` (NON_BLOCKING_LOG Item 7) to handle cache entries with valid JSON but wrong field types (e.g., `imports` is an integer instead of a list). The two existing corrupt-cache tests cover `json.JSONDecodeError` (`test_corrupt_cache_file_returns_none`) and `KeyError` (`test_truncated_cache_file_returns_none`). No test exercises a record where `FeatureRecord.from_dict()` raises `TypeError` or `ValueError`, so the new exception branches have zero test coverage.
-- Severity: MEDIUM
-- Action: Add a test that writes a cache JSON with a wrong-typed field, e.g. `{"file_path": "x", "language": "python", "imports": 42, "symbols": [], "pattern_instances": [], "lines_of_code": 5, "content_hash": ""}`, and asserts `read_parse_cache` returns `None` instead of raising. Name it `test_wrong_type_cache_field_returns_none`.
-
-#### EXERCISE: Items 3 and 5 behavioral changes verified only by visual inspection
-- File: `.tekhton/TESTER_REPORT.md` (verification methodology)
-- Issue: Item 3 (`shlex.split(editor)` in `boundaries_cmd.py`) and Item 5 (DEBUG-level logging in `init_cmd.py:_infer_boundaries_from_snapshot`) are changes with observable runtime behavior. The tester confirmed both by reading source lines, not by executing code paths. No regression test was added for the shlex path (multi-word `EDITOR` invocation) or the debug-log path (silent `except` block now emits `logger.debug`). These paths are not reachable in the existing automated suite except via a TTY or subprocess interaction.
+#### COVERAGE: Weak assertion in broken-script edge case
+- File: tests/unit/test_shell_adapter.py:221
+- Issue: `test_broken_script_returns_none_via_safe` asserts `result is None or hasattr(result, "file_path")`. Since tree-sitter-bash is error-tolerant and never raises for malformed input, the `None` branch is unreachable in practice, and `hasattr(result, "file_path")` is unconditionally true for any `FeatureRecord`. The test effectively verifies only that no exception escapes — correct intent, but the returned record's content is entirely unverified.
 - Severity: LOW
-- Action: For Item 3, add a unit test for `_do_ratify` that monkeypatches `subprocess.run`, sets `EDITOR="code --wait"`, and asserts the call receives `["code", "--wait", str(spec_path)]` — verifying shlex.split correctly splits the editor string. For Item 5, add a test that injects a snapshot with a corrupt `partition_data` into `_infer_boundaries_from_snapshot` and asserts the function returns `None` without raising (the debug log need not be asserted).
-
-#### SCOPE: Evolving fixture files are minimal and may be under-specified
-- File: `tests/fixtures/evolving/module_a.py`, `tests/fixtures/evolving/module_b.py`
-- Issue: Both files are 5-line trivial Python modules with a single try/except pattern. The CLAUDE.md fixture spec for `evolving/` calls for "Git repo with 5+ commits introducing progressive drift (built by setup_fixture.py)." These static files contain only one pattern variant each. Any test that relies on them directly as a representation of structural diversity would be testing against underspecified data. (No currently-failing tests result from this — integration tests use `setup_fixture.py` to build the git-history-backed fixture.)
-- Severity: LOW
-- Action: Add a comment to `tests/fixtures/evolving/__init__.py` noting that this directory is populated at test time by `tests/fixtures/setup_fixture.py` and should not be used as a standalone static fixture. No code changes needed.
+- Action: Add content-shape assertions after the existing check, e.g. `assert isinstance(result.imports, list)` and `assert isinstance(result.symbols, list)`. This makes the intent explicit and guards against future changes to `parse_file_safe` that alter the return type on partial-parse success.
 
 ---
 
 ### Verified Clean (no findings)
 
 **1. Assertion Honesty — PASS**
-All assertions in the test suite exercise real computed values. The rewritten `test_cached_record_preserves_content_hash` (`tests/unit/test_parse_cache.py:226`) computes `file_hash = compute_file_hash(b"my source")` at runtime and asserts `cached.content_hash == file_hash` — no hardcoded magic values. `TestPartitionToProposedYaml` assertions are substring checks against YAML produced by the real `partition_to_proposed_yaml` function in `sdi/detection/boundaries.py:196`. All assertions were verified against the live implementation: `"and 5 more"` is a substring of `"# ... and 5 more file(s)"` (implementation line 225); `"sdi_boundaries"` appears in the YAML output (line 213); `"cluster_0"` and `"cluster_1"` are generated via `f"cluster_{cid}"` (line 219).
+All expected values are derived from inputs and implementation logic. `"scripts/helper.sh"` follows from `sub = tmp_path / "scripts"` with import `./helper.sh` — `_resolve_source_path` resolves `(script.parent / "./helper.sh").resolve().relative_to(repo_root)`. Instance counts (1, 2, 3) are traceable to specific AST node matches in `_shell_patterns.py`. Distinct-hash assertions rely on `_shell_structural_hash` prepending `cmd:<name>:` before SHA-256, which the implementation confirms at `_shell_patterns.py:70`. No assertion hardcodes a value that cannot be traced to the implementation.
 
-**2. Edge Case Coverage — PASS (with MEDIUM gap above)**
-`test_parse_cache.py` covers: cache miss (nonexistent dir, hash not found), corrupt JSON, truncated JSON (missing keys), orphan cleanup (stale removed, active preserved, noop on missing dir, remove all when active set is empty), and content_hash round-trip.
+**2. Edge Case Coverage — PASS**
+Error-handling: `set -e`, `set -euo pipefail`, `trap cleanup ERR`, `exit 1`, `exit 0` (excluded — negative test), and seven `||`/`&&` bail cases. The `TestShellListBail` class covers: `false`-isolated list path (single instance, no double-count), `|| exit 1` (two instances — list + standalone), `|| return 1`, `&& exit 1`, non-bail right side (`echo` — zero error_handling instances), ast_hash presence, and location key presence. Imports: all three dynamic-form rejections ($VAR, $(cmd), ${VAR}). Edge cases: empty file, broken/partial script (no-crash), hash stability across two identical runs.
 
 **3. Implementation Exercise — PASS**
-All tests call real implementation functions. `test_parse_cache.py` uses real filesystem via `tmp_path`. `test_boundaries_cmd.py` calls `partition_to_proposed_yaml`, `_spec_as_text`, `_do_show`, and `_do_export` directly. `test_full_pipeline.py` exercises real tree-sitter parsing, igraph operations, and filesystem writes.
+Every test constructs a real `ShellAdapter(repo_root=tmp_path)`, writes real content via `tmp_path`, and calls `parse_file` or `parse_file_safe`. No mocking bypasses the implementation. The full parse path — `_get_parser()` → `parser.parse()` → `_extract_imports` / `_extract_symbols` / `extract_pattern_instances` — is exercised on every call.
 
 **4. Test Weakening — PASS**
-The coder rewrote `test_cached_record_gets_content_hash_populated` → `test_cached_record_preserves_content_hash`, making it strictly stronger (the old test only exercised Python attribute assignment; the new test exercises a full write+read round-trip through the cache). The removed `test_exit_code_is_1_not_2_or_3` duplicated `test_exits_1_when_spec_is_none` in `TestDoExport` — confirmed identical assertion (`exc_info.value.code == 1`), no coverage loss.
+The tester added only `TestShellListBail` (lines 148–203). All five coder-authored classes (`TestShellImports`, `TestShellSymbols`, `TestShellErrorHandling`, `TestShellLogging`, `TestShellEdgeCases`) are unmodified. No assertion was removed or broadened.
 
 **5. Test Naming — PASS**
-All test names encode both the scenario and expected outcome: `test_compute_file_hash_returns_64_char_hex`, `test_corrupt_cache_file_returns_none`, `test_cached_record_preserves_content_hash`, `test_limits_files_per_cluster_to_five`, `test_orphan_cleanup_removes_stale_entries`. No `test_1` or ambiguous names found.
+All names encode both the scenario and expected outcome: `test_dynamic_var_rejected`, `test_exit_zero_not_error_handling`, `test_or_list_false_isolated`, `test_or_list_non_bail_command_not_error_handling`, `test_hash_stability`. The `TestShellListBail` class docstring explains the `false`-as-isolator technique — a non-obvious design choice that is appropriately documented inline rather than left implicit.
 
 **6. Scope Alignment — PASS**
-The stale import (`_partition_to_proposed_yaml` from `sdi.cli.boundaries_cmd`) in `test_boundaries_cmd.py` was correctly updated to `partition_to_proposed_yaml` from `sdi.detection.boundaries` (verified: function exists at `sdi/detection/boundaries.py:196` with the expected signature). All 9 call sites in `TestPartitionToProposedYaml` reference the correct public name. No orphaned imports. The dead `_has_igraph()` function was confirmed absent from `test_full_pipeline.py`. `conftest.py` uses `except Exception:` with explanatory comment at lines 34 and 44, consistent with the pattern.
+All imports reference modules created by the coder (`sdi.parsing.shell`, `tests.conftest.requires_shell_adapter`). `requires_shell_adapter` is defined in `tests/conftest.py:68` as a `pytest.mark.skipif` guard. No orphaned or stale references. `ShellAdapter.parse_file_safe` is inherited from `LanguageAdapter` base class (`base.py:52`), which the test correctly invokes with the `repo_root` keyword argument matching the method signature.
 
 **7. Test Isolation — PASS**
-No test file reads mutable project state (`.tekhton/`, `.claude/logs/`, config state files, pipeline artifacts). All filesystem operations use `tmp_path` or `CliRunner` in-process context. Pass/fail is fully independent of prior pipeline runs or repository state.
+All tests use pytest's `tmp_path` fixture. No test reads `.tekhton/`, `.claude/`, config state files, or any mutable project artifact. Pass/fail outcomes are fully independent of prior pipeline runs and repository state.
