@@ -27,6 +27,26 @@ SDI (Structural Divergence Indexer) is a CLI tool that computes and tracks the S
 
 **License:** Open source under MIT or Apache 2.0.
 
+## Version Naming
+
+SDI uses **MAJOR.MILESTONE.PATCH** semantic versioning where each position maps to a unit of work the project produces:
+
+- **MAJOR** = the design era. Increments when a new DESIGN document is ratified. Each design lives at `.tekhton/DESIGN_v<N>.md`. Authoritative spec for the v0 era is `.tekhton/DESIGN.md` (the original); for v1 onward it is `.tekhton/DESIGN_v<N>.md`.
+- **MILESTONE** = the position of the milestone within the current MAJOR — `1` for the first milestone shipped in the era, `2` for the second, etc. **The counter starts over at every MAJOR bump.** Versions within a MAJOR are dense (no gaps).
+- **PATCH** = bugfix, drift fix, or ad-hoc / human-note work against a shipped milestone. Resets to 0 on every new MILESTONE.
+
+Milestone files under `.claude/milestones/` (`m01-*.md`, `m02-*.md`, …) follow the same per-era numbering. At each MAJOR cut, the previous era's milestone files are retired (archived in `MILESTONE_ARCHIVE.md`, removed from the active directory) and the new era starts fresh at `m01-*.md`. The MILESTONE position in the version equals the milestone file number, always.
+
+**Era boundaries:**
+
+| Era | Versions | Design | Status |
+|---|---|---|---|
+| v0 | `0.1.0`–`0.14.x` | `.tekhton/DESIGN.md` | 14 milestones shipped (`m01`…`m14`); closed for new milestones; files retired at the `1.0.0` cut |
+| v1 | `1.0.0`, `1.1.0`, `1.2.0`, … | `.tekhton/DESIGN_v1.md` | First v1 milestone is the new `m01-*.md` → `1.1.0`; cuts `1.0.0` at completion of lifecycle PR |
+| v2 | `2.0.0`+ | future | DESIGN_v2.md not yet authored |
+
+Throughout this document and others in the repo, references to "v1" / "v2" / "v3" written before the rename mean the *old* labels — those have been migrated. **The current convention:** "v0" is the past/scaffold era, "v1" is what we are building toward, "v2" is future companion-surface work. See `.tekhton/DESIGN_v1.md` §12 for full versioning policy.
+
 ## Architecture Philosophy
 
 ### Core Principles
@@ -35,7 +55,7 @@ SDI (Structural Divergence Indexer) is a CLI tool that computes and tracks the S
 - **Fever chart, not thermometer.** Every metric must be trackable over time. The primary output is always the trend — the rate of change of structural coherence, not the absolute state. Alerts fire on rate-of-change thresholds, not absolute values.
 - **Automated inference, human ratification.** SDI infers structural boundaries via community detection, proposes them, and waits for a human to ratify. The tool measures divergence from declared intent, not from its own opinions. Pattern categories detect structural shapes and count them but never classify code as "good" or "bad."
 - **Safe defaults, zero mandatory config.** Running `sdi snapshot` on an un-initialized repository produces useful output using purely inferred boundaries. Configuration refines and ratifies — it is never required for first use.
-- **Composable Unix tooling.** Reads from filesystem and git history, writes JSON/text to stdout/files, exits with meaningful codes. No daemon, no server, no interactive TUI in v1. Composes with `jq`, `diff`, CI pipelines, and git hooks.
+- **Composable Unix tooling.** Reads from filesystem and git history, writes JSON/text to stdout/files, exits with meaningful codes. No daemon, no server, no interactive TUI in v0 (the scaffold era; rule persists into v1 and beyond). Composes with `jq`, `diff`, CI pipelines, and git hooks.
 - **Language-agnostic core, language-specific adapters.** The dependency graph, community detection, pattern fingerprinting, and snapshot diffing are language-agnostic. Language specifics live in adapter modules. Tree-sitter provides consistent AST representation across all supported languages.
 - **Deterministic and reproducible.** Same commit + same config + same boundaries = same snapshot. Leiden is seeded from previous partition for stability; cold starts use a fixed random seed (default: 42).
 
@@ -160,7 +180,7 @@ sdi/
 │       ├── test_parsing_perf.py      # Parsing stage benchmarks at various scales
 │       └── test_leiden_perf.py       # Leiden detection benchmarks on synthetic graphs
 └── docs/
-    └── ci-integration.md             # Manual CI integration guide for v1
+    └── ci-integration.md             # Manual CI integration guide for v0
 ```
 
 ## Key Design Decisions
@@ -185,13 +205,13 @@ Dependency graph edges are unweighted by default for Leiden community detection.
 
 Leiden's gamma (resolution parameter) defaults to 1.0 with manual override in config. Auto-tuning was considered but deferred because it adds complexity and reduces reproducibility. **Default approach until resolved:** Ship with gamma 1.0, let users tune manually, collect data on what values real projects use.
 
-### KD6: No Custom Pattern Categories in V1
+### KD6: No Custom Pattern Categories in v0
 
-V1 ships built-in pattern categories only. The extensibility mechanism (tree-sitter query files? Python plugins? TOML DSL?) is deferred until real user feedback reveals what categories people want and how they prefer to define them. **Default approach:** Built-in categories are hardcoded in `sdi/patterns/categories.py`.
+v0 ships built-in pattern categories only. The extensibility mechanism (tree-sitter query files? Python plugins? TOML DSL?) is deferred until real user feedback reveals what categories people want and how they prefer to define them. **Default approach:** Built-in categories are hardcoded in `sdi/patterns/categories.py`.
 
-### KD7: No Cross-Language Dependency Detection in V1
+### KD7: No Cross-Language Dependency Detection in v0
 
-Cross-language dependencies (e.g., TypeScript frontend calling Python backend via API contracts) are not modeled. V1 tracks only explicit in-language imports. Cross-language coupling requires understanding API contracts, OpenAPI specs, or protobuf definitions — a significant scope expansion deferred to post-v1.
+Cross-language dependencies (e.g., TypeScript frontend calling Python backend via API contracts) are not modeled. v0 tracks only explicit in-language imports. Cross-language coupling requires understanding API contracts, OpenAPI specs, or protobuf definitions — a significant scope expansion that lands in v1 (see `.tekhton/DESIGN_v1.md` §6.2).
 
 ### KD8: JSON File Storage for Snapshots
 
@@ -199,7 +219,7 @@ Snapshots are stored as individual JSON files in `.sdi/snapshots/` with a retent
 
 ### KD9: Generated Code Handling Deferred
 
-Generated/vendored code in non-standard locations (e.g., protobuf stubs alongside handwritten code) is not specially handled in v1. Default exclude patterns cover `vendor/`, `node_modules/`, `dist/`, `build/`. A mechanism for tagging files as generated is deferred pending ecosystem feedback. **Default approach:** Use exclude patterns in config to manually exclude known generated directories.
+Generated/vendored code in non-standard locations (e.g., protobuf stubs alongside handwritten code) is not specially handled in v0. Default exclude patterns cover `vendor/`, `node_modules/`, `dist/`, `build/`. A dual-mechanism tagging system (explicit list + auto-detection) lands in v1 (see `.tekhton/DESIGN_v1.md` §4.4). **Default approach for v0:** Use exclude patterns in config to manually exclude known generated directories.
 
 ### KD10: src Layout for Package Structure
 
@@ -466,7 +486,7 @@ SDI has no persistent runtime state. Each invocation reads config, reads cached 
 
 **Auto-Remediation / Gardener Agent** — SDI detects and measures drift; it never fixes it. A companion tool generating consolidation PRs is a separate project.
 
-**GitHub Actions Marketplace Action** — Document manual CI integration in v1 (`pip install sdi && sdi check`). A polished reusable action with PR comments and badges is post-v1.
+**GitHub Actions Marketplace Action** — Document manual CI integration in v0 (`pip install sdi && sdi check`). A polished reusable action with PR comments and badges lands in v1 (see `.tekhton/DESIGN_v1.md` §7.2).
 
 **Plugin System for Custom Analyzers** — V1 ships built-in pattern categories only. Design extensibility after real user feedback on what categories people need.
 
@@ -480,7 +500,7 @@ SDI has no persistent runtime state. Each invocation reads config, reads cached 
 
 **Automatic Drift-vs-Evolution Classification** — Explicitly rejected (see Design Decision KD1). SDI reports raw measurements; humans declare migration intent via threshold overrides. If future versions add classification, it would be opt-in advisory only, never gate suppression.
 
-**Stdin Input** — `sdi diff` does not read snapshot JSON from stdin in v1. All input is file-based.
+**Stdin Input** — `sdi diff` does not read snapshot JSON from stdin in v0. Stdin support lands in v1 (see `.tekhton/DESIGN_v1.md` §7.3).
 
 **`sdi config` Subcommand** — No config management command. Edit `.sdi/config.toml` directly.
 
