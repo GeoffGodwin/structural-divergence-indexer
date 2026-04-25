@@ -19,7 +19,6 @@ from typing import Any
 from sdi.patterns.catalog import PatternCatalog
 from sdi.snapshot.model import DivergenceSummary, Snapshot
 
-
 # ---------------------------------------------------------------------------
 # Absolute-value helpers
 # ---------------------------------------------------------------------------
@@ -104,9 +103,7 @@ def _count_boundary_violations(partition_data: dict[str, Any]) -> int:
     """
     edges = partition_data.get("inter_cluster_edges", [])
     partition_count = sum(int(e.get("count", 1)) for e in edges)
-    intent_count = int(
-        partition_data.get("intent_divergence", {}).get("total_violations", 0)
-    )
+    intent_count = int(partition_data.get("intent_divergence", {}).get("total_violations", 0))
     return partition_count + intent_count
 
 

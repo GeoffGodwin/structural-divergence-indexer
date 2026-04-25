@@ -11,14 +11,11 @@ from pathlib import Path
 import click
 
 from sdi.cli._helpers import (
-    find_git_root,
     require_initialized,
     resolve_snapshots_dir,
 )
 from sdi.detection.boundaries import BoundarySpec, load_boundary_spec, partition_to_proposed_yaml
-from sdi.snapshot.storage import list_snapshots, read_snapshot
-from sdi.snapshot.storage import write_atomic
-
+from sdi.snapshot.storage import list_snapshots, read_snapshot, write_atomic
 
 # ---------------------------------------------------------------------------
 # Display helpers
@@ -63,10 +60,7 @@ def _spec_as_text(spec: BoundarySpec) -> str:
 def _do_show(spec: BoundarySpec | None, spec_path: Path) -> None:
     """Display the current ratified boundary map."""
     if spec is None:
-        click.echo(
-            f"No boundary spec found at {spec_path}.\n"
-            "Use `sdi boundaries --propose` to generate one."
-        )
+        click.echo(f"No boundary spec found at {spec_path}.\nUse `sdi boundaries --propose` to generate one.")
         return
     click.echo(_spec_as_text(spec))
 
@@ -74,6 +68,7 @@ def _do_show(spec: BoundarySpec | None, spec_path: Path) -> None:
 def _do_propose(repo_root: Path, config: object, spec_path: Path) -> None:
     """Show proposed boundaries from the latest snapshot's partition data."""
     from sdi.config import SDIConfig
+
     assert isinstance(config, SDIConfig)
 
     snapshots_dir = resolve_snapshots_dir(repo_root, config)
@@ -133,8 +128,7 @@ def _do_ratify(spec_path: Path, partition_data: dict | None = None) -> None:
     if not editor:
         if sys.platform.startswith("win"):
             click.echo(
-                "[warning] $EDITOR is not set. Please open and edit the spec manually:\n"
-                f"  {spec_path}",
+                f"[warning] $EDITOR is not set. Please open and edit the spec manually:\n  {spec_path}",
                 err=True,
             )
             return

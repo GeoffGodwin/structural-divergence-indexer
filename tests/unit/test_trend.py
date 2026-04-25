@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from sdi.snapshot.model import SNAPSHOT_VERSION, DivergenceSummary, Snapshot
 from sdi.snapshot.trend import ALL_DIMENSIONS, TrendData, compute_trend
 
@@ -50,38 +48,58 @@ def _five_snapshots() -> list[Snapshot]:
     return [
         _make_snap(
             "2026-04-01T00:00:00Z",
-            pattern_entropy=3.0, pattern_entropy_delta=None,  # first snapshot
-            convention_drift=0.1, convention_drift_delta=None,
-            coupling_topology=0.2, coupling_topology_delta=None,
-            boundary_violations=2, boundary_violations_delta=None,
+            pattern_entropy=3.0,
+            pattern_entropy_delta=None,  # first snapshot
+            convention_drift=0.1,
+            convention_drift_delta=None,
+            coupling_topology=0.2,
+            coupling_topology_delta=None,
+            boundary_violations=2,
+            boundary_violations_delta=None,
         ),
         _make_snap(
             "2026-04-02T00:00:00Z",
-            pattern_entropy=4.0, pattern_entropy_delta=1.0,
-            convention_drift=0.2, convention_drift_delta=1.0,
-            coupling_topology=0.3, coupling_topology_delta=0.1,
-            boundary_violations=3, boundary_violations_delta=1,
+            pattern_entropy=4.0,
+            pattern_entropy_delta=1.0,
+            convention_drift=0.2,
+            convention_drift_delta=1.0,
+            coupling_topology=0.3,
+            coupling_topology_delta=0.1,
+            boundary_violations=3,
+            boundary_violations_delta=1,
         ),
         _make_snap(
             "2026-04-03T00:00:00Z",
-            pattern_entropy=4.0, pattern_entropy_delta=0.0,
-            convention_drift=0.2, convention_drift_delta=0.0,
-            coupling_topology=0.3, coupling_topology_delta=0.0,
-            boundary_violations=3, boundary_violations_delta=0,
+            pattern_entropy=4.0,
+            pattern_entropy_delta=0.0,
+            convention_drift=0.2,
+            convention_drift_delta=0.0,
+            coupling_topology=0.3,
+            coupling_topology_delta=0.0,
+            boundary_violations=3,
+            boundary_violations_delta=0,
         ),
         _make_snap(
             "2026-04-04T00:00:00Z",
-            pattern_entropy=6.0, pattern_entropy_delta=2.0,
-            convention_drift=0.4, convention_drift_delta=2.0,
-            coupling_topology=0.5, coupling_topology_delta=0.2,
-            boundary_violations=5, boundary_violations_delta=2,
+            pattern_entropy=6.0,
+            pattern_entropy_delta=2.0,
+            convention_drift=0.4,
+            convention_drift_delta=2.0,
+            coupling_topology=0.5,
+            coupling_topology_delta=0.2,
+            boundary_violations=5,
+            boundary_violations_delta=2,
         ),
         _make_snap(
             "2026-04-05T00:00:00Z",
-            pattern_entropy=5.0, pattern_entropy_delta=-1.0,
-            convention_drift=0.3, convention_drift_delta=-1.0,
-            coupling_topology=0.4, coupling_topology_delta=-0.1,
-            boundary_violations=4, boundary_violations_delta=-1,
+            pattern_entropy=5.0,
+            pattern_entropy_delta=-1.0,
+            convention_drift=0.3,
+            convention_drift_delta=-1.0,
+            coupling_topology=0.4,
+            coupling_topology_delta=-0.1,
+            boundary_violations=4,
+            boundary_violations_delta=-1,
         ),
     ]
 
@@ -127,9 +145,7 @@ class TestFiveSnapshotTrend:
     def test_pattern_entropy_delta_series(self) -> None:
         snaps = _five_snapshots()
         result = compute_trend(snaps, ["pattern_entropy_delta"])
-        assert result.dimensions["pattern_entropy_delta"] == [
-            None, 1.0, 0.0, 2.0, -1.0
-        ]
+        assert result.dimensions["pattern_entropy_delta"] == [None, 1.0, 0.0, 2.0, -1.0]
 
     def test_first_entry_is_null_for_delta_dimension(self) -> None:
         snaps = _five_snapshots()
@@ -189,7 +205,8 @@ class TestSingleSnapshotBaseline:
     def test_delta_is_none_for_single_snapshot(self) -> None:
         snap = _make_snap(
             "2026-04-01T00:00:00Z",
-            pattern_entropy=3.0, pattern_entropy_delta=None,
+            pattern_entropy=3.0,
+            pattern_entropy_delta=None,
         )
         result = compute_trend([snap], ["pattern_entropy_delta"])
         assert result.dimensions["pattern_entropy_delta"] == [None]
@@ -197,7 +214,8 @@ class TestSingleSnapshotBaseline:
     def test_absolute_value_present_for_single_snapshot(self) -> None:
         snap = _make_snap(
             "2026-04-01T00:00:00Z",
-            pattern_entropy=3.0, pattern_entropy_delta=None,
+            pattern_entropy=3.0,
+            pattern_entropy_delta=None,
         )
         result = compute_trend([snap], ["pattern_entropy"])
         assert result.dimensions["pattern_entropy"] == [3.0]

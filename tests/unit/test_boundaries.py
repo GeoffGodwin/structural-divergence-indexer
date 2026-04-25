@@ -63,9 +63,7 @@ def _spec(
     layers: LayersSpec | None = None,
     allowed: list[AllowedCrossDomain] | None = None,
 ) -> BoundarySpec:
-    return BoundarySpec(
-        version="0.1.0", modules=modules or [], layers=layers, allowed_cross_domain=allowed or []
-    )
+    return BoundarySpec(version="0.1.0", modules=modules or [], layers=layers, allowed_cross_domain=allowed or [])
 
 
 def _pd(files: list[str], clusters: list[int], edges: list[dict] | None = None) -> dict:
@@ -118,11 +116,14 @@ def test_malformed_yaml_exits_code_2(tmp_path: Path) -> None:
     assert exc_info.value.code == 2
 
 
-@pytest.mark.parametrize("yaml_text", [
-    "sdi_boundaries:\n  modules: []\n",            # missing version
-    'sdi_boundaries:\n  version: "0.1.0"\n',        # missing modules
-    "version: 0.1.0\nmodules: []\n",                # missing sdi_boundaries root key
-])
+@pytest.mark.parametrize(
+    "yaml_text",
+    [
+        "sdi_boundaries:\n  modules: []\n",  # missing version
+        'sdi_boundaries:\n  version: "0.1.0"\n',  # missing modules
+        "version: 0.1.0\nmodules: []\n",  # missing sdi_boundaries root key
+    ],
+)
 def test_missing_required_fields_exit_code_2(tmp_path: Path, yaml_text: str) -> None:
     """Missing version, modules, or sdi_boundaries root key each exit with code 2."""
     with pytest.raises(SystemExit) as exc_info:
@@ -159,12 +160,15 @@ def test_files_not_matching_module_not_flagged() -> None:
 
 def test_unauthorized_cross_boundary_detected() -> None:
     """An inter-cluster edge between modules not in allowed_cross_domain is flagged."""
-    spec = _spec(modules=[
-        ModuleSpec(name="billing", paths=["src/billing/"]),
-        ModuleSpec(name="users", paths=["src/users/"]),
-    ])
+    spec = _spec(
+        modules=[
+            ModuleSpec(name="billing", paths=["src/billing/"]),
+            ModuleSpec(name="users", paths=["src/users/"]),
+        ]
+    )
     partition = _pd(
-        ["src/billing/a.py", "src/users/u.py"], [0, 1],
+        ["src/billing/a.py", "src/users/u.py"],
+        [0, 1],
         edges=[{"source_cluster": 0, "target_cluster": 1, "count": 3}],
     )
     result = compute_intent_divergence(spec, partition)
@@ -183,7 +187,8 @@ def test_allowed_cross_domain_suppresses_flag() -> None:
         allowed=[AllowedCrossDomain(from_module="billing", to="users")],
     )
     partition = _pd(
-        ["src/billing/a.py", "src/users/u.py"], [0, 1],
+        ["src/billing/a.py", "src/users/u.py"],
+        [0, 1],
         edges=[{"source_cluster": 0, "target_cluster": 1, "count": 3}],
     )
     assert compute_intent_divergence(spec, partition).unauthorized_cross_boundary == []
@@ -202,7 +207,8 @@ def test_layer_violation_detected_upward_dependency() -> None:
         layers=_LAYERS,
     )
     partition = _pd(
-        ["src/billing/a.py", "src/web/w.py"], [0, 1],
+        ["src/billing/a.py", "src/web/w.py"],
+        [0, 1],
         edges=[{"source_cluster": 0, "target_cluster": 1, "count": 2}],
     )
     result = compute_intent_divergence(spec, partition)
@@ -223,7 +229,8 @@ def test_downward_dependency_not_a_violation() -> None:
         allowed=[AllowedCrossDomain(from_module="web", to="billing")],
     )
     partition = _pd(
-        ["src/web/w.py", "src/billing/a.py"], [0, 1],
+        ["src/web/w.py", "src/billing/a.py"],
+        [0, 1],
         edges=[{"source_cluster": 0, "target_cluster": 1, "count": 2}],
     )
     assert compute_intent_divergence(spec, partition).layer_violations == []
@@ -232,8 +239,9 @@ def test_downward_dependency_not_a_violation() -> None:
 def test_no_layers_spec_skips_layer_validation() -> None:
     """Layer validation is skipped when no layers section is defined."""
     spec = _spec(modules=[ModuleSpec(name="billing", paths=["src/billing/"], layer="domain")])
-    partition = _pd(["src/billing/a.py", "src/users/u.py"], [0, 1],
-                    edges=[{"source_cluster": 0, "target_cluster": 1, "count": 1}])
+    partition = _pd(
+        ["src/billing/a.py", "src/users/u.py"], [0, 1], edges=[{"source_cluster": 0, "target_cluster": 1, "count": 1}]
+    )
     assert compute_intent_divergence(spec, partition).layer_violations == []
 
 
@@ -274,6 +282,7 @@ def test_ruamel_yaml_preserves_comments_on_round_trip(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     from ruamel.yaml import YAML
+
     yaml = YAML(typ="rt")
     with open(path, encoding="utf-8") as fh:
         data = yaml.load(fh)

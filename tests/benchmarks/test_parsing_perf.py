@@ -20,7 +20,6 @@ import pytest
 from sdi.parsing._parse_cache import compute_file_hash, read_parse_cache, write_parse_cache
 from sdi.snapshot.model import FeatureRecord
 
-
 # ---------------------------------------------------------------------------
 # Synthetic data helpers
 # ---------------------------------------------------------------------------
@@ -78,9 +77,7 @@ def test_cold_start_write_throughput(tmp_path: Path, file_count: int):
     elapsed = time.perf_counter() - start
     rate = file_count / elapsed if elapsed > 0 else float("inf")
     print(f"\n  {file_count} files: {elapsed:.3f}s ({rate:.0f} files/s)")
-    assert elapsed < 10.0, (
-        f"Cold-start cache write for {file_count} files took {elapsed:.1f}s (limit: 10s)"
-    )
+    assert elapsed < 10.0, f"Cold-start cache write for {file_count} files took {elapsed:.1f}s (limit: 10s)"
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +103,7 @@ def test_warm_start_read_throughput(tmp_path: Path, file_count: int):
     assert hits == file_count, f"Expected {file_count} cache hits, got {hits}"
     rate = file_count / elapsed if elapsed > 0 else float("inf")
     print(f"\n  {file_count} files: {elapsed:.3f}s ({rate:.0f} files/s)")
-    assert elapsed < 5.0, (
-        f"Warm-start cache read for {file_count} files took {elapsed:.1f}s (limit: 5s)"
-    )
+    assert elapsed < 5.0, f"Warm-start cache read for {file_count} files took {elapsed:.1f}s (limit: 5s)"
 
 
 # ---------------------------------------------------------------------------
@@ -149,13 +144,12 @@ def test_cache_read_faster_than_write(tmp_path: Path, file_count: int):
 
 try:
     from sdi.parsing.shell import ShellAdapter as _ShellAdapter  # noqa: F401
+
     _SHELL_AVAILABLE = True
 except Exception:
     _SHELL_AVAILABLE = False
 
-_skip_no_shell = pytest.mark.skipif(
-    not _SHELL_AVAILABLE, reason="tree-sitter Bash grammar not available"
-)
+_skip_no_shell = pytest.mark.skipif(not _SHELL_AVAILABLE, reason="tree-sitter Bash grammar not available")
 
 
 def _make_shell_script(index: int) -> bytes:
@@ -172,7 +166,7 @@ def _make_shell_script(index: int) -> bytes:
         "",
         f"run_step_{index}() {{",
         f'    echo "Running step {index}"',
-        f"    curl -sf \"http://localhost:{8000 + index % 100}/health\" || exit 1",
+        f'    curl -sf "http://localhost:{8000 + index % 100}/health" || exit 1',
         "}",
         "",
         "check_prereqs() {",
@@ -216,9 +210,7 @@ def test_shell_parse_perf_cold(tmp_path: Path) -> None:
 
     rate = script_count / elapsed if elapsed > 0 else float("inf")
     print(f"\n  cold: {script_count} scripts in {elapsed:.3f}s ({rate:.0f} scripts/s)")
-    assert elapsed < 1.5, (
-        f"Cold parse of {script_count} shell scripts took {elapsed:.1f}s (budget: 1.5s)"
-    )
+    assert elapsed < 1.5, f"Cold parse of {script_count} shell scripts took {elapsed:.1f}s (budget: 1.5s)"
 
 
 @pytest.mark.benchmark
@@ -264,6 +256,4 @@ def test_shell_parse_perf_cached(tmp_path: Path) -> None:
     assert hits == script_count, f"Expected {script_count} cache hits, got {hits}"
     rate = script_count / elapsed if elapsed > 0 else float("inf")
     print(f"\n  cached: {script_count} scripts in {elapsed:.3f}s ({rate:.0f} scripts/s)")
-    assert elapsed < 0.3, (
-        f"Cache-hit rerun of {script_count} shell scripts took {elapsed:.3f}s (budget: 0.3s)"
-    )
+    assert elapsed < 0.3, f"Cache-hit rerun of {script_count} shell scripts took {elapsed:.3f}s (budget: 0.3s)"

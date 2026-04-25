@@ -135,8 +135,13 @@ def _extract_symbols(root: Node) -> list[str]:
     symbols: list[str] = []
     for node in root.children:
         if node.type in (
-            "function_item", "struct_item", "enum_item",
-            "trait_item", "type_item", "const_item", "static_item",
+            "function_item",
+            "struct_item",
+            "enum_item",
+            "trait_item",
+            "type_item",
+            "const_item",
+            "static_item",
         ):
             if _is_pub(node):
                 name = node.child_by_field_name("name")
@@ -176,11 +181,13 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
             # SDI's measurement-not-judgment principle.
             text = _node_text(node)
             if any(kw in text for kw in ("Err", "Ok", "Some", "None")):
-                instances.append({
-                    "category": "error_handling",
-                    "ast_hash": _structural_hash(node),
-                    "location": _location(node),
-                })
+                instances.append(
+                    {
+                        "category": "error_handling",
+                        "ast_hash": _structural_hash(node),
+                        "location": _location(node),
+                    }
+                )
     return instances
 
 

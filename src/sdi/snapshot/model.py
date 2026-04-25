@@ -132,9 +132,7 @@ class Snapshot:
             divergence=DivergenceSummary.from_dict(data["divergence"]),
             file_count=data["file_count"],
             language_breakdown=dict(data["language_breakdown"]),
-            feature_records=[
-                FeatureRecord.from_dict(fr) for fr in data.get("feature_records", [])
-            ],
+            feature_records=[FeatureRecord.from_dict(fr) for fr in data.get("feature_records", [])],
             graph_metrics=dict(data.get("graph_metrics", {})),
             pattern_catalog=dict(data.get("pattern_catalog", {})),
             partition_data=dict(data.get("partition_data", {})),

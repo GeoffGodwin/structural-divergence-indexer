@@ -20,7 +20,6 @@ from sdi.cli.init_cmd import _infer_boundaries_from_snapshot, _maybe_install_hoo
 from sdi.snapshot.model import SNAPSHOT_VERSION, DivergenceSummary, Snapshot
 from sdi.snapshot.storage import write_snapshot
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -71,9 +70,7 @@ def test_maybe_install_hooks_tty_yes_yes_installs_both(
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = True
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm", side_effect=[True, True]
-    ):
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm", side_effect=[True, True]):
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=False,
@@ -97,9 +94,7 @@ def test_maybe_install_hooks_tty_yes_no_installs_only_post_merge(
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = True
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm", side_effect=[True, False]
-    ):
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm", side_effect=[True, False]):
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=False,
@@ -118,9 +113,7 @@ def test_maybe_install_hooks_tty_no_no_installs_nothing(
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = True
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm", side_effect=[False, False]
-    ):
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm", side_effect=[False, False]):
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=False,
@@ -137,18 +130,14 @@ def test_maybe_install_hooks_tty_prompts_twice(git_root_with_hooks: Path) -> Non
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = True
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm", side_effect=[False, False]
-    ) as mock_confirm:
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm", side_effect=[False, False]) as mock_confirm:
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=False,
             install_pre_push=False,
         )
 
-    assert mock_confirm.call_count == 2, (
-        f"Expected 2 confirm prompts, got {mock_confirm.call_count}"
-    )
+    assert mock_confirm.call_count == 2, f"Expected 2 confirm prompts, got {mock_confirm.call_count}"
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +152,7 @@ def test_maybe_install_hooks_non_tty_no_flags_no_prompts(
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = False
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm"
-    ) as mock_confirm:
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm") as mock_confirm:
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=False,
@@ -185,9 +172,7 @@ def test_maybe_install_hooks_flag_bypasses_tty_check(
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = False
 
-    with patch.object(sys, "stdin", mock_stdin), patch(
-        "click.confirm"
-    ) as mock_confirm:
+    with patch.object(sys, "stdin", mock_stdin), patch("click.confirm") as mock_confirm:
         _maybe_install_hooks(
             git_root_with_hooks,
             install_post_merge=True,

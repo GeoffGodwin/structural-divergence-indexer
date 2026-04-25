@@ -122,9 +122,7 @@ class SDIConfig:
     output: OutputConfig = field(default_factory=OutputConfig)
 
 
-_KNOWN_SECTIONS = frozenset(
-    {"core", "snapshots", "boundaries", "patterns", "thresholds", "change_coupling", "output"}
-)
+_KNOWN_SECTIONS = frozenset({"core", "snapshots", "boundaries", "patterns", "thresholds", "change_coupling", "output"})
 
 
 def _load_toml(path: Path) -> dict:
@@ -176,8 +174,7 @@ def _validate_overrides(overrides: dict) -> None:
     for name, entry in overrides.items():
         if "expires" not in entry:
             print(
-                f"[config error] [thresholds.overrides.{name}] is missing required "
-                "'expires' field",
+                f"[config error] [thresholds.overrides.{name}] is missing required 'expires' field",
                 file=sys.stderr,
             )
             raise SystemExit(2)
@@ -298,9 +295,7 @@ def load_config(
         config_path = Path(os.environ["SDI_CONFIG_PATH"])
 
     global_cfg = _load_toml(Path.home() / ".config" / "sdi" / "config.toml")
-    project_cfg = _load_toml(
-        config_path if config_path is not None else project_dir / ".sdi" / "config.toml"
-    )
+    project_cfg = _load_toml(config_path if config_path is not None else project_dir / ".sdi" / "config.toml")
 
     merged = _deep_merge(global_cfg, project_cfg)
     merged = _apply_env_vars(merged)

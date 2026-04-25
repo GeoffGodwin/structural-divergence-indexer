@@ -1,8 +1,8 @@
-# SDI v2 — Design Document
+# SDI v1 — Design Document
 
 **Status:** Draft. Forward-looking design seeding the next wave of milestones.
-**Scope:** The `sdi` CLI only. Companion surfaces (dashboards, agents, remediation bots) are reserved for v3.
-**Supersedes:** Nothing. This document *extends* `.tekhton/DESIGN.md` (v1) — it does not replace it. Where this document is silent, v1 governs.
+**Scope:** The `sdi` CLI only. Companion surfaces (dashboards, agents, remediation bots) are reserved for v2.
+**Supersedes:** Nothing. This document *extends* `.tekhton/DESIGN.md` (v0) — it does not replace it. Where this document is silent, v0 governs.
 **Audience:** Maintainers, milestone authors (Tekhton), and early adopters evaluating whether SDI is on a trajectory they can build on.
 
 ---
@@ -13,75 +13,75 @@ SDI's lifecycle is three versions, each with a sharply different promise to the 
 
 | Version | Promise | Status |
 |---|---|---|
-| **v1** | "We *can* measure structural drift, reproducibly, across languages, without opinion." | Shipped (M1–M14). |
-| **v2** | "The measurements are *meaningful*, and you can act against them." | This document. |
-| **v3** | "SDI *acts* — companion surfaces (dashboard, gardener) close the loop." | Seeded at §10. |
+| **v0** | "We *can* measure structural drift, reproducibly, across languages, without opinion." | Shipped (M1–M14). |
+| **v1** | "The measurements are *meaningful*, and you can act against them." | This document. |
+| **v2** | "SDI *acts* — companion surfaces (dashboard, gardener) close the loop." | Seeded at §10. |
 
-v1 established the instrument. A user can run `sdi snapshot` on any supported codebase and get a reproducible fingerprint of its structural state — pattern entropy, Leiden-inferred boundaries, convention velocity vectors, boundary violation counts. The metrics are defensible: every number decomposes into traceable inputs, no ML/LLM in the pipeline, determinism guaranteed by seed. That was the v1 contract, and it is met.
+v0 established the instrument. A user can run `sdi snapshot` on any supported codebase and get a reproducible fingerprint of its structural state — pattern entropy, Leiden-inferred boundaries, convention velocity vectors, boundary violation counts. The metrics are defensible: every number decomposes into traceable inputs, no ML/LLM in the pipeline, determinism guaranteed by seed. That was the v0 contract, and it is met.
 
-v1 has a known gap the users will feel the moment they start using SDI in earnest: **the numbers are real, but the path from "a number moved" to "here is what to do about it" is too long**. `sdi diff` tells you error_handling entropy went from 4 to 7. It does not tell you *which three new shapes appeared*, *where*, *who introduced them*, or *whether one of them is likely a deliberate migration versus incidental drift*. A tech lead reading a v1 snapshot has to do the detective work themselves. This is fine for the early-adopter phase, where the measurement itself is the novelty. It is not fine once the tool graduates to "we gate merges on this."
+v0 has a known gap the users will feel the moment they start using SDI in earnest: **the numbers are real, but the path from "a number moved" to "here is what to do about it" is too long**. `sdi diff` tells you error_handling entropy went from 4 to 7. It does not tell you *which three new shapes appeared*, *where*, *who introduced them*, or *whether one of them is likely a deliberate migration versus incidental drift*. A tech lead reading a v0 snapshot has to do the detective work themselves. This is fine for the early-adopter phase, where the measurement itself is the novelty. It is not fine once the tool graduates to "we gate merges on this."
 
-v2's job is to shorten that path without betraying v1's principles. The metric surface stays the same; what changes is what SDI is willing to *say about* a metric movement — always as measurement or attribution, never as classification or judgment. When pattern entropy rises, v2 tells you *which fingerprints* are new, *which files* contain them, *which commits* introduced them, and *which existing shapes* are structurally closest. It does not tell you whether that was good or bad. The user still decides.
+v1's job is to shorten that path without betraying v0's principles. The metric surface stays the same; what changes is what SDI is willing to *say about* a metric movement — always as measurement or attribution, never as classification or judgment. When pattern entropy rises, v1 tells you *which fingerprints* are new, *which files* contain them, *which commits* introduced them, and *which existing shapes* are structurally closest. It does not tell you whether that was good or bad. The user still decides.
 
-v2 also hardens v1. Several v1 decisions were shipped with "collect data, revisit" attached (OQ1–OQ7 in v1's DESIGN.md). v2 is the revisit. One v1 hardening item is load-bearing for real-world use and cannot wait: the cycle-detection performance cap (`.tekhton/HUMAN_ACTION_REQUIRED.md`). Phase 0 below addresses it before any new capability lands.
+v1 also hardens v0. Several v0 decisions were shipped with "collect data, revisit" attached (OQ1–OQ7 in v0's DESIGN.md). v1 is the revisit. One v0 hardening item is load-bearing for real-world use and cannot wait: the cycle-detection performance cap (`.tekhton/HUMAN_ACTION_REQUIRED.md`). Phase 0 below addresses it before any new capability lands.
 
-v3 is out of scope for this document — but v2's decisions constrain what v3 can look like, so §10 ("What Not to Build Yet — seeds v3") names the things v2 must *not* attempt, so v3 has clean ground to build on.
+v2 is out of scope for this document — but v1's decisions constrain what v2 can look like, so §10 ("What Not to Build Yet — seeds v2") names the things v1 must *not* attempt, so v2 has clean ground to build on.
 
 ---
 
-## 1. Principles Carried Forward From v1
+## 1. Principles Carried Forward From v0
 
-These remain in force. They are summarized here, not restated — v1's `.tekhton/DESIGN.md` is the authoritative text.
+These remain in force. They are summarized here, not restated — v0's `.tekhton/DESIGN.md` is the authoritative text.
 
-- **Measurement over opinion.** Every number decomposes to traceable inputs. No heuristic that cannot be explained in code. (v1 §"Core Principles")
-- **Fever chart, not thermometer.** Trend and rate of change are the primary output; absolute state is supporting context. (v1 §"Core Principles")
-- **Automated inference, human ratification.** SDI proposes; a human ratifies `.sdi/boundaries.yaml`. The tool measures divergence from *declared* intent. (v1 §"Core Principles", KD1)
-- **Safe defaults, zero mandatory config.** `sdi snapshot` on an un-initialized repo must produce useful output. (v1 §"Core Principles")
-- **Composable Unix tooling.** Local filesystem + git only. Stdout = data, stderr = logs. Exit codes are a public API. (v1 §"Non-Negotiable Rules" #8, #9)
-- **Language-agnostic core, language-specific adapters.** Tree-sitter provides consistent AST representation; adapters are thin. (v1 §"Core Principles")
-- **Deterministic and reproducible.** Same commit + same config + same boundaries = same snapshot. Seeded Leiden, no network, no LLM. (v1 §"Non-Negotiable Rules" #1–#3)
-- **Never classifies code as good or bad.** Pattern entropy is a measurement, not a verdict. Threshold breaches are "exceeded," never "violations." (v1 §"Non-Negotiable Rules" #4, KD1)
-- **Alert suppression is always time-boxed.** Threshold overrides *must* have `expires` dates. (v1 §"Non-Negotiable Rules" #5, #6)
+- **Measurement over opinion.** Every number decomposes to traceable inputs. No heuristic that cannot be explained in code. (v0 §"Core Principles")
+- **Fever chart, not thermometer.** Trend and rate of change are the primary output; absolute state is supporting context. (v0 §"Core Principles")
+- **Automated inference, human ratification.** SDI proposes; a human ratifies `.sdi/boundaries.yaml`. The tool measures divergence from *declared* intent. (v0 §"Core Principles", KD1)
+- **Safe defaults, zero mandatory config.** `sdi snapshot` on an un-initialized repo must produce useful output. (v0 §"Core Principles")
+- **Composable Unix tooling.** Local filesystem + git only. Stdout = data, stderr = logs. Exit codes are a public API. (v0 §"Non-Negotiable Rules" #8, #9)
+- **Language-agnostic core, language-specific adapters.** Tree-sitter provides consistent AST representation; adapters are thin. (v0 §"Core Principles")
+- **Deterministic and reproducible.** Same commit + same config + same boundaries = same snapshot. Seeded Leiden, no network, no LLM. (v0 §"Non-Negotiable Rules" #1–#3)
+- **Never classifies code as good or bad.** Pattern entropy is a measurement, not a verdict. Threshold breaches are "exceeded," never "violations." (v0 §"Non-Negotiable Rules" #4, KD1)
+- **Alert suppression is always time-boxed.** Threshold overrides *must* have `expires` dates. (v0 §"Non-Negotiable Rules" #5, #6)
 
-The banned anti-patterns from v1 also stand: no ML/LLM in pipeline, no network calls, no opinions about code quality, no automatic alert suppression, no interactive TUI or daemon mode.
+The banned anti-patterns from v0 also stand: no ML/LLM in pipeline, no network calls, no opinions about code quality, no automatic alert suppression, no interactive TUI or daemon mode.
 
-## 2. New Principles for v2
+## 2. New Principles for v1
 
-These are additions, not replacements. They exist because v2's scope (actionability, extensibility) creates new failure modes v1 did not have to worry about.
+These are additions, not replacements. They exist because v1's scope (actionability, extensibility) creates new failure modes v0 did not have to worry about.
 
 ### P1. Actionability must be traceable
 
-v2 adds "where to look" and "what changed" surfaces — hotspot rankings, attribution to files/commits/authors, nearest-neighbor lookups across pattern shapes. Every such surface must decompose to the same inputs that produced the headline metric. If `sdi diff` says "three new error-handling shapes appeared," the user must be able to ask "which ones, where, and in which commits" and get an answer grounded in the same snapshot data. No additional inference layer, no heuristic re-ranking.
+v1 adds "where to look" and "what changed" surfaces — hotspot rankings, attribution to files/commits/authors, nearest-neighbor lookups across pattern shapes. Every such surface must decompose to the same inputs that produced the headline metric. If `sdi diff` says "three new error-handling shapes appeared," the user must be able to ask "which ones, where, and in which commits" and get an answer grounded in the same snapshot data. No additional inference layer, no heuristic re-ranking.
 
 **Concretely:** Every attribution field in a snapshot or diff JSON is either (a) directly computed from the same AST/graph/git inputs that produced the fingerprint, or (b) absent. There is no "confidence score" field. There is no "suggested cause" field.
 
 ### P2. No classification creep
 
-v2 will be under pressure to classify. Users will ask "is this drift or a migration?" — and v2 *could* answer, by correlating threshold-override declarations with velocity vectors, or by using co-change frequency to guess intent. v2 does not take that bet. Classification remains the user's job; SDI's job is to surface the evidence well enough that the user can decide in under a minute.
+v1 will be under pressure to classify. Users will ask "is this drift or a migration?" — and v1 *could* answer, by correlating threshold-override declarations with velocity vectors, or by using co-change frequency to guess intent. v1 does not take that bet. Classification remains the user's job; SDI's job is to surface the evidence well enough that the user can decide in under a minute.
 
 **Concretely:** `sdi diff`, `sdi trend`, and `sdi check` never emit verdicts. They emit measurements, attributions, and neighbor lookups. A category marked with an active `[thresholds.overrides.*]` is reported as "exceeded (override active, expires YYYY-MM-DD)", never as "migration in progress." The override is a user declaration of intent; SDI reports that declaration, it does not validate it.
 
 ### P3. Extensibility must preserve determinism
 
-v2 introduces extensibility for pattern categories (resolving v1 KD6) and likely for language adapters. Both are attack surfaces against v1's determinism guarantee. A plugin that calls out to the network, imports a model, reads wall-clock time, or produces non-reproducible output corrupts SDI's core promise.
+v1 introduces extensibility for pattern categories (resolving v0 KD6) and likely for language adapters. Both are attack surfaces against v0's determinism guarantee. A plugin that calls out to the network, imports a model, reads wall-clock time, or produces non-reproducible output corrupts SDI's core promise.
 
 **Concretely:** The plugin contract is a pure function from AST (or a subset) to a deterministic data structure. Plugins are loaded from explicit, in-repo paths — never from a remote registry during analysis. Plugin discovery emits a manifest (plugin name, version, content hash) into every snapshot, so a snapshot is reproducible iff the same plugin set is installed. Plugins that fail to load are a config error (exit 2), not silently skipped.
 
 ### P4. Advisory surfaces are labeled advisory and never gate
 
-v2 adds surfaces the user might mistake for prescriptions: `sdi explain <shape>`, canonical-pattern proximity, hotspot rankings, remediation hints. These are advisory. They inform; they do not gate. Only `sdi check` gates, and it gates on the same threshold logic as v1 — no advisory surface contributes to the check verdict.
+v1 adds surfaces the user might mistake for prescriptions: `sdi explain <shape>`, canonical-pattern proximity, hotspot rankings, remediation hints. These are advisory. They inform; they do not gate. Only `sdi check` gates, and it gates on the same threshold logic as v0 — no advisory surface contributes to the check verdict.
 
 **Concretely:** Advisory output fields are namespaced (`hints.*`, `neighbors.*`, `explanations.*`) and explicitly documented as non-gating. `sdi check` reads only threshold data, never advisory fields. This keeps CI-gating logic trivially auditable and keeps advisory surfaces free to evolve without destabilizing gate behavior.
 
 ### P5. Performance budgets are a shipped contract, not a best effort
 
-v1 documented performance targets; v2 treats them as a contract enforceable via `tests/benchmarks/` and release-time regression gates. An actionability feature that ships with a 3× slowdown on the baseline pipeline is a regression, not a feature. Every v2 phase lists its budget impact explicitly.
+v0 documented performance targets; v1 treats them as a contract enforceable via `tests/benchmarks/` and release-time regression gates. An actionability feature that ships with a 3× slowdown on the baseline pipeline is a regression, not a feature. Every v1 phase lists its budget impact explicitly.
 
-**Concretely:** The v1 baseline (cold parse + full pipeline) is the reference. Each v2 addition declares a ceiling cost (percentage or absolute). Benchmarks in CI reject PRs that breach the declared ceiling without an accompanying budget update reviewed by a maintainer.
+**Concretely:** The v0 baseline (cold parse + full pipeline) is the reference. Each v1 addition declares a ceiling cost (percentage or absolute). Benchmarks in CI reject PRs that breach the declared ceiling without an accompanying budget update reviewed by a maintainer.
 
 ---
 
-## 3. Phase 0 — v1 Hardening
+## 3. Phase 0 — v0 Hardening
 
 Phase 0 is preconditions. Nothing in Phases A–D ships before Phase 0 lands, because these are the items that will bite hardest once adoption grows beyond early users who tolerate rough edges.
 
@@ -103,22 +103,22 @@ Phase 0 is preconditions. Nothing in Phases A–D ships before Phase 0 lands, be
 
 **Non-negotiable rule added:** Cycle enumeration is always capped. An uncapped call path is a regression.
 
-### 3.2 Resolution of v1 Open Questions (OQ1–OQ7)
+### 3.2 Resolution of v0 Open Questions (OQ1–OQ7)
 
-v1 shipped with seven questions marked "collect data, revisit." v2 is the revisit. Each resolution below is a *framework for deciding* — the actual decision lands in a v2 milestone, informed by telemetry from adopters. This section fixes the framework so the decisions are auditable.
+v0 shipped with seven questions marked "collect data, revisit." v1 is the revisit. Each resolution below is a *framework for deciding* — the actual decision lands in a v1 milestone, informed by telemetry from adopters. This section fixes the framework so the decisions are auditable.
 
 **OQ1 — Leiden gamma default and auto-tuning.**
 - Resolution: Keep gamma 1.0 as default. Ship `sdi boundaries --suggest-gamma` as an advisory surface that reports modularity at a grid of gamma values (0.5, 0.75, 1.0, 1.25, 1.5, 2.0). Never auto-apply.
 - Rationale: Auto-tuning in the analysis pipeline violates determinism (tuning run → chosen gamma → second run). Advisory report preserves reproducibility.
-- Closed by: v2 milestone "Leiden resolution advisory."
+- Closed by: v1 milestone "Leiden resolution advisory."
 
 **OQ2 — Weighted vs unweighted edges.**
-- Resolution: Keep unweighted default. Collect telemetry from early adopters who flip `weighted_edges = true` and compare partition stability. Decide on default for v2.x minor release, not v2.0.
+- Resolution: Keep unweighted default. Collect telemetry from early adopters who flip `weighted_edges = true` and compare partition stability. Decide on default for v1.x minor release, not v1.0.
 - Rationale: Flipping the default changes every existing adopter's snapshot shape. That requires data, not intuition.
-- Closed by: v2.x minor, not gated on any v2 milestone.
+- Closed by: v1.x minor, not gated on any v1 milestone.
 
 **OQ3 — Custom pattern category mechanism.**
-- Resolution: Tree-sitter query files in `.sdi/categories/*.scm` plus a TOML manifest per category. No Python plugin API in v2.
+- Resolution: Tree-sitter query files in `.sdi/categories/*.scm` plus a TOML manifest per category. No Python plugin API in v1.
 - Rationale: Tree-sitter queries are declarative, sandboxed, and deterministic by construction. A Python plugin API would create an unbounded determinism surface (see P3).
 - Closed by: Phase C milestone "Pattern category plugin system."
 
@@ -138,23 +138,23 @@ v1 shipped with seven questions marked "collect data, revisit." v2 is the revisi
 - Closed by: Status quo; no milestone needed.
 
 **OQ7 — Snapshot schema freeze.**
-- Resolution: v2.0 ships snapshot schema version `2`. Schema `1` (v1) snapshots are readable for trend/diff for the lifetime of v2.x. Schema changes within v2.x are additive-only (new fields, never renamed or removed). Non-additive changes require schema `3` and a major version bump.
+- Resolution: v1.0 ships snapshot schema version `2`. Schema `1` (v0) snapshots are readable for trend/diff for the lifetime of v1.x. Schema changes within v1.x are additive-only (new fields, never renamed or removed). Non-additive changes require schema `3` and a major version bump.
 - Rationale: Trend data is the product. A schema migration that loses history destroys the product. Additive-only is the only sustainable posture.
-- Closed by: Phase 0 milestone "Snapshot schema v2 freeze."
+- Closed by: Phase 0 milestone "Snapshot schema v1 freeze."
 
-### 3.3 Snapshot schema v2 freeze criteria
+### 3.3 Snapshot schema v1 freeze criteria
 
-Before any Phase A/B/C/D field lands in a snapshot, schema v2 must be frozen. The freeze criteria:
+Before any Phase A/B/C/D field lands in a snapshot, schema v1 must be frozen. The freeze criteria:
 
-1. **Every v1 field retained with identical semantics.** v2 readers accept v1 snapshots; v1 readers that encounter v2 snapshots see the `snapshot_version` mismatch and treat as baseline (per v1 non-negotiable #13).
+1. **Every v0 field retained with identical semantics.** v1 readers accept v0 snapshots; v0 readers that encounter v1 snapshots see the `snapshot_version` mismatch and treat as baseline (per v0 non-negotiable #13).
 2. **New fields are optional.** Missing-field handling defaults to "not computed," not "zero."
-3. **Namespaced extension points reserved.** Top-level keys `hints`, `neighbors`, `explanations`, `attributions`, `plugins` are reserved in the v2 schema even if not populated in v2.0. This prevents naming collisions as phases land.
-4. **Null semantics preserved.** `null` = "no previous data" (first snapshot, missing input); `0` or `[]` = "computed, empty result." v2 code must preserve this distinction in every new field.
-5. **Schema document published.** `docs/snapshot-schema-v2.md` ships with v2.0 and is the authoritative reference; a JSON Schema file (`docs/snapshot-schema-v2.json`) is generated from it and used in tests.
+3. **Namespaced extension points reserved.** Top-level keys `hints`, `neighbors`, `explanations`, `attributions`, `plugins` are reserved in the v1 schema even if not populated in v1.0. This prevents naming collisions as phases land.
+4. **Null semantics preserved.** `null` = "no previous data" (first snapshot, missing input); `0` or `[]` = "computed, empty result." v1 code must preserve this distinction in every new field.
+5. **Schema document published.** `docs/snapshot-schema-v1.md` ships with v1.0 and is the authoritative reference; a JSON Schema file (`docs/snapshot-schema-v1.json`) is generated from it and used in tests.
 
 ### 3.4 Module boundary hygiene
 
-v1's module boundaries (`cli/ → *`, `parsing/ → tree-sitter only`, `patterns/ → parsing only`, `snapshot/ = assembly point`) held well through M1–M14 but have frayed in two places per DRIFT_LOG:
+v0's module boundaries (`cli/ → *`, `parsing/ → tree-sitter only`, `patterns/ → parsing only`, `snapshot/ = assembly point`) held well through M1–M14 but have frayed in two places per DRIFT_LOG:
 
 - CLI commands duplicate path-bounds logic. Resolve by introducing `sdi.cli._path_bounds` (single helper) and migrating all six commands that accept path scopes to use it.
 - `sdi.config` is drifting toward carrying runtime state (caching loaded TOML across calls in the same process). Resolve by making config loading pure-functional: `load_config(paths) → Config` with no module-level cache. Any caching happens in the caller.
@@ -167,7 +167,7 @@ Phase 0 is done when:
 
 - Cycle detection cap shipped with benchmark fixture and snapshot flag.
 - OQ6 documented (status quo). OQ1, OQ3, OQ4, OQ5, OQ7 have milestone entries. OQ2 has a telemetry plan.
-- Snapshot schema v2 document and JSON Schema file ship. v1 snapshot fixtures round-trip through v2 readers in integration tests.
+- Snapshot schema v1 document and JSON Schema file ship. v0 snapshot fixtures round-trip through v1 readers in integration tests.
 - `sdi.cli._path_bounds` in use across all six commands; no inline path-bounds logic remains.
 - `sdi.config` has no module-level state; tested via two successive `load_config()` calls with different env var states returning different results.
 
@@ -177,11 +177,11 @@ No Phase A/B/C/D work ships before Phase 0 is complete.
 
 ## 4. Phase A — Measurement Depth
 
-Phase A completes what v1 started: the measurement surface. v1 shipped with known gaps (shell support landing only in M13–M14, seven pattern categories, no generated-code handling). Phase A closes them. No new user-facing verbs land here — the CLI surface is unchanged; what changes is what v1's existing commands *see*.
+Phase A completes what v0 started: the measurement surface. v0 shipped with known gaps (shell support landing only in M13–M14, seven pattern categories, no generated-code handling). Phase A closes them. No new user-facing verbs land here — the CLI surface is unchanged; what changes is what v0's existing commands *see*.
 
 ### 4.1 Language breadth completion
 
-**v1 state.** Python, JavaScript, TypeScript, Go, Java, Rust via dedicated adapters. Shell lands in M13–M14 (planned).
+**v0 state.** Python, JavaScript, TypeScript, Go, Java, Rust via dedicated adapters. Shell lands in M13–M14 (planned).
 
 **Phase A delta.**
 - Finish M13–M14 rollout: shell adapter ships in the default grammar set, not an opt-in extra.
@@ -194,13 +194,13 @@ Phase A completes what v1 started: the measurement surface. v1 shipped with know
 - `grammar_version` (tree-sitter grammar package version at parse time)
 - `skipped_files` with reason codes: `parse_error`, `grammar_version_mismatch`, `encoding_error`, `size_exceeded`
 
-These fields belong to the v2 schema freeze (§3.3) — they must be reserved before any adapter ships them.
+These fields belong to the v1 schema freeze (§3.3) — they must be reserved before any adapter ships them.
 
 **Budget impact.** Per-adapter cost is bounded by file count in that language. No pipeline-wide ceiling change; adapters that a project doesn't use don't execute.
 
 ### 4.2 Pattern category expansion
 
-**v1 state.** Seven built-in categories: `error_handling`, `data_access`, `logging`, `async_patterns`, `class_hierarchy`, `context_managers`, `comprehensions`. Shell expands `error_handling`, `async_patterns`, `data_access`, `logging` in M14.
+**v0 state.** Seven built-in categories: `error_handling`, `data_access`, `logging`, `async_patterns`, `class_hierarchy`, `context_managers`, `comprehensions`. Shell expands `error_handling`, `async_patterns`, `data_access`, `logging` in M14.
 
 **Phase A delta.** Add four more built-in categories. Each is a structural shape with a clear tree-sitter query and no ambiguity with existing categories:
 
@@ -213,19 +213,19 @@ Categories 1–3 apply to every supported language; category 4 is language-speci
 
 **Custom categories** (resolves OQ3): deferred to Phase C. Phase A ships built-ins only.
 
-**Budget impact.** Each category is an additional tree-sitter query pass per file. Measured per-category overhead from v1 is ≈2–4% of parse time. Four new categories project to ≤16% parse-time increase. Phase A declares a ceiling of **+20% cold parse time** for the combined category expansion; anything over that requires category-level query optimization before ship.
+**Budget impact.** Each category is an additional tree-sitter query pass per file. Measured per-category overhead from v0 is ≈2–4% of parse time. Four new categories project to ≤16% parse-time increase. Phase A declares a ceiling of **+20% cold parse time** for the combined category expansion; anything over that requires category-level query optimization before ship.
 
 ### 4.3 Measurement accuracy improvements
 
-Three v1 measurements have known weaknesses that Phase A addresses:
+Three v0 measurements have known weaknesses that Phase A addresses:
 
-**Pattern fingerprint collision.** v1 structural hashes collide on superficially different shapes in some adapters (notably shell's `_shell_structural_hash` folding `command_name`, which was a deliberate trade-off for M13). Phase A adds a *fingerprint tier* field: `tier = "structural" | "named"` where `named` includes salient identifiers (function names, keyword-argument names) and `structural` is v1's existing behavior. Both are computed; snapshots carry both. Consumers pick the tier they want. Default reports stay on `structural` for backward compatibility.
+**Pattern fingerprint collision.** v0 structural hashes collide on superficially different shapes in some adapters (notably shell's `_shell_structural_hash` folding `command_name`, which was a deliberate trade-off for M13). Phase A adds a *fingerprint tier* field: `tier = "structural" | "named"` where `named` includes salient identifiers (function names, keyword-argument names) and `structural` is v0's existing behavior. Both are computed; snapshots carry both. Consumers pick the tier they want. Default reports stay on `structural` for backward compatibility.
 
 **Leiden partition drift on small codebases.** Under ~200 nodes, Leiden partitions are unstable across runs even with seeded start. Phase A adds a `partition.stability_score` field reporting inter-run agreement across 3 re-runs at cold start. Low score is surfaced in `sdi show` as an advisory. No behavior change — the partition is still used — but users see the warning instead of chasing spurious boundary changes.
 
-**Coupling metric sensitivity.** v1 reports coupling topology delta as a single scalar. It's too compressed. Phase A decomposes it into `coupling.inter_module_edges`, `coupling.intra_module_edges`, `coupling.bridge_nodes`, `coupling.articulation_points`, and reports all four in the snapshot. The single scalar is still computed (backward compatible); the decomposition is new.
+**Coupling metric sensitivity.** v0 reports coupling topology delta as a single scalar. It's too compressed. Phase A decomposes it into `coupling.inter_module_edges`, `coupling.intra_module_edges`, `coupling.bridge_nodes`, `coupling.articulation_points`, and reports all four in the snapshot. The single scalar is still computed (backward compatible); the decomposition is new.
 
-All three are additive and preserve v1 semantics.
+All three are additive and preserve v0 semantics.
 
 ### 4.4 Generated code tagging (resolves OQ5)
 
@@ -236,9 +236,9 @@ All three are additive and preserve v1 semantics.
 - `@generated`
 - Well-known directory markers: `*_pb2.py`, `*.pb.go`, `*_generated.go`, `*/__generated__/*`
 
-Auto-detected files are **not** excluded from metrics by default. They are tagged. Users promote a file to "always excluded" by adding it to `.sdi/generated.txt` explicitly. This preserves v1's safe-default (we never silently exclude code), while making the promotion a one-liner.
+Auto-detected files are **not** excluded from metrics by default. They are tagged. Users promote a file to "always excluded" by adding it to `.sdi/generated.txt` explicitly. This preserves v0's safe-default (we never silently exclude code), while making the promotion a one-liner.
 
-`sdi show --generated` lists auto-detected and explicit entries side by side. `sdi check` treats explicit-list files as non-contributing to entropy; auto-detected files still count toward entropy unless promoted. This is the v2 answer to the "is this code really generated?" problem: let the user decide, but make deciding cheap.
+`sdi show --generated` lists auto-detected and explicit entries side by side. `sdi check` treats explicit-list files as non-contributing to entropy; auto-detected files still count toward entropy unless promoted. This is the v1 answer to the "is this code really generated?" problem: let the user decide, but make deciding cheap.
 
 ### 4.5 Phase A acceptance
 
@@ -249,17 +249,17 @@ Phase A is done when:
 - Fingerprint `tier` field populates in every snapshot; `partition.stability_score` populates for graphs under 200 nodes.
 - Coupling decomposition present in every snapshot.
 - `.sdi/generated.txt` + auto-detection + `sdi show --generated` all functional. Integration test verifies auto-detected Python + Go protobuf stubs.
-- All v1 integration tests still pass with Phase A schema additions.
+- All v0 integration tests still pass with Phase A schema additions.
 
 ---
 
 ## 5. Phase B — Actionability
 
-Phase B is the heart of v2. Phases 0 and A built the foundation; Phase B is the reason v2 exists. Every surface here answers "what do I do with this number?" — and answers it without classifying, judging, or suppressing.
+Phase B is the heart of v1. Phases 0 and A built the foundation; Phase B is the reason v1 exists. Every surface here answers "what do I do with this number?" — and answers it without classifying, judging, or suppressing.
 
 ### 5.1 Hotspot ranking in `sdi diff`
 
-**v1 state.** `sdi diff <old> <new>` reports per-dimension deltas. It does not rank *where* the delta concentrated.
+**v0 state.** `sdi diff <old> <new>` reports per-dimension deltas. It does not rank *where* the delta concentrated.
 
 **Phase B delta.** `sdi diff` gains a hotspot section in both text and JSON output. Hotspots are ranked by absolute contribution to the delta, not by verdict:
 
@@ -269,7 +269,7 @@ Hotspots (pattern_entropy, top 5 files by contribution):
   src/billing/tax.py           +2 new shapes   (2 error_handling)
   src/users/profile.py         +1 new shape    (1 error_handling)
   src/notifications/email.py   -2 removed      (2 error_handling; canonical shape retained)
-  src/api/v2/webhooks.py       +1 new shape    (1 async_patterns)
+  src/api/v1/webhooks.py       +1 new shape    (1 async_patterns)
 ```
 
 Ranking is pure accounting: sum of `|Δshape_count|` per file per category. No weighting by file size, author, or recency — those would be heuristics. The JSON form carries the raw contribution per file per category so downstream tools can apply their own weighting.
@@ -315,7 +315,7 @@ Hints are rule-based, not learned. The rules live in `src/sdi/hints/rules.py` an
 
 ### 5.5 Canonical pattern pinning
 
-**v1 state.** Every pattern shape is equal. There is no concept of "the preferred error-handling shape for this repo."
+**v0 state.** Every pattern shape is equal. There is no concept of "the preferred error-handling shape for this repo."
 
 **Phase B delta.** Users can pin a canonical shape per category in `.sdi/canonicals.yaml`:
 
@@ -348,7 +348,7 @@ Per-category canonicals are capped at one per category. Multiple canonicals per 
 
 ### 5.6 Aspirational split progress activation
 
-**v1 state.** `.sdi/boundaries.yaml` supports `aspirational_splits` with a `target_date`, but the data is inert — nothing reports on progress.
+**v0 state.** `.sdi/boundaries.yaml` supports `aspirational_splits` with a `target_date`, but the data is inert — nothing reports on progress.
 
 **Phase B delta.** Every snapshot now computes, per aspirational split:
 - Count of inter-cluster edges between the intended sub-boundaries.
@@ -363,7 +363,7 @@ Splits with past `target_date` and `progress_score < 1.0` surface a plain inform
 
 ### 5.7 Change coupling surfacing
 
-**v1 state.** `[change_coupling]` config exists (`min_frequency`, `history_depth`), but the metric surfaces only as a snapshot field. No diff or ranking.
+**v0 state.** `[change_coupling]` config exists (`min_frequency`, `history_depth`), but the metric surfaces only as a snapshot field. No diff or ranking.
 
 **Phase B delta.** `sdi diff --coupling` reports:
 - Pairs of files that co-changed in ≥`min_frequency` commits during the `history_depth` window, grouped by whether they are in the same Leiden cluster.
@@ -381,7 +381,7 @@ Phase B is done when:
 - `.sdi/canonicals.yaml` spec shipped. Distance-to-canonical computed in `sdi diff` and `sdi explain`. Stale-canonical detection works.
 - Aspirational split progress scalar computed and surfaced in `sdi show --splits` and `sdi trend --splits`.
 - Change coupling surfaces in `sdi diff --coupling` and `sdi boundaries --coupling`.
-- `sdi check` exit codes and threshold logic unchanged from v1. Integration test verifies no Phase B field affects gate verdict.
+- `sdi check` exit codes and threshold logic unchanged from v0. Integration test verifies no Phase B field affects gate verdict.
 - Documentation: `docs/actionability.md` covers hotspot interpretation, attribution caveats (blame is not causation), and when to pin canonicals.
 
 ---
@@ -469,7 +469,7 @@ When a contract has a declared owner, cross-module calls *through* that contract
 
 ### 6.3 Adapter plugin interface — deferred
 
-A full plugin interface for *language adapters* (i.e., letting a user add an Elixir adapter without forking SDI) is tempting but deferred to post-v2. Adapters are deeper than category queries — they carry fingerprinting logic, symbol resolution, import resolution. Opening that as a plugin surface without a year of iteration on the adapter contract would ship determinism footguns. Post-v2 can revisit once the current six-to-nine language adapters have stabilized on a common internal shape.
+A full plugin interface for *language adapters* (i.e., letting a user add an Elixir adapter without forking SDI) is tempting but deferred to post-v1. Adapters are deeper than category queries — they carry fingerprinting logic, symbol resolution, import resolution. Opening that as a plugin surface without a year of iteration on the adapter contract would ship determinism footguns. Post-v1 can revisit once the current six-to-nine language adapters have stabilized on a common internal shape.
 
 ### 6.4 Phase C acceptance
 
@@ -491,14 +491,14 @@ Phase D is polish for operators — the people who wire SDI into CI, onboard tea
 
 ### 7.1 Historical backfill
 
-**v1 state.** `sdi snapshot --commit REF` works for a single commit. Multi-commit backfill requires a user-written bash loop, which is fine for ad-hoc use but painful for onboarding a mature repo onto SDI.
+**v0 state.** `sdi snapshot --commit REF` works for a single commit. Multi-commit backfill requires a user-written bash loop, which is fine for ad-hoc use but painful for onboarding a mature repo onto SDI.
 
 **Phase D delta.** `sdi backfill` subcommand:
 
 ```
 sdi backfill --since 2025-01-01 --every 1week
 sdi backfill --commits HEAD~100..HEAD --every 5
-sdi backfill --tags v1.*
+sdi backfill --tags v0.*
 ```
 
 Strategy selection:
@@ -507,22 +507,22 @@ Strategy selection:
 - `--tags <pattern>`: take commits matching tag pattern.
 
 **Behavior.**
-- Writes directly to `.sdi/snapshots/`. Respects retention (§16 of v1 rules). Default retention (100) means backfilling more than 100 snapshots without raising retention is a config error.
+- Writes directly to `.sdi/snapshots/`. Respects retention (§16 of v0 rules). Default retention (100) means backfilling more than 100 snapshots without raising retention is a config error.
 - Parallelizes at the commit level via `ProcessPoolExecutor` (one worker per commit, capped at `SDI_WORKERS`).
 - Each commit's snapshot is self-contained — backfill does not use incremental caching across commits (the cache layer operates at the per-file parse level per commit, not across commits).
-- Progress bar to stderr (per P2 of v1 §"Non-Negotiable Rules" #9). Never writes to stdout during backfill.
+- Progress bar to stderr (per P2 of v0 §"Non-Negotiable Rules" #9). Never writes to stdout during backfill.
 - Interrupt-safe: SIGINT stops at the next snapshot boundary, leaving already-written snapshots intact. The next `sdi backfill` with the same args resumes by skipping already-captured commits.
 
 **Budget reality.** Backfill is inherently O(commits × pipeline cost). SDI does not promise it's fast; it promises it's correct, interrupt-safe, and observable.
 
 ### 7.2 GitHub Action
 
-**v1 state.** v1 DESIGN.md explicitly defers a "polished GitHub Action" to post-v1. Manual CI integration (`pip install sdi && sdi check`) is documented.
+**v0 state.** v0 DESIGN.md explicitly defers a "polished GitHub Action" to post-v0. Manual CI integration (`pip install sdi && sdi check`) is documented.
 
-**Phase D delta.** Ship `geoffgodwin/sdi-action@v2` as a thin wrapper:
+**Phase D delta.** Ship `geoffgodwin/sdi-action@v1` as a thin wrapper:
 
 ```yaml
-- uses: geoffgodwin/sdi-action@v2
+- uses: geoffgodwin/sdi-action@v1
   with:
     command: check        # default: check; also supports: snapshot, diff
     fail-on-exceeded: true  # default: true; pass through `sdi check` exit 10
@@ -531,23 +531,23 @@ Strategy selection:
 ```
 
 **Non-negotiable constraints for the Action:**
-- The Action installs a *pinned* SDI version. Users specify in `with: version: 0.2.1`. No "latest" default — that would make runs irreproducible.
+- The Action installs a *pinned* SDI version. Users specify in `with: version: 1.1.0`. No "latest" default — that would make runs irreproducible.
 - PR comment rendering reuses `sdi diff --format text` output, unmodified. No separate comment formatter.
 - The Action does not write to snapshot storage in the repo unless the user's workflow explicitly commits the artifact — SDI's principle is that snapshots are real git-tracked files the user owns.
 
-**Why this is safe to ship in v2 vs. being post-v1.** v1's reasoning was that the CLI and schema were still moving. By Phase D, Phase 0 has frozen schema v2 (§3.3) and Phases A/B have stabilized `sdi diff` output format. The inputs to a reusable Action are now stable enough to ship.
+**Why this is safe to ship in v1 vs. being post-v0.** v0's reasoning was that the CLI and schema were still moving. By Phase D, Phase 0 has frozen schema v1 (§3.3) and Phases A/B have stabilized `sdi diff` output format. The inputs to a reusable Action are now stable enough to ship.
 
 ### 7.3 `sdi diff` stdin support
 
-**v1 state.** Both snapshot arguments are file paths.
+**v0 state.** Both snapshot arguments are file paths.
 
 **Phase D delta.** `sdi diff - <file>` or `sdi diff <file> -` reads one snapshot from stdin. Enables pipelines like `gh release view --json <x> | jq '.body.snapshot' | sdi diff - .sdi/snapshots/latest.json` for cross-release comparisons.
 
-The hyphen convention is Unix standard; implementation is a small change in the argument parser plus mimicking the snapshot loader to accept a stream. Malformed stdin input exits with code 3 (analysis error), consistent with v1 error taxonomy.
+The hyphen convention is Unix standard; implementation is a small change in the argument parser plus mimicking the snapshot loader to accept a stream. Malformed stdin input exits with code 3 (analysis error), consistent with v0 error taxonomy.
 
 ### 7.4 `sdi config` read-only subcommand
 
-**v1 state.** v1 DESIGN.md explicitly rejects a `sdi config` management subcommand.
+**v0 state.** v0 DESIGN.md explicitly rejects a `sdi config` management subcommand.
 
 **Phase D delta.** Adds a *read-only* inspection subcommand:
 
@@ -575,17 +575,17 @@ This answers "where is this value coming from?" — a recurring onboarding quest
 
 ### 7.5 Standalone binary distribution
 
-**v1 state.** Deferred. Tree-sitter grammar loading from bundled binaries has known complexity.
+**v0 state.** Deferred. Tree-sitter grammar loading from bundled binaries has known complexity.
 
-**Phase D delta.** Ship `sdi-bin` standalone binaries for linux-x86_64, linux-aarch64, darwin-x86_64, darwin-aarch64 via PyOxidizer or equivalent. Windows remains best-effort and may slip to post-v2.
+**Phase D delta.** Ship `sdi-bin` standalone binaries for linux-x86_64, linux-aarch64, darwin-x86_64, darwin-aarch64 via PyOxidizer or equivalent. Windows remains best-effort and may slip to post-v1.
 
 **Grammar handling:** Default grammar set is bundled into the binary. Adding languages beyond the default set requires the `pip install` path. This is a deliberate trade-off: the binary is for quick adoption and CI use; users with exotic languages continue to use the Python package.
 
-**Version drift prevention:** The binary's `sdi --version` output explicitly reports `sdi 0.2.0 (standalone, grammars: py,js,ts,go,java,rust,bash,c,cpp,ruby,kotlin)` so users can distinguish installations. Integration test verifies the binary produces byte-identical snapshot JSON to the pip-installed version on the standard fixtures.
+**Version drift prevention:** The binary's `sdi --version` output explicitly reports `sdi 1.0.0 (standalone, grammars: py,js,ts,go,java,rust,bash,c,cpp,ruby,kotlin)` so users can distinguish installations. Integration test verifies the binary produces byte-identical snapshot JSON to the pip-installed version on the standard fixtures.
 
 ### 7.6 Shell completion refinements
 
-**v1 state.** M11 shipped completion scripts.
+**v0 state.** M11 shipped completion scripts.
 
 **Phase D delta.** Adds dynamic completions:
 - `sdi explain <TAB>` completes fingerprint ids from the latest snapshot.
@@ -599,7 +599,7 @@ These require shell-specific hooks (bash, zsh, fish) that shell out to `sdi comp
 Phase D is done when:
 
 - `sdi backfill` ships with all three strategies, parallel execution capped at `SDI_WORKERS`, resumable on SIGINT. Integration test uses `tests/fixtures/evolving/` to verify N backfilled snapshots match N snapshots from an equivalent loop.
-- `geoffgodwin/sdi-action@v2` published to the GitHub Actions Marketplace. Uses pinned SDI version. PR comment rendering verified in a test workflow.
+- `geoffgodwin/sdi-action@v1` published to the GitHub Actions Marketplace. Uses pinned SDI version. PR comment rendering verified in a test workflow.
 - `sdi diff` accepts stdin via `-`. Unit test verifies stream and file inputs produce identical outputs.
 - `sdi config show|sources|validate` ship as read-only. `sdi config set` is confirmed absent (integration test).
 - Standalone binaries built for four platforms with bundled grammars. Byte-identical snapshot integration test passes.
@@ -608,46 +608,46 @@ Phase D is done when:
 
 ---
 
-## 8. Explicitly Rejected — Restated With v2 Rationale
+## 8. Explicitly Rejected — Restated With v1 Rationale
 
-Two items from v1's "What Not to Build Yet" were not merely deferred — they were rejected on principle. v2 restates the rejections and sharpens the rationale with a year of adopter experience. The rejections stand.
+Two items from v0's "What Not to Build Yet" were not merely deferred — they were rejected on principle. v1 restates the rejections and sharpens the rationale with a year of adopter experience. The rejections stand.
 
 ### 8.1 Watch mode / file-watcher daemon — *still rejected*
 
-**v1 reason:** "Violates the Unix philosophy constraint."
+**v0 reason:** "Violates the Unix philosophy constraint."
 
-**v2 restated reason:** Watch mode is not just a style choice; it creates three failure modes SDI cannot absorb:
+**v1 restated reason:** Watch mode is not just a style choice; it creates three failure modes SDI cannot absorb:
 
 1. **Re-parsing half-saved files.** Editors write files non-atomically. A file watcher fires on the write event before the editor finishes; SDI would parse a syntactically invalid intermediate state and either fail (generating noise) or silently skip (generating gaps). Users would then calibrate to a watcher that is sometimes wrong in unpredictable ways.
 2. **Debounce is an opinion.** Every watcher needs a debounce window. The "correct" window depends on editor behavior, filesystem, OS. Shipping one value is a heuristic dressed as a default.
 3. **Watch mode is a gateway to daemon mode.** Users who accept "sdi is watching the tree" will next ask for "sdi is answering queries over a socket" — which is a full daemon, which is a product category SDI is not.
 
-**v2 answer to the latent demand.** The real underlying want is "faster feedback on my change." v2 satisfies that via:
-- Fast incremental parse cache (M10, v1) — a re-run touching 3 files is already sub-second.
+**v1 answer to the latent demand.** The real underlying want is "faster feedback on my change." v1 satisfies that via:
+- Fast incremental parse cache (M10, v0) — a re-run touching 3 files is already sub-second.
 - `sdi snapshot --paths src/billing/` — scoped snapshots for rapid iteration on one area.
 - `sdi diff HEAD~1 HEAD` patterns in pre-commit hooks.
 
-IDE/editor integration (a plugin that renders the diff in a side-panel) is *not* rejected — it is a v3 concern (§10). An editor plugin is a client of SDI's output, not a new execution mode inside SDI.
+IDE/editor integration (a plugin that renders the diff in a side-panel) is *not* rejected — it is a v2 concern (§10). An editor plugin is a client of SDI's output, not a new execution mode inside SDI.
 
 ### 8.2 Automatic drift-vs-evolution classification — *still rejected*
 
-**v1 reason (KD1):** "Requires opinionated heuristics and creates dangerous false negatives in CI gates."
+**v0 reason (KD1):** "Requires opinionated heuristics and creates dangerous false negatives in CI gates."
 
-**v2 restated reason:** A year of thinking has made the argument sharper, not weaker:
+**v1 restated reason:** A year of thinking has made the argument sharper, not weaker:
 
-1. **A classifier is a suppressor.** A "this is a migration, not drift" verdict inevitably informs whether to gate or not gate. SDI has one gate (`sdi check`) and it reads declared thresholds with explicit expiry dates. Adding a classifier that affects gating would smuggle suppression back in, undoing v1's §"Non-Negotiable Rules" #5 ("SDI never suppresses alerts automatically").
+1. **A classifier is a suppressor.** A "this is a migration, not drift" verdict inevitably informs whether to gate or not gate. SDI has one gate (`sdi check`) and it reads declared thresholds with explicit expiry dates. Adding a classifier that affects gating would smuggle suppression back in, undoing v0's §"Non-Negotiable Rules" #5 ("SDI never suppresses alerts automatically").
 2. **The user has the cheaper evidence.** Whether a given velocity vector is a migration or drift is a fact the engineering team knows in seconds and SDI would spend compute trying to recover. The ratio of SDI's inference cost to the user's stated-intent cost is unfavorable by orders of magnitude. The solution is `[thresholds.overrides.*]` — you say it, we record it, we enforce the expiry. You are already in the loop.
 3. **False positives here are quiet.** Unlike a parse error, a classifier marking drift as migration silently disables the signal the user installed SDI to get. The failure mode is invisible until an incident reveals that the drift detector stopped detecting drift six months ago.
 
-**v2 answer to the latent demand.** Phase B's actionability surfaces (hotspots, attribution, neighbors, canonical distance, split progress) give the user the evidence a classifier would have consumed. The user classifies. SDI serves the evidence.
+**v1 answer to the latent demand.** Phase B's actionability surfaces (hotspots, attribution, neighbors, canonical distance, split progress) give the user the evidence a classifier would have consumed. The user classifies. SDI serves the evidence.
 
-If a post-v2 version ever adds classification, it must be opt-in, advisory-only (never gate), and documented as a hint — never as a verdict. Even that is a v3 conversation, not a v2 one.
+If a post-v1 version ever adds classification, it must be opt-in, advisory-only (never gate), and documented as a hint — never as a verdict. Even that is a v2 conversation, not a v1 one.
 
 ---
 
 ## 9. Additions to Non-Negotiable Rules
 
-The v1 non-negotiable rules all stand. v2 adds six, numbered continuing v1's list (v1 ended at #16 in CLAUDE.md; v2 adds 17–22 to avoid renumbering). These are shipped constraints, not goals.
+The v0 non-negotiable rules all stand. v1 adds six, numbered continuing v0's list (v0 ended at #16 in CLAUDE.md; v1 adds 17–22 to avoid renumbering). These are shipped constraints, not goals.
 
 **17. Cycle enumeration is always capped.** The `sdi.graph.metrics` module never calls `simple_cycles()` without a cap. `max_cycles` and `time_budget_ms` are read from config; defaults are `1024` and `2000`. A truncated run records `graph.cycles_truncated = true` in the snapshot. (Phase 0 §3.1.)
 
@@ -655,9 +655,9 @@ The v1 non-negotiable rules all stand. v2 adds six, numbered continuing v1's lis
 
 **19. Advisory fields never gate.** `sdi check` reads only fields under `thresholds.*` and `threshold_results.*`. It must not read `hints`, `neighbors`, `explanations`, `attributions`, or `progress_score`. This is enforced by an integration test that strips all advisory fields from a snapshot and verifies `sdi check` produces the same exit code and output. (P4.)
 
-**20. Schema extensions are additive within a major version.** v2 snapshots (schema `2`) never rename or remove fields across v2.x releases. Fields may be deprecated (documented as such) but continue to be populated. Removing a field requires schema `3` and a major version bump. (§3.3.)
+**20. Schema extensions are additive within a major version.** v1 snapshots (schema `2`) never rename or remove fields across v1.x releases. Fields may be deprecated (documented as such) but continue to be populated. Removing a field requires schema `3` and a major version bump. (§3.3.)
 
-**21. Classification verdicts are never emitted.** SDI's output never contains the strings "drift," "migration," "violation," "problem," or any synonym asserting a quality judgment *about the codebase*. (Status flags like "exceeded" or "override active" describe SDI's own measurement state, which is fine.) A PR that introduces such a string in user-facing output is rejected. (P2, v1 Rule #4.)
+**21. Classification verdicts are never emitted.** SDI's output never contains the strings "drift," "migration," "violation," "problem," or any synonym asserting a quality judgment *about the codebase*. (Status flags like "exceeded" or "override active" describe SDI's own measurement state, which is fine.) A PR that introduces such a string in user-facing output is rejected. (P2, v0 Rule #4.)
 
 **22. Attribution is raw, not interpreted.** Git blame output in `sdi diff --attribute` is passed through without commentary. SDI does not combine author + shape + category into "author X is introducing drift" narratives. The user reads the blame, the user concludes. (P1, P2.)
 
@@ -665,15 +665,15 @@ The v1 non-negotiable rules all stand. v2 adds six, numbered continuing v1's lis
 
 ## 10. Performance Budgets
 
-v1 documented targets. v2 enforces them via benchmarks in CI on release-candidate tags (not every PR — that's too slow).
+v0 documented targets. v1 enforces them via benchmarks in CI on release-candidate tags (not every PR — that's too slow).
 
 ### 10.1 Baseline reference
 
-The reference workload is the v1 benchmark suite at `tests/benchmarks/` against `tests/fixtures/evolving/` at its latest commit, measured on GitHub Actions `ubuntu-latest` with `SDI_WORKERS=2`. v2.0.0-rc.1 establishes the v2 baseline; subsequent v2.x releases measure against that.
+The reference workload is the v0 benchmark suite at `tests/benchmarks/` against `tests/fixtures/evolving/` at its latest commit, measured on GitHub Actions `ubuntu-latest` with `SDI_WORKERS=2`. v1.0.0-rc.1 establishes the v1 baseline; subsequent v1.x releases measure against that.
 
 ### 10.2 Per-phase budget ceilings
 
-| Phase | Feature | Ceiling (vs. v2 baseline) |
+| Phase | Feature | Ceiling (vs. v1 baseline) |
 |---|---|---|
 | Phase 0 | Cycle detection cap | Neutral or negative (cap cannot make typical case slower). |
 | Phase A | 3 new language adapters | +0% on projects not using them. Per-adapter cost bounded by file count. |
@@ -693,30 +693,30 @@ The reference workload is the v1 benchmark suite at `tests/benchmarks/` against 
 
 ### 10.3 Memory budgets
 
-v1's constraint holds: memory usage is proportional to the largest single file, not total codebase size (v1 Rule #15). v2 additions must preserve this. Specifically:
+v0's constraint holds: memory usage is proportional to the largest single file, not total codebase size (v0 Rule #15). v1 additions must preserve this. Specifically:
 - Pattern fingerprint tier storage: both tiers are small (~100 bytes per fingerprint). Not a memory concern.
 - Contract node graph additions: contract nodes are small; not a concern.
 - `sdi explain` neighbor search: loads the full pattern catalog for the target category (typical: <10k entries). Bounded.
 - `sdi backfill`: per-commit memory is bounded by single-snapshot memory. Parallel workers multiply by `SDI_WORKERS`, which is the documented behavior.
 
-No v2 feature loads multiple snapshots simultaneously except `sdi diff` and `sdi trend` — and those are v1 behavior.
+No v1 feature loads multiple snapshots simultaneously except `sdi diff` and `sdi trend` — and those are v0 behavior.
 
 ### 10.4 Disk budgets
 
-Snapshots grow under v2 because more fields are populated. Per-snapshot size estimates:
+Snapshots grow under v1 because more fields are populated. Per-snapshot size estimates:
 
 | Schema | Typical size | Large project (1M LOC) |
 |---|---|---|
-| v1 | 10–30 KB | 50–80 KB |
-| v2 (all features on) | 20–60 KB | 100–200 KB |
+| v0 | 10–30 KB | 50–80 KB |
+| v1 (all features on) | 20–60 KB | 100–200 KB |
 
-With default retention of 100 snapshots, maximum `.sdi/snapshots/` footprint is ~20 MB for large projects under v2. Acceptable. If adoption brings projects with larger footprints, retention is already user-configurable.
+With default retention of 100 snapshots, maximum `.sdi/snapshots/` footprint is ~20 MB for large projects under v1. Acceptable. If adoption brings projects with larger footprints, retention is already user-configurable.
 
 ---
 
 ## 11. Testing Strategy Updates
 
-v1's strategy (unit + integration + benchmarks, 80% unit coverage, fixtures over mocks for integration) stands. v2 adds:
+v0's strategy (unit + integration + benchmarks, 80% unit coverage, fixtures over mocks for integration) stands. v1 adds:
 
 ### 11.1 Reproducibility contract tests
 
@@ -729,10 +729,10 @@ Every phase lands a "same inputs = same outputs" test:
 
 ### 11.2 Schema migration tests
 
-A fixture set of v1-schema snapshots (captured at v1.0.0) lives in `tests/fixtures/snapshots-v1/`. Every v2 release runs:
-- v2 readers process v1 snapshots without error.
-- `sdi diff <v1-snapshot> <v2-snapshot>` produces a result flagged `cross_schema_version = true` and treats the v1 snapshot as a baseline (no delta).
-- `sdi trend` with a mix of v1 and v2 snapshots reports per-snapshot schema version alongside each data point.
+A fixture set of v0-schema snapshots (captured at v0.14.0, the last v0-era release) lives in `tests/fixtures/snapshots-v0/`. Every v1 release runs:
+- v1 readers process v0 snapshots without error.
+- `sdi diff <v0-snapshot> <v1-snapshot>` produces a result flagged `cross_schema_version = true` and treats the v0 snapshot as a baseline (no delta).
+- `sdi trend` with a mix of v0 and v1 snapshots reports per-snapshot schema version alongside each data point.
 
 ### 11.3 Plugin isolation tests
 
@@ -758,133 +758,161 @@ The standalone binary (Phase D) must produce byte-identical snapshot JSON to the
 
 ## 12. Versioning and Release Strategy
 
-### 12.1 Version numbering
+SDI uses **MAJOR.MILESTONE.PATCH** semantic versioning. The three positions map to the three units of work the project produces:
 
-v2 lands as **SDI 0.2.0**. The `0.x` major is retained because the public API (snapshot schema, CLI verbs, exit codes) is still stabilizing. 1.0.0 ships when:
+- **MAJOR** = the design era. Increments when a new DESIGN document is ratified (DESIGN_v0 → DESIGN_v1 → DESIGN_v2 …). Every cross-era release is a MAJOR bump because the design contract changed.
+- **MILESTONE** = the position of the milestone within the current MAJOR — `1` for the first milestone shipped in the era, `2` for the second, and so on. **The counter starts over at every MAJOR bump.** Versions within a MAJOR are dense: `X.0.0`, `X.1.0`, `X.2.0`, `X.3.0` … with no gaps.
+- **PATCH** = a bugfix, drift fix, or ad-hoc / human-note correction against a shipped milestone. Increments per fix; resets to 0 on every new MILESTONE.
 
-- Schema v2 has been stable for ≥6 months with no non-additive changes.
-- At least three external adopters have run SDI in CI continuously for ≥3 months without backward-compat breakage.
-- `sdi check` semantics are unchanged for ≥6 months.
+Milestone files under `.claude/milestones/` (`m01-*.md`, `m02-*.md`, …) follow the same per-era numbering as the version's MILESTONE position. When a new MAJOR cuts, the previous era's milestone files are retired (archived or deleted — see §12.5) and the new era starts fresh at `m01-*.md`. The MILESTONE position in the version equals the milestone file number, always.
 
-Until then, 0.x minors may still introduce breaking changes — though Phase 0's schema freeze (§3.3) already commits to additive-only within 0.2.x.
+### 12.1 Version era boundaries
 
-### 12.2 Release cadence
+- **0.x** — v0 era (DESIGN_v0, the original scaffold). 14 milestones (files `m01-*.md` through `m14-*.md`) shipped as `0.1.0` … `0.14.0`. Final v0 release is `0.14.x`. Bugfix patches against 0.14 are `0.14.1`, `0.14.2`, … No further MILESTONE bumps in the v0 era — v0 is closed for new work.
+- **1.x** — v1 era (this document). Cuts `1.0.0` when DESIGN_v1 is ratified and the v0 → v1 lifecycle/CI/docs work is complete (see §12.2). At the cut, v0 milestone files are retired and the v1 milestone counter restarts. The first v1 milestone is the new `m01-*.md`, shipping as `1.1.0`. The second is `m02-*.md` → `1.2.0`. And so on.
+- **2.x** — v2 era (DESIGN_v2, future companion surfaces — see §13). Cuts `2.0.0` when DESIGN_v2 is ratified. Counter resets again: first v2 milestone is `m01-*.md` → `2.1.0`.
 
-- **0.2.0** — Phase 0 complete (hardening + schema freeze).
-- **0.2.x** — Phases A, B, C, D land incrementally. Each phase is a minor release. Phase C and Phase D may parallelize in the same minor if independent, but typical case is 0.2.1 (A), 0.2.2 (B), 0.2.3 (C), 0.2.4 (D).
-- **0.2.z** — Bug fix releases, no new user-visible capabilities.
-- **0.3.0** — First v3-adjacent work (companion surfaces; see §13).
+### 12.2 Cut criteria
 
-Releases are tagged in git (`v0.2.0`). Release notes in `CHANGELOG.md` are structured as *Added / Changed / Deprecated / Removed / Fixed / Security*. Every non-additive change gets a `Deprecated` entry in the prior minor release, minimum.
+A version is cut when the work behind its position is complete and validated:
 
-### 12.3 Backward compatibility guarantees within 0.2.x
+- **MAJOR cut (`X.0.0`)** — DESIGN_vX is ratified and merged. The CI/CD/docs/release-pipeline lifecycle work for the new era has landed. No milestones under the new design have shipped yet; the cut is a checkpoint, not a feature drop.
+- **MILESTONE cut (`X.M.0`)** — Milestone M's acceptance criteria are met, tests pass on CI, CHANGELOG entry written. The previous milestone's outstanding patches (if any) are folded into the milestone summary.
+- **PATCH cut (`X.M.P`)** — One or more bugfixes, drift fixes, or human-note corrections have landed since the last MILESTONE cut. Ship cadence is "when there's enough to ship and nothing in flight."
+
+**Pre-1.0 cement-the-moment cut:** `0.14.0` is cut after this lifecycle PR lands, even though M14 was already complete, to mark the moment the v0 era closed and to exercise the release pipeline against a known-good state before v1 development begins. Subsequent v0 fixes are `0.14.1` etc. until the v1 era cuts.
+
+### 12.3 Release tagging and notes
+
+- Tags are prefixed with `v` (e.g., `v0.14.0`, `v1.0.0`, `v1.1.0`).
+- `CHANGELOG.md` follows Keep a Changelog. Every release has an entry under its version heading. Every entry is structured as *Added / Changed / Deprecated / Removed / Fixed / Security*.
+- Every non-additive change gets a `Deprecated` entry in the prior MILESTONE release, minimum.
+- Tekhton automation: a milestone commit does not bump the version on its own — version bumping is a deliberate release act with a CHANGELOG cut. Drafts of CHANGELOG entries land in `[Unreleased]` during milestone development; they are promoted into a versioned section at release-cut time.
+
+### 12.4 Backward compatibility guarantees within a MAJOR
+
+Within the same MAJOR (e.g., across all 1.x releases):
 
 - Snapshot schema: additive-only (§3.3).
 - CLI verbs: never removed. New verbs land additively.
-- CLI flags: never removed within 0.2.x; flags may be deprecated with a warning for one minor before removal in 0.3.x.
-- Exit codes: stable from v1 (§v1 Rule #8).
-- Config keys: never repurposed (v1 Rule #12). New keys with safe defaults; removed keys produce a deprecation warning.
+- CLI flags: never removed within a MAJOR; flags may be deprecated with a warning for one MILESTONE before removal in the next MAJOR.
+- Exit codes: stable from v0 (§v0 Rule #8). Cross-era stable.
+- Config keys: never repurposed (v0 Rule #12). New keys with safe defaults; removed keys produce a deprecation warning.
 
-### 12.4 Deprecation policy
+A breaking change to any of the above requires a MAJOR bump. Because MAJOR is tied to a new DESIGN document, breaking changes are deliberate, documented, and infrequent.
+
+### 12.5 1.0.0 cut criteria
+
+`1.0.0` is the inflection point between the v0 scaffold era and the v1 actionability era. Cut criteria:
+
+1. DESIGN_v1 (this document) merged on `main`.
+2. Lifecycle/CI/docs work shipped: release workflow, GH Pages, version single-sourcing, branch protection, Tekhton version-files wiring (the work this DESIGN section is about).
+3. `0.14.0` released and battle-tested for ≥1 round of real-world use; any drift surfaced patched into `0.14.x`.
+4. No outstanding `[Unreleased]` items in `CHANGELOG.md` from the v0 era.
+5. **v0 milestone files retired.** The 14 v0 milestone files (`.claude/milestones/m01-*.md` through `m14-*.md`) and the v0 entries in `MANIFEST.cfg` are removed from the active milestone directory. The MILESTONE_ARCHIVE.md retains the historical record. Tekhton's `pipeline.conf` is repointed at `DESIGN_v1.md`. After this step, the active milestones directory is empty and ready for v1 work to populate it as `m01-*.md`, `m02-*.md`, ….
+
+`1.0.0` does not require any v1-era milestone to have shipped. It marks the era boundary; the first v1-era milestone ships separately as `1.1.0`.
+
+### 12.6 Deprecation policy
 
 A deprecation lifecycle is:
 1. **Announce** — Deprecation entry in `CHANGELOG.md` for release N. Feature still works; emits warning on stderr.
-2. **Maintain** — Feature continues to work for one additional minor release.
-3. **Remove** — Feature removed in the next major. Release notes call it out in `Removed`.
+2. **Maintain** — Feature continues to work for one additional MILESTONE release.
+3. **Remove** — Feature removed in the next MAJOR. Release notes call it out in `Removed`.
 
 No "silent deprecation." No deprecation without a replacement path documented.
 
 ---
 
-## 13. What Not to Build Yet — Seeds for v3
+## 13. What Not to Build Yet — Seeds for v2
 
-v2's job is to make the measurements actionable. v3's job is to *close the loop* — SDI acting on the user's behalf, and SDI's metrics living where teams already work. This section is not a v3 design document. It is a list of capabilities v2 must deliberately *not* build, so the v3 design has clean ground.
+v1's job is to make the measurements actionable. v2's job is to *close the loop* — SDI acting on the user's behalf, and SDI's metrics living where teams already work. This section is not a v2 design document. It is a list of capabilities v1 must deliberately *not* build, so the v2 design has clean ground.
 
-Each item names the capability, why it belongs in v3 (not v2), and what v2 must *not* accidentally ship that would constrain v3's shape.
+Each item names the capability, why it belongs in v2 (not v1), and what v1 must *not* accidentally ship that would constrain v2's shape.
 
 ### 13.1 Companion dashboard / hosted UI
 
-**Why v3, not v2.** SDI produces JSON that already feeds Grafana, Datadog, and any dashboard that consumes structured data. A *first-party* dashboard is a separate product surface: it has UX, hosting, auth, access-control, billing — none of which overlap with the CLI's concerns. Shipping a v2 dashboard would pull maintenance energy from the CLI at exactly the moment the CLI is growing new capabilities (Phases A–D).
+**Why v2, not v1.** SDI produces JSON that already feeds Grafana, Datadog, and any dashboard that consumes structured data. A *first-party* dashboard is a separate product surface: it has UX, hosting, auth, access-control, billing — none of which overlap with the CLI's concerns. Shipping a v1 dashboard would pull maintenance energy from the CLI at exactly the moment the CLI is growing new capabilities (Phases A–D).
 
-**What v2 must not ship that would constrain v3.**
-- v2 must not introduce a "default dashboard export format" that differs from the snapshot schema. The snapshot JSON *is* the export format. A dashboard reads snapshots; it does not receive a parallel serialization.
-- v2 must not ship any command that pushes data to a remote endpoint, even optionally. The "no network calls during analysis" rule (v1 Rule #1, v2-restated in §8.1) holds absolutely for the CLI. If v3 adds a push command, it lives outside the `sdi` analysis pipeline — likely as a separate `sdi-publish` binary with explicit user invocation.
+**What v1 must not ship that would constrain v2.**
+- v1 must not introduce a "default dashboard export format" that differs from the snapshot schema. The snapshot JSON *is* the export format. A dashboard reads snapshots; it does not receive a parallel serialization.
+- v1 must not ship any command that pushes data to a remote endpoint, even optionally. The "no network calls during analysis" rule (v0 Rule #1, v1-restated in §8.1) holds absolutely for the CLI. If v2 adds a push command, it lives outside the `sdi` analysis pipeline — likely as a separate `sdi-publish` binary with explicit user invocation.
 
-**v3 seed.** A companion surface (`sdi-web` or similar) that reads `.sdi/snapshots/` and renders trends, hotspots, and boundary divergence in a browser. Self-hosted first; hosted SaaS is a third-order concern.
+**v2 seed.** A companion surface (`sdi-web` or similar) that reads `.sdi/snapshots/` and renders trends, hotspots, and boundary divergence in a browser. Self-hosted first; hosted SaaS is a third-order concern.
 
 ### 13.2 Gardener agent / auto-remediation
 
-**Why v3, not v2.** v2's P2 ("No classification creep") and v2 Rule #21 ("Classification verdicts are never emitted") make it impossible for v2 to decide *what* to fix. An agent that generates consolidation PRs requires exactly that decision — pick a shape, pick the shapes it replaces, pick the files, generate the diff. That is a generative act. SDI is a measurement instrument. The generative act belongs in a companion product.
+**Why v2, not v1.** v1's P2 ("No classification creep") and v1 Rule #21 ("Classification verdicts are never emitted") make it impossible for v1 to decide *what* to fix. An agent that generates consolidation PRs requires exactly that decision — pick a shape, pick the shapes it replaces, pick the files, generate the diff. That is a generative act. SDI is a measurement instrument. The generative act belongs in a companion product.
 
-**What v2 must not ship that would constrain v3.**
-- v2 must not emit remediation output that is *executable* — e.g., patch files, AST rewrites, code snippets. Hints (§5.4) are advisory text citing snapshot fields; they are not prescriptions.
-- v2 must not add fields to the snapshot schema that implicitly rank shapes as "should be consolidated." Canonical pinning (§5.5) is user-declared intent, not SDI-inferred preference.
-- v2 must not introduce "remediation state" — a machine-readable record of which shapes SDI proposed to consolidate. That is state the gardener agent will want; introducing it in v2 forces a design without feedback from the agent's real needs.
+**What v1 must not ship that would constrain v2.**
+- v1 must not emit remediation output that is *executable* — e.g., patch files, AST rewrites, code snippets. Hints (§5.4) are advisory text citing snapshot fields; they are not prescriptions.
+- v1 must not add fields to the snapshot schema that implicitly rank shapes as "should be consolidated." Canonical pinning (§5.5) is user-declared intent, not SDI-inferred preference.
+- v1 must not introduce "remediation state" — a machine-readable record of which shapes SDI proposed to consolidate. That is state the gardener agent will want; introducing it in v1 forces a design without feedback from the agent's real needs.
 
-**v3 seed.** A gardener (likely LLM-backed, since the act is generative) that reads SDI snapshots and proposes consolidation PRs. The LLM lives in the gardener, not in SDI. SDI remains deterministic; the gardener does not.
+**v2 seed.** A gardener (likely LLM-backed, since the act is generative) that reads SDI snapshots and proposes consolidation PRs. The LLM lives in the gardener, not in SDI. SDI remains deterministic; the gardener does not.
 
 ### 13.3 IDE / editor plugin
 
-**Why v3, not v2.** An IDE plugin is a *client* of SDI, not a new execution mode. It needs: a stable on-disk snapshot schema (Phase 0 §3.3 delivers this), a stable diff output format (Phases A/B stabilize this), and a reliable way to run `sdi snapshot --paths <current-file>` quickly (Phase A's fingerprint tier and existing M10 cache deliver this). All prerequisites land in v2. The plugin itself — VS Code extension, JetBrains plugin, Neovim integration — is client work.
+**Why v2, not v1.** An IDE plugin is a *client* of SDI, not a new execution mode. It needs: a stable on-disk snapshot schema (Phase 0 §3.3 delivers this), a stable diff output format (Phases A/B stabilize this), and a reliable way to run `sdi snapshot --paths <current-file>` quickly (Phase A's fingerprint tier and existing M10 cache deliver this). All prerequisites land in v1. The plugin itself — VS Code extension, JetBrains plugin, Neovim integration — is client work.
 
-**What v2 must not ship that would constrain v3.**
-- v2 must not add an "IDE mode" to the CLI that changes output formatting for tooling. Stdout is data, stderr is logs (v1 Rule #9). An IDE consumes the JSON mode like any other client.
-- v2 must not ship a language server. SDI is not an LSP implementation. An IDE plugin may *spawn an LSP* on top of SDI, but that is plugin work, not CLI work.
+**What v1 must not ship that would constrain v2.**
+- v1 must not add an "IDE mode" to the CLI that changes output formatting for tooling. Stdout is data, stderr is logs (v0 Rule #9). An IDE consumes the JSON mode like any other client.
+- v1 must not ship a language server. SDI is not an LSP implementation. An IDE plugin may *spawn an LSP* on top of SDI, but that is plugin work, not CLI work.
 
-**v3 seed.** VS Code extension that renders hotspots inline, surfaces `sdi explain` output in a hover panel, and triggers `sdi snapshot --paths <file>` on save.
+**v2 seed.** VS Code extension that renders hotspots inline, surfaces `sdi explain` output in a hover panel, and triggers `sdi snapshot --paths <file>` on save.
 
 ### 13.4 Auto-remediation PRs from CI
 
-**Why v3, not v2.** This is a sub-capability of the gardener (§13.2) deployed into the CI loop. Same reasoning.
+**Why v2, not v1.** This is a sub-capability of the gardener (§13.2) deployed into the CI loop. Same reasoning.
 
-**What v2 must not ship that would constrain v3.** The GitHub Action (§7.2) must not grow PR-writing features in v2. It *reads* and *reports*. Writing is a post-v2 capability with its own review and safety model.
+**What v1 must not ship that would constrain v2.** The GitHub Action (§7.2) must not grow PR-writing features in v1. It *reads* and *reports*. Writing is a post-v1 capability with its own review and safety model.
 
 ### 13.5 Distributed-systems structural divergence
 
-**Why v3, not v2.** The blog post's Part 3 (referenced but unpublished) gestures at applying SDI's thinking to *inter-service* drift — the structural divergence between microservices, measured via API contracts, deployment topology, and observability data. This is a different product. v2's Phase C (contract-file inference, §6.2) lays the measurement groundwork inside a single repository. Taking the same ideas across services requires: cross-repo snapshot aggregation, service registry integration, trace/log ingestion, deployment-graph awareness. None of that is a CLI tool; it is a platform.
+**Why v2, not v1.** The blog post's Part 3 (referenced but unpublished) gestures at applying SDI's thinking to *inter-service* drift — the structural divergence between microservices, measured via API contracts, deployment topology, and observability data. This is a different product. v1's Phase C (contract-file inference, §6.2) lays the measurement groundwork inside a single repository. Taking the same ideas across services requires: cross-repo snapshot aggregation, service registry integration, trace/log ingestion, deployment-graph awareness. None of that is a CLI tool; it is a platform.
 
-**What v2 must not ship that would constrain v3.**
-- v2 must not introduce cross-repo snapshot aggregation. Snapshots live in `.sdi/snapshots/` per repo. Merging snapshots from multiple repos is a v3 platform concern.
-- v2 must not add service-identity fields to snapshots. A snapshot describes a *tree*, not a *service*. If a tree happens to be one service's monorepo, that is a user-level fact, not something SDI asserts.
-- v2 must not introduce OpenTelemetry / tracing integration. Deterministic static analysis stays that way.
+**What v1 must not ship that would constrain v2.**
+- v1 must not introduce cross-repo snapshot aggregation. Snapshots live in `.sdi/snapshots/` per repo. Merging snapshots from multiple repos is a v2 platform concern.
+- v1 must not add service-identity fields to snapshots. A snapshot describes a *tree*, not a *service*. If a tree happens to be one service's monorepo, that is a user-level fact, not something SDI asserts.
+- v1 must not introduce OpenTelemetry / tracing integration. Deterministic static analysis stays that way.
 
-**v3 seed.** A companion product that correlates per-repo SDI snapshots with service topology. Likely a separate repository, likely a separate binary, likely requiring infrastructure (object storage, a registry). Entirely separate from `sdi`.
+**v2 seed.** A companion product that correlates per-repo SDI snapshots with service topology. Likely a separate repository, likely a separate binary, likely requiring infrastructure (object storage, a registry). Entirely separate from `sdi`.
 
 ### 13.6 Companion technical paper
 
-**Why v3, not v2.** The blog post is a narrative introduction; a technical paper would document the mathematical foundations (entropy formulation, Leiden gamma selection, fingerprint hash space, partition stability theorem if one exists). It is a valuable artifact but deferred until v2 has shipped and collected enough adopter data to ground the claims empirically rather than theoretically.
+**Why v2, not v1.** The blog post is a narrative introduction; a technical paper would document the mathematical foundations (entropy formulation, Leiden gamma selection, fingerprint hash space, partition stability theorem if one exists). It is a valuable artifact but deferred until v1 has shipped and collected enough adopter data to ground the claims empirically rather than theoretically.
 
-**What v2 must not ship that would constrain v3.** Nothing concrete — this is a documentation deliverable. But: v2 development should keep notes on surprising empirical findings (gamma distributions observed in the wild, hash collision frequencies, partition stability behaviors under known codebase shapes), because those observations are exactly what a paper would be built from.
+**What v1 must not ship that would constrain v2.** Nothing concrete — this is a documentation deliverable. But: v1 development should keep notes on surprising empirical findings (gamma distributions observed in the wild, hash collision frequencies, partition stability behaviors under known codebase shapes), because those observations are exactly what a paper would be built from.
 
 ### 13.7 Custom language adapter API
 
-**Why v3, not v2.** Phase C ships custom *pattern categories*, not custom *language adapters*. Adapters are deeper; they carry fingerprinting logic, symbol resolution, import resolution. A plugin API for adapters is premature — the adapter contract is still settling as new languages land in Phase A.
+**Why v2, not v1.** Phase C ships custom *pattern categories*, not custom *language adapters*. Adapters are deeper; they carry fingerprinting logic, symbol resolution, import resolution. A plugin API for adapters is premature — the adapter contract is still settling as new languages land in Phase A.
 
-**What v2 must not ship that would constrain v3.** v2 must not commit publicly to a specific adapter plugin shape. Internal adapter refactoring in v2 (making adapters more uniform as Phase A adds C/C++, Ruby, Kotlin) is welcome; a public plugin ABI is not.
+**What v1 must not ship that would constrain v2.** v1 must not commit publicly to a specific adapter plugin shape. Internal adapter refactoring in v1 (making adapters more uniform as Phase A adds C/C++, Ruby, Kotlin) is welcome; a public plugin ABI is not.
 
 ### 13.8 Interactive boundary ratification UI
 
-**Why v3, not v2.** Current boundary ratification is edit-the-YAML. Users have asked (informally) for an interactive review mode where SDI proposes boundaries and the user accepts/rejects them one at a time. This is a UX layer over existing capability — natural for a dashboard (§13.1) or IDE plugin (§13.3), out of scope for the CLI.
+**Why v2, not v1.** Current boundary ratification is edit-the-YAML. Users have asked (informally) for an interactive review mode where SDI proposes boundaries and the user accepts/rejects them one at a time. This is a UX layer over existing capability — natural for a dashboard (§13.1) or IDE plugin (§13.3), out of scope for the CLI.
 
-**What v2 must not ship that would constrain v3.** The CLI must not grow an interactive prompt mode. The TUI constraint (v1 "Banned Anti-Patterns") holds. `sdi boundaries --suggest` emits the proposal as stdout data; a client can read it and render a UI, but SDI does not render UIs.
+**What v1 must not ship that would constrain v2.** The CLI must not grow an interactive prompt mode. The TUI constraint (v0 "Banned Anti-Patterns") holds. `sdi boundaries --suggest` emits the proposal as stdout data; a client can read it and render a UI, but SDI does not render UIs.
 
 ---
 
-## 14. v2 Open Design Questions
+## 14. v1 Open Design Questions
 
-v2 resolves v1's OQ1–OQ7 (§3.2) but opens its own questions. Each is a deferred decision awaiting data from Phase A–D adopter usage. Documented here so they do not silently become defaults by omission.
+v1 resolves v0's OQ1–OQ7 (§3.2) but opens its own questions. Each is a deferred decision awaiting data from Phase A–D adopter usage. Documented here so they do not silently become defaults by omission.
 
-### OQ-v2-1. Fingerprint tier default
+### OQ-v1-1. Fingerprint tier default
 
-Phase A ships both `structural` and `named` fingerprint tiers (§4.3). The default for `sdi diff` summary output remains `structural` for v1 backward-compatibility, but `named` produces better hotspot rankings in practice (fewer false collisions).
+Phase A ships both `structural` and `named` fingerprint tiers (§4.3). The default for `sdi diff` summary output remains `structural` for v0 backward-compatibility, but `named` produces better hotspot rankings in practice (fewer false collisions).
 
-**Question.** Should `named` become the default in v2.x or v3?
+**Question.** Should `named` become the default in v1.x or v2?
 
-**Decision framework.** Collect hotspot false-positive reports from adopters (where a "new shape" flagged by `structural` is actually an existing shape that differed only in identifier naming). If false-positive rate exceeds 10% of reported hotspots across ≥5 projects, flip default to `named` in v2.x minor release with one-minor deprecation of `structural` as default (still computed, just not default).
+**Decision framework.** Collect hotspot false-positive reports from adopters (where a "new shape" flagged by `structural` is actually an existing shape that differed only in identifier naming). If false-positive rate exceeds 10% of reported hotspots across ≥5 projects, flip default to `named` in v1.x minor release with one-minor deprecation of `structural` as default (still computed, just not default).
 
-**Closed by.** v2.x minor post-Phase A adoption data.
+**Closed by.** v1.x minor post-Phase A adoption data.
 
-### OQ-v2-2. Hints rule set scope
+### OQ-v1-2. Hints rule set scope
 
 Phase B ships rule-based hints (§5.4) with an initial rule set. The rule set could grow unboundedly. Should hints stay a small, curated set or accept community-contributed rules?
 
@@ -892,17 +920,17 @@ Phase B ships rule-based hints (§5.4) with an initial rule set. The rule set co
 
 **Closed by.** Observation over ≥6 months of Phase B adoption.
 
-### OQ-v2-3. Contract file auto-discovery
+### OQ-v1-3. Contract file auto-discovery
 
 Phase C parses OpenAPI, protobuf, GraphQL SDL (§6.2). Should SDI auto-discover contract files by extension + content signature, or require explicit declaration in config?
 
-**Leaning.** Auto-discover, with an `--no-auto-contracts` opt-out and a `sdi show --contracts` surface listing discovered contracts so users can audit. Consistent with v2's "safe defaults" posture (e.g., generated-code auto-detection §4.4).
+**Leaning.** Auto-discover, with an `--no-auto-contracts` opt-out and a `sdi show --contracts` surface listing discovered contracts so users can audit. Consistent with v1's "safe defaults" posture (e.g., generated-code auto-detection §4.4).
 
 **Decision framework.** Ship auto-discovery in Phase C. If false-positive discoveries (files matching extension but not actually contracts) exceed a reasonable frequency in adopter feedback, reconsider the signature heuristics or move to explicit declaration.
 
 **Closed by.** Phase C initial release + 3 months adopter feedback.
 
-### OQ-v2-4. `sdi backfill` resumption model
+### OQ-v1-4. `sdi backfill` resumption model
 
 Phase D ships `sdi backfill` with SIGINT resume-by-skip (§7.1). Alternative: a resume file that tracks partial progress. The resume file is more robust (handles crashes mid-snapshot) but is additional state on disk with its own failure modes.
 
@@ -910,19 +938,19 @@ Phase D ships `sdi backfill` with SIGINT resume-by-skip (§7.1). Alternative: a 
 
 **Closed by.** Phase D release + adopter experience.
 
-### OQ-v2-5. Canonical pinning enforcement level
+### OQ-v1-5. Canonical pinning enforcement level
 
 Phase B's canonical pinning (§5.5) is strictly advisory. Some adopters will ask for it to *enforce* — e.g., `sdi check` fails if a non-canonical shape appears in a category with a pinned canonical.
 
-**Leaning.** Keep advisory. Making canonicals enforcing turns them into a classification mechanism (v2 Rule #21) — the tool would be declaring "this shape is wrong because it's not canonical."
+**Leaning.** Keep advisory. Making canonicals enforcing turns them into a classification mechanism (v1 Rule #21) — the tool would be declaring "this shape is wrong because it's not canonical."
 
-**Decision framework.** If adopter demand for enforcement is consistent and principled (not just "we want a lint"), consider adding `sdi check --strict-canonicals` as an opt-in gate in v2.x. The gate would read user-declared canonicals, not SDI-inferred preferences, so it does not violate the classification rule. Ship advisory first; revisit on demand.
+**Decision framework.** If adopter demand for enforcement is consistent and principled (not just "we want a lint"), consider adding `sdi check --strict-canonicals` as an opt-in gate in v1.x. The gate would read user-declared canonicals, not SDI-inferred preferences, so it does not violate the classification rule. Ship advisory first; revisit on demand.
 
-**Closed by.** v2.x minor post-Phase B adoption.
+**Closed by.** v1.x minor post-Phase B adoption.
 
-### OQ-v2-6. Standalone binary grammar set
+### OQ-v1-6. Standalone binary grammar set
 
-Phase D ships standalone binaries with bundled grammars (§7.5). The bundled set is currently "v1 grammars + Phase A additions." Should the binary also bundle the most common *custom* tree-sitter grammars (e.g., `tree-sitter-toml`, `tree-sitter-yaml`) for contract-file parsing?
+Phase D ships standalone binaries with bundled grammars (§7.5). The bundled set is currently "v0 grammars + Phase A additions." Should the binary also bundle the most common *custom* tree-sitter grammars (e.g., `tree-sitter-toml`, `tree-sitter-yaml`) for contract-file parsing?
 
 **Decision framework.** Bundle the grammars Phase C's contract parsers need (protobuf, GraphQL SDL). OpenAPI is JSON/YAML and handled by stdlib + ruamel.yaml, so no additional grammar needed. Do not grow the bundled set beyond analysis needs.
 
@@ -930,27 +958,27 @@ Phase D ships standalone binaries with bundled grammars (§7.5). The bundled set
 
 ---
 
-## 15. Resolved Design Decisions (v2 Additions)
+## 15. Resolved Design Decisions (v1 Additions)
 
-These are v2's counterparts to v1's KD1–KD10. Numbered continuing from v1 (v1 ended at KD10; v2 adds KD11–KD20).
+These are v1's counterparts to v0's KD1–KD10. Numbered continuing from v0 (v0 ended at KD10; v1 adds KD11–KD20).
 
 **KD11. Phased rollout over big-bang release.**
-v2's scope is too large for a single release. Phase 0 → A → B → C → D ships incrementally across v0.2.x minor releases. Each phase has independent acceptance criteria. This preserves adopter trust (no "upgrade and rediscover the tool") and keeps PR review manageable.
+v1's scope is too large for a single release. Phase 0 → A → B → C → D ships incrementally across the 1.x minor releases (one minor release per milestone — see §12). Each phase has independent acceptance criteria. This preserves adopter trust (no "upgrade and rediscover the tool") and keeps PR review manageable.
 
 **KD12. Tree-sitter queries, not Python plugins, for custom pattern categories.**
-Resolves v1 OQ3. Python plugins would create an unbounded determinism surface (§P3). Tree-sitter queries are declarative, sandboxed, and deterministic by construction. Trade-off: some pattern shapes are hard to express as queries; those shapes wait for a more capable mechanism (post-v2).
+Resolves v0 OQ3. Python plugins would create an unbounded determinism surface (§P3). Tree-sitter queries are declarative, sandboxed, and deterministic by construction. Trade-off: some pattern shapes are hard to express as queries; those shapes wait for a more capable mechanism (post-v1).
 
 **KD13. Contract files, not code-level inference, for cross-language dependencies.**
-Resolves v1 OQ4. Parsing OpenAPI/protobuf/GraphQL is reading declared intent. Inferring that `fetch('/api/users')` in TS targets `@router.get('/users')` in Python is inference. v2 does the first, never the second.
+Resolves v0 OQ4. Parsing OpenAPI/protobuf/GraphQL is reading declared intent. Inferring that `fetch('/api/users')` in TS targets `@router.get('/users')` in Python is inference. v1 does the first, never the second.
 
 **KD14. Dual-mechanism generated code tagging (explicit list + advisory auto-detection).**
-Resolves v1 OQ5. Explicit list (`.sdi/generated.txt`) is authoritative and excludes files from metrics. Auto-detection is advisory and surfaces candidates for promotion. Auto-detected files still contribute to metrics until explicitly listed. User is in the loop.
+Resolves v0 OQ5. Explicit list (`.sdi/generated.txt`) is authoritative and excludes files from metrics. Auto-detection is advisory and surfaces candidates for promotion. Auto-detected files still contribute to metrics until explicitly listed. User is in the loop.
 
-**KD15. Schema v2 frozen at Phase 0, additive-only thereafter.**
-Resolves v1 OQ7. Trend data is the product; schema migrations that lose history destroy the product. Schema v2 is defined in `docs/snapshot-schema-v2.md` and JSON-Schema-validated in tests. Non-additive changes require schema v3 and a major version bump.
+**KD15. Schema v1 frozen at Phase 0, additive-only thereafter.**
+Resolves v0 OQ7. Trend data is the product; schema migrations that lose history destroy the product. Schema v1 is defined in `docs/snapshot-schema-v1.md` and JSON-Schema-validated in tests. Non-additive changes require schema v2 and a major version bump.
 
 **KD16. Attribution is raw blame; SDI does not narrate.**
-Phase B attribution surfaces file, line, commit, author, timestamp — all raw git metadata. SDI does not synthesize "author X is introducing drift" narratives. User reads the raw data, user concludes. This is v2's primary safeguard against P2 (classification creep).
+Phase B attribution surfaces file, line, commit, author, timestamp — all raw git metadata. SDI does not synthesize "author X is introducing drift" narratives. User reads the raw data, user concludes. This is v1's primary safeguard against P2 (classification creep).
 
 **KD17. Canonicals are user-declared intent, not tool-inferred preferences.**
 `.sdi/canonicals.yaml` records human choices. SDI never auto-promotes a shape to canonical based on prevalence. SDI could — the data supports it — but doing so would make SDI opinionated about what patterns are "good."
@@ -959,52 +987,54 @@ Phase B attribution surfaces file, line, commit, author, timestamp — all raw g
 Phase B fields `hints`, `neighbors`, `explanations`, `attributions`, `progress_score` are grouped under advisory namespaces. `sdi check` is integration-tested to ignore them (§11.4). This makes the gating contract trivially auditable and lets advisory surfaces evolve without destabilizing gate behavior.
 
 **KD19. Performance budgets are per-phase and enforced at release.**
-v1 documented targets; v2 enforces ceilings via benchmark gates on release candidates (§10.2). Each phase declares its budget; cumulative ceiling is +50% cold pipeline time with all features on. Exceeding ceilings without maintainer sign-off blocks release.
+v0 documented targets; v1 enforces ceilings via benchmark gates on release candidates (§10.2). Each phase declares its budget; cumulative ceiling is +50% cold pipeline time with all features on. Exceeding ceilings without maintainer sign-off blocks release.
 
-**KD20. CLI remains the product through v2; companion surfaces are v3.**
-v2 ships no dashboard, no agent, no IDE plugin, no cross-repo aggregation. Those are v3 concerns (§13). v2's job is to make the CLI's measurements actionable inside a single repo. v3 builds outward from that foundation — across repos, into editors, into generative loops.
+**KD20. CLI remains the product through v1; companion surfaces are v2.**
+v1 ships no dashboard, no agent, no IDE plugin, no cross-repo aggregation. Those are v2 concerns (§13). v1's job is to make the CLI's measurements actionable inside a single repo. v2 builds outward from that foundation — across repos, into editors, into generative loops.
 
 ---
 
 ## Appendix A — Milestone Seed List
 
-Non-binding — the milestone authoring (Tekhton) will refine, split, and sequence. This is a skeleton of what the v2 milestones should cover.
+Non-binding — the milestone authoring (Tekhton) will refine, split, and sequence. This is a skeleton of what the v1 milestones should cover.
 
-| Phase | Candidate milestone | Key scope |
-|---|---|---|
-| 0 | M15: Cycle detection cap + schema v2 freeze | §3.1, §3.3, §3.4, §3.5 |
-| 0 | M16: Config purity + path-bounds helper | §3.4 |
-| A | M17: C/C++/Ruby/Kotlin adapters | §4.1 |
-| A | M18: Four new pattern categories | §4.2 |
-| A | M19: Fingerprint tier + partition stability + coupling decomposition | §4.3 |
-| A | M20: Generated code tagging | §4.4 |
-| B | M21: Hotspot ranking + attribution in `sdi diff` | §5.1, §5.2 |
-| B | M22: `sdi explain` | §5.3 |
-| B | M23: Rule-based hints | §5.4 |
-| B | M24: Canonical pinning | §5.5 |
-| B | M25: Aspirational split progress | §5.6 |
-| B | M26: Change coupling surfacing | §5.7 |
-| C | M27: Custom pattern category plugin system | §6.1 |
-| C | M28: Contract file parsing (OpenAPI, protobuf, GraphQL) | §6.2 |
-| D | M29: `sdi backfill` | §7.1 |
-| D | M30: GitHub Action v2 | §7.2 |
-| D | M31: `sdi diff` stdin + `sdi config` read-only + dynamic completions | §7.3, §7.4, §7.6 |
-| D | M32: Standalone binary distribution | §7.5 |
+After the `1.0.0` cut, the v1 milestone files start fresh at `m01-*.md`. The MILESTONE position in the version equals the file number, always.
+
+| Phase | File | Release | Candidate milestone | Key scope |
+|---|---|---|---|---|
+| 0 | m01 | 1.1.0 | Cycle detection cap + schema v1 freeze | §3.1, §3.3, §3.4, §3.5 |
+| 0 | m02 | 1.2.0 | Config purity + path-bounds helper | §3.4 |
+| A | m03 | 1.3.0 | C/C++/Ruby/Kotlin adapters | §4.1 |
+| A | m04 | 1.4.0 | Four new pattern categories | §4.2 |
+| A | m05 | 1.5.0 | Fingerprint tier + partition stability + coupling decomposition | §4.3 |
+| A | m06 | 1.6.0 | Generated code tagging | §4.4 |
+| B | m07 | 1.7.0 | Hotspot ranking + attribution in `sdi diff` | §5.1, §5.2 |
+| B | m08 | 1.8.0 | `sdi explain` | §5.3 |
+| B | m09 | 1.9.0 | Rule-based hints | §5.4 |
+| B | m10 | 1.10.0 | Canonical pinning | §5.5 |
+| B | m11 | 1.11.0 | Aspirational split progress | §5.6 |
+| B | m12 | 1.12.0 | Change coupling surfacing | §5.7 |
+| C | m13 | 1.13.0 | Custom pattern category plugin system | §6.1 |
+| C | m14 | 1.14.0 | Contract file parsing (OpenAPI, protobuf, GraphQL) | §6.2 |
+| D | m15 | 1.15.0 | `sdi backfill` | §7.1 |
+| D | m16 | 1.16.0 | GitHub Action v1 | §7.2 |
+| D | m17 | 1.17.0 | `sdi diff` stdin + `sdi config` read-only + dynamic completions | §7.3, §7.4, §7.6 |
+| D | m18 | 1.18.0 | Standalone binary distribution | §7.5 |
 
 ---
 
 ## Appendix B — Document Conventions
 
-- "v1" refers to SDI 0.1.x (M1–M14 archived).
-- "v2" refers to SDI 0.2.x shipping from this document.
-- "v3" refers to the post-v2 wave of companion surfaces (§13).
-- **P1–P5** are v2's new principles (§2). **KD1–KD10** are v1 resolved design decisions; **KD11–KD20** are v2 additions (§15). **OQ1–OQ7** are v1 open questions resolved in §3.2; **OQ-v2-1** through **OQ-v2-6** are v2's new open questions (§14).
-- Non-negotiable rules #1–#16 are from v1 (`.tekhton/DESIGN.md` and `CLAUDE.md`). v2 adds #17–#22 in §9.
-- Phase numbering (0, A, B, C, D) is a planning convention for this document; milestones (M15+) are the work-unit convention.
+- "v0" refers to SDI 0.1.0 through 0.14.x (M1–M14 archived; the scaffold/prototype era).
+- "v1" refers to SDI 1.x shipping from this document.
+- "v2" refers to the post-v1 wave of companion surfaces (§13).
+- **P1–P5** are v1's new principles (§2). **KD1–KD10** are v0 resolved design decisions; **KD11–KD20** are v1 additions (§15). **OQ1–OQ7** are v0 open questions resolved in §3.2; **OQ-v1-1** through **OQ-v1-6** are v1's new open questions (§14).
+- Non-negotiable rules #1–#16 are from v0 (`.tekhton/DESIGN.md` and `CLAUDE.md`). v1 adds #17–#22 in §9.
+- Phase numbering (0, A, B, C, D) is a planning convention for this document. Milestone files (`m01-*.md`, `m02-*.md`, …) are the work-unit convention; v1 milestone files start fresh after the `1.0.0` cut retires the v0 ones. The version's MILESTONE position equals the milestone file number, always.
 
 ---
 
-*End of DESIGN_v2.md.*
+*End of DESIGN_v1.md.*
 
 
 

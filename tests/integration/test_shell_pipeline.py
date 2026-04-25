@@ -35,9 +35,7 @@ def shell_project(tmp_path: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         if src.stat().st_mode & stat.S_IXUSR:
-            dest.chmod(
-                dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-            )
+            dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     return tmp_path
 
@@ -48,21 +46,15 @@ class TestShellPipeline:
 
     def test_snapshot_detects_three_shell_files(self, cli_runner, shell_project):
         """Snapshot reports language_breakdown['shell'] == 3."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], shell_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], shell_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["language_breakdown"].get("shell") == 3
 
-    def test_catalog_contains_error_handling_and_logging(
-        self, cli_runner, shell_project
-    ):
+    def test_catalog_contains_error_handling_and_logging(self, cli_runner, shell_project):
         """Catalog from simple-shell includes error_handling and logging categories."""
         run_sdi(cli_runner, ["-q", "snapshot"], shell_project)
-        result = run_sdi(
-            cli_runner, ["--format", "json", "catalog"], shell_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "catalog"], shell_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         categories = data["catalog"]["categories"]

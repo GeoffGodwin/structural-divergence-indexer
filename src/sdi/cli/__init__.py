@@ -27,7 +27,8 @@ def _sigterm_handler(signum: int, frame: object) -> None:
     raise SystemExit(1)
 
 
-signal.signal(signal.SIGTERM, _sigterm_handler)  # Runs at import time — installs a SIGTERM handler so tempfile cleanup completes on kill.
+# Runs at import time — installs a SIGTERM handler so tempfile cleanup completes on kill.
+signal.signal(signal.SIGTERM, _sigterm_handler)
 
 
 class _SDIGroup(click.Group):
@@ -45,6 +46,7 @@ class _SDIGroup(click.Group):
             verbose = ctx.obj.get("verbose", False) if ctx.obj else False
             if verbose:
                 import traceback
+
                 traceback.print_exc(file=sys.stderr)
             click.echo(f"Error: {exc}", err=True)
             raise SystemExit(1) from exc

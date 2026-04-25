@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import warnings
 from pathlib import Path
 
 import pytest
 
 from sdi.config import (
-    SDIConfig,
     _DEFAULT_EXCLUDE,
+    SDIConfig,
     _validate_overrides,
     load_config,
 )
@@ -122,9 +121,7 @@ class TestEnvVarPrecedence:
         cfg = load_config(project_dir=tmp_path)
         assert cfg.core.random_seed == 55
 
-    def test_env_overrides_project_config(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_overrides_project_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
         (sdi_dir / "config.toml").write_text("[core]\nworkers = 2\n", encoding="utf-8")
@@ -151,16 +148,12 @@ class TestMalformedTOML:
     def test_bad_toml_exits_2(self, tmp_path: Path) -> None:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
-        (sdi_dir / "config.toml").write_text(
-            "this is not valid toml [\n", encoding="utf-8"
-        )
+        (sdi_dir / "config.toml").write_text("this is not valid toml [\n", encoding="utf-8")
         with pytest.raises(SystemExit) as exc_info:
             load_config(project_dir=tmp_path)
         assert exc_info.value.code == 2
 
-    def test_error_message_mentions_file(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture
-    ) -> None:
+    def test_error_message_mentions_file(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
         config_path = sdi_dir / "config.toml"
@@ -202,9 +195,7 @@ class TestThresholdOverrides:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
         (sdi_dir / "config.toml").write_text(
-            '[thresholds.overrides.old_migration]\n'
-            'expires = "2000-01-01"\n'
-            'pattern_entropy_rate = 9.9\n',
+            '[thresholds.overrides.old_migration]\nexpires = "2000-01-01"\npattern_entropy_rate = 9.9\n',
             encoding="utf-8",
         )
         cfg = load_config(project_dir=tmp_path)
@@ -214,9 +205,7 @@ class TestThresholdOverrides:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
         (sdi_dir / "config.toml").write_text(
-            '[thresholds.overrides.active]\n'
-            'expires = "2099-12-31"\n'
-            'pattern_entropy_rate = 9.9\n',
+            '[thresholds.overrides.active]\nexpires = "2099-12-31"\npattern_entropy_rate = 9.9\n',
             encoding="utf-8",
         )
         cfg = load_config(project_dir=tmp_path)
@@ -230,14 +219,10 @@ class TestUnknownKeys:
     def test_unknown_key_warns(self, tmp_path: Path) -> None:
         sdi_dir = tmp_path / ".sdi"
         sdi_dir.mkdir()
-        (sdi_dir / "config.toml").write_text(
-            "[deprecated_section]\nfoo = 1\n", encoding="utf-8"
-        )
+        (sdi_dir / "config.toml").write_text("[deprecated_section]\nfoo = 1\n", encoding="utf-8")
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             load_config(project_dir=tmp_path)
         assert any(
-            issubclass(w.category, DeprecationWarning)
-            and "deprecated_section" in str(w.message)
-            for w in caught
+            issubclass(w.category, DeprecationWarning) and "deprecated_section" in str(w.message) for w in caught
         )

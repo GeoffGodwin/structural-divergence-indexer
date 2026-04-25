@@ -52,9 +52,7 @@ class CheckResult:
         }
 
 
-def _effective_threshold(
-    thresholds: ThresholdsConfig, key: str
-) -> float:
+def _effective_threshold(thresholds: ThresholdsConfig, key: str) -> float:
     """Return the effective threshold for a dimension, applying active overrides.
 
     If any active override raises the threshold for this dimension, the
@@ -128,9 +126,7 @@ def _print_check_text(results: list[CheckResult], status: str) -> None:
     """
     click.echo(f"Status: {status.upper()}")
     click.echo("")
-    header = "  {:<34} {:>10}  {:>10}  {}".format(
-        "Dimension", "Value", "Threshold", "Status"
-    )
+    header = "  {:<34} {:>10}  {:>10}  {}".format("Dimension", "Value", "Threshold", "Status")
     click.echo(header)
     click.echo("  " + "-" * 68)
     for r in results:
@@ -141,11 +137,7 @@ def _print_check_text(results: list[CheckResult], status: str) -> None:
         else:
             val_s = str(r.value)
         status_s = "EXCEEDED" if r.exceeded else "ok"
-        click.echo(
-            "  {:<34} {:>10}  {:>10.4f}  {}".format(
-                r.dimension, val_s, r.threshold, status_s
-            )
-        )
+        click.echo("  {:<34} {:>10}  {:>10.4f}  {}".format(r.dimension, val_s, r.threshold, status_s))
 
 
 @click.command("check")
@@ -183,10 +175,7 @@ def check_cmd(ctx: click.Context, snapshot_ref: str | None) -> None:
     elif output_format == "csv":
         emit_rows_csv(
             ["dimension", "value", "threshold", "status"],
-            [
-                [r.dimension, r.value, r.threshold, "exceeded" if r.exceeded else "ok"]
-                for r in results
-            ],
+            [[r.dimension, r.value, r.threshold, "exceeded" if r.exceeded else "ok"] for r in results],
         )
     else:
         _print_check_text(results, status)

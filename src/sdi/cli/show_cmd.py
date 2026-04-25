@@ -25,9 +25,7 @@ def _format_text(snap: Snapshot, filename: str) -> None:
         filename: Snapshot filename (for display).
     """
     div = snap.divergence
-    langs = ", ".join(
-        f"{lang}: {cnt}" for lang, cnt in snap.language_breakdown.items()
-    )
+    langs = ", ".join(f"{lang}: {cnt}" for lang, cnt in snap.language_breakdown.items())
     click.echo(f"Snapshot  {filename}")
     click.echo(f"Timestamp {snap.timestamp}")
     click.echo(f"Commit    {snap.commit_sha or 'N/A'}")
@@ -61,12 +59,8 @@ def _format_text(snap: Snapshot, filename: str) -> None:
         click.echo("")
         click.echo("Community Detection")
         click.echo(f"  clusters        {pd.get('cluster_count', 'N/A')}")
-        click.echo(
-            f"  stability       {pd.get('stability_score', 'N/A')}"
-        )
-        click.echo(
-            f"  cross-boundary  {len(pd.get('inter_cluster_edges', []))} edge group(s)"
-        )
+        click.echo(f"  stability       {pd.get('stability_score', 'N/A')}")
+        click.echo(f"  cross-boundary  {len(pd.get('inter_cluster_edges', []))} edge group(s)")
 
 
 def _div_row(name: str, value: float | int | None, delta: float | int | None) -> None:

@@ -95,11 +95,7 @@ def list_snapshots(snapshots_dir: Path) -> list[Path]:
     """
     if not snapshots_dir.exists():
         return []
-    paths = [
-        p
-        for p in snapshots_dir.iterdir()
-        if p.is_file() and _SNAPSHOT_RE.match(p.name)
-    ]
+    paths = [p for p in snapshots_dir.iterdir() if p.is_file() and _SNAPSHOT_RE.match(p.name)]
     return sorted(paths, key=lambda p: p.name)
 
 

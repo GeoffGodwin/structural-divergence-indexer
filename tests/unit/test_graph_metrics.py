@@ -11,9 +11,8 @@ from sdi.graph.metrics import compute_graph_metrics
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_graph(
-    n: int, edges: list[tuple[int, int]], names: list[str] | None = None
-) -> igraph.Graph:
+
+def _make_graph(n: int, edges: list[tuple[int, int]], names: list[str] | None = None) -> igraph.Graph:
     """Build a directed igraph with optional vertex names."""
     g = igraph.Graph(n=n, directed=True)
     g.add_edges(edges)
@@ -25,6 +24,7 @@ def _make_graph(
 # ---------------------------------------------------------------------------
 # Empty graph
 # ---------------------------------------------------------------------------
+
 
 class TestEmptyGraph:
     def test_node_count_zero(self) -> None:
@@ -72,6 +72,7 @@ class TestEmptyGraph:
 # Single node
 # ---------------------------------------------------------------------------
 
+
 class TestSingleNode:
     def test_single_node_no_edges(self) -> None:
         g = igraph.Graph(n=1, directed=True)
@@ -88,6 +89,7 @@ class TestSingleNode:
 # ---------------------------------------------------------------------------
 # Density
 # ---------------------------------------------------------------------------
+
 
 class TestDensity:
     def test_density_complete_graph(self) -> None:
@@ -117,6 +119,7 @@ class TestDensity:
 # ---------------------------------------------------------------------------
 # Cycle detection
 # ---------------------------------------------------------------------------
+
 
 class TestCycleCount:
     def test_acyclic_graph_zero_cycles(self) -> None:
@@ -154,6 +157,7 @@ class TestCycleCount:
 # Connected components
 # ---------------------------------------------------------------------------
 
+
 class TestComponentCount:
     def test_fully_connected(self) -> None:
         g = _make_graph(3, [(0, 1), (1, 2)])
@@ -175,6 +179,7 @@ class TestComponentCount:
 # ---------------------------------------------------------------------------
 # Max depth
 # ---------------------------------------------------------------------------
+
 
 class TestMaxDepth:
     def test_linear_chain_depth(self) -> None:
@@ -203,6 +208,7 @@ class TestMaxDepth:
 # ---------------------------------------------------------------------------
 # Hub concentration
 # ---------------------------------------------------------------------------
+
 
 class TestHubConcentration:
     def test_fewer_than_three_nodes_is_zero(self) -> None:
@@ -263,6 +269,7 @@ class TestHubConcentration:
 # ---------------------------------------------------------------------------
 # Return type and schema key presence
 # ---------------------------------------------------------------------------
+
 
 class TestReturnSchema:
     REQUIRED_KEYS = {

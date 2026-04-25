@@ -7,43 +7,33 @@ These tests guard against that regression and validate schema conformance.
 
 from __future__ import annotations
 
-import pytest
-
 from sdi.parsing import FeatureRecord
-
 
 # ---------------------------------------------------------------------------
 # sample_feature_record — pattern_instances schema correctness
 # ---------------------------------------------------------------------------
 
+
 class TestSampleFeatureRecordPatternInstances:
     def test_pattern_instances_have_category_key(self, sample_feature_record: FeatureRecord) -> None:
         """Every pattern instance must have a 'category' key."""
         for instance in sample_feature_record.pattern_instances:
-            assert "category" in instance, (
-                f"pattern_instances entry missing 'category': {instance}"
-            )
+            assert "category" in instance, f"pattern_instances entry missing 'category': {instance}"
 
     def test_pattern_instances_have_no_type_key(self, sample_feature_record: FeatureRecord) -> None:
         """'type' is not a valid key in pattern_instances — it was the old incorrect schema."""
         for instance in sample_feature_record.pattern_instances:
-            assert "type" not in instance, (
-                f"pattern_instances entry uses stale 'type' key: {instance}"
-            )
+            assert "type" not in instance, f"pattern_instances entry uses stale 'type' key: {instance}"
 
     def test_pattern_instances_have_ast_hash_key(self, sample_feature_record: FeatureRecord) -> None:
         """Every pattern instance must have an 'ast_hash' key."""
         for instance in sample_feature_record.pattern_instances:
-            assert "ast_hash" in instance, (
-                f"pattern_instances entry missing 'ast_hash': {instance}"
-            )
+            assert "ast_hash" in instance, f"pattern_instances entry missing 'ast_hash': {instance}"
 
     def test_pattern_instances_have_location_key(self, sample_feature_record: FeatureRecord) -> None:
         """Every pattern instance must have a 'location' key."""
         for instance in sample_feature_record.pattern_instances:
-            assert "location" in instance, (
-                f"pattern_instances entry missing 'location': {instance}"
-            )
+            assert "location" in instance, f"pattern_instances entry missing 'location': {instance}"
 
     def test_pattern_instances_location_has_line_and_col(self, sample_feature_record: FeatureRecord) -> None:
         """The 'location' dict must contain 'line' and 'col' integer keys."""
@@ -51,12 +41,8 @@ class TestSampleFeatureRecordPatternInstances:
             location = instance["location"]
             assert "line" in location, f"location missing 'line': {location}"
             assert "col" in location, f"location missing 'col': {location}"
-            assert isinstance(location["line"], int), (
-                f"location['line'] must be int, got {type(location['line'])}"
-            )
-            assert isinstance(location["col"], int), (
-                f"location['col'] must be int, got {type(location['col'])}"
-            )
+            assert isinstance(location["line"], int), f"location['line'] must be int, got {type(location['line'])}"
+            assert isinstance(location["col"], int), f"location['col'] must be int, got {type(location['col'])}"
 
     def test_pattern_instances_category_is_known_value(self, sample_feature_record: FeatureRecord) -> None:
         """Category values must come from the known set produced by the Python adapter."""
@@ -72,9 +58,7 @@ class TestSampleFeatureRecordPatternInstances:
             ast_hash = instance["ast_hash"]
             assert isinstance(ast_hash, str), f"ast_hash must be str, got {type(ast_hash)}"
             assert len(ast_hash) == 8, f"ast_hash must be 8 chars, got '{ast_hash}' (len={len(ast_hash)})"
-            assert all(c in "0123456789abcdef" for c in ast_hash), (
-                f"ast_hash must be lowercase hex, got '{ast_hash}'"
-            )
+            assert all(c in "0123456789abcdef" for c in ast_hash), f"ast_hash must be lowercase hex, got '{ast_hash}'"
 
     def test_pattern_instances_is_list(self, sample_feature_record: FeatureRecord) -> None:
         """pattern_instances must be a list, not empty (fixture has at least one entry)."""
@@ -85,6 +69,7 @@ class TestSampleFeatureRecordPatternInstances:
 # ---------------------------------------------------------------------------
 # sample_feature_record — basic FeatureRecord field correctness
 # ---------------------------------------------------------------------------
+
 
 class TestSampleFeatureRecordFields:
     def test_file_path_is_string(self, sample_feature_record: FeatureRecord) -> None:
@@ -109,9 +94,7 @@ class TestSampleFeatureRecordFields:
         assert isinstance(sample_feature_record.lines_of_code, int)
         assert sample_feature_record.lines_of_code > 0
 
-    def test_round_trip_serialization_preserves_pattern_instances(
-        self, sample_feature_record: FeatureRecord
-    ) -> None:
+    def test_round_trip_serialization_preserves_pattern_instances(self, sample_feature_record: FeatureRecord) -> None:
         """to_dict() / from_dict() must preserve the full pattern_instances schema."""
         as_dict = sample_feature_record.to_dict()
         restored = FeatureRecord.from_dict(as_dict)

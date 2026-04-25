@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from sdi.parsing import FeatureRecord
 from sdi.snapshot.model import (
     SNAPSHOT_VERSION,

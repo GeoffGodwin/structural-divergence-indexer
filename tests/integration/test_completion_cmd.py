@@ -46,9 +46,7 @@ def test_completion_eval_line_in_output(runner: CliRunner, shell: str) -> None:
     """The line that users evaluate in their shell profile must be in output."""
     eval_line, _ = _INSTRUCTIONS[shell]
     result = runner.invoke(cli, ["completion", shell], catch_exceptions=False)
-    assert eval_line in result.output, (
-        f"Expected eval line {eval_line!r} not found in output:\n{result.output}"
-    )
+    assert eval_line in result.output, f"Expected eval line {eval_line!r} not found in output:\n{result.output}"
 
 
 def test_completion_bash_eval_line_exact(runner: CliRunner) -> None:
@@ -77,24 +75,22 @@ def test_completion_hint_prefixed_with_hash(runner: CliRunner, shell: str) -> No
     _, hint = _INSTRUCTIONS[shell]
     expected_hint = f"# {hint}"
     result = runner.invoke(cli, ["completion", shell], catch_exceptions=False)
-    assert expected_hint in result.output, (
-        f"Expected hint {expected_hint!r} not found in output:\n{result.output}"
-    )
+    assert expected_hint in result.output, f"Expected hint {expected_hint!r} not found in output:\n{result.output}"
 
 
 def test_completion_bash_hint_exact(runner: CliRunner) -> None:
     result = runner.invoke(cli, ["completion", "bash"], catch_exceptions=False)
-    assert '# Add to ~/.bashrc' in result.output
+    assert "# Add to ~/.bashrc" in result.output
 
 
 def test_completion_zsh_hint_exact(runner: CliRunner) -> None:
     result = runner.invoke(cli, ["completion", "zsh"], catch_exceptions=False)
-    assert '# Add to ~/.zshrc' in result.output
+    assert "# Add to ~/.zshrc" in result.output
 
 
 def test_completion_fish_hint_exact(runner: CliRunner) -> None:
     result = runner.invoke(cli, ["completion", "fish"], catch_exceptions=False)
-    assert '# Add to ~/.config/fish' in result.output
+    assert "# Add to ~/.config/fish" in result.output
 
 
 # ---------------------------------------------------------------------------

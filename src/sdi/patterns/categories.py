@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-
 CATEGORY_NAMES: list[str] = [
     "error_handling",
     "data_access",
@@ -82,27 +81,13 @@ _PYTHON_QUERIES: dict[str, str] = {
 }
 
 _DESCRIPTIONS: dict[str, str] = {
-    "error_handling": (
-        "try/except/raise/finally blocks and error propagation patterns"
-    ),
-    "data_access": (
-        "Function/method calls to data stores, ORM queries, cursor operations"
-    ),
-    "logging": (
-        "Log call sites (logging.*, logger.*, log.*) and their argument shapes"
-    ),
-    "async_patterns": (
-        "async def, await, asyncio.gather, coroutine entry points"
-    ),
-    "class_hierarchy": (
-        "Class definitions with base classes, super() call patterns"
-    ),
-    "context_managers": (
-        "with statement bodies and __enter__/__exit__ pairs"
-    ),
-    "comprehensions": (
-        "List, dict, set, and generator comprehension expressions"
-    ),
+    "error_handling": ("try/except/raise/finally blocks and error propagation patterns"),
+    "data_access": ("Function/method calls to data stores, ORM queries, cursor operations"),
+    "logging": ("Log call sites (logging.*, logger.*, log.*) and their argument shapes"),
+    "async_patterns": ("async def, await, asyncio.gather, coroutine entry points"),
+    "class_hierarchy": ("Class definitions with base classes, super() call patterns"),
+    "context_managers": ("with statement bodies and __enter__/__exit__ pairs"),
+    "comprehensions": ("List, dict, set, and generator comprehension expressions"),
 }
 
 

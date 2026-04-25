@@ -87,9 +87,7 @@ class TestShellErrorHandling:
         script.write_text(src, encoding="utf-8")
         adapter = ShellAdapter(repo_root=tmp_path)
         record = adapter.parse_file(script, src.encode())
-        return [
-            i for i in record.pattern_instances if i["category"] == "error_handling"
-        ]
+        return [i for i in record.pattern_instances if i["category"] == "error_handling"]
 
     def test_set_e(self, tmp_path: Path) -> None:
         assert len(self._instances(tmp_path, "set -e\n")) == 1
@@ -161,9 +159,7 @@ class TestShellListBail:
         script.write_text(src, encoding="utf-8")
         adapter = ShellAdapter(repo_root=tmp_path)
         record = adapter.parse_file(script, src.encode())
-        return [
-            i for i in record.pattern_instances if i["category"] == "error_handling"
-        ]
+        return [i for i in record.pattern_instances if i["category"] == "error_handling"]
 
     def test_or_list_false_isolated(self, tmp_path: Path) -> None:
         """cmd || false isolates the list-bail path: exactly one instance, no double-count."""
@@ -294,13 +290,7 @@ class TestShellErrorHandlingExtended:
         assert any(True for _ in instances)  # at minimum one instance
 
     def test_five_new_shapes_distinct_from_m13(self, tmp_path: Path) -> None:
-        src = (
-            "set -euo pipefail\n"
-            "trap cleanup ERR\n"
-            "trap done EXIT\n"
-            "if ! foo; then exit 1; fi\n"
-            "bar || false\n"
-        )
+        src = "set -euo pipefail\ntrap cleanup ERR\ntrap done EXIT\nif ! foo; then exit 1; fi\nbar || false\n"
         instances = self._instances(tmp_path, src)
         hashes = {i["ast_hash"] for i in instances}
         # set-euo, trap-ERR, trap-EXIT (same hash as trap-ERR if args differ),
@@ -443,9 +433,7 @@ class TestShellLoggingRedirect:
         redirected_hashes = {i["ast_hash"] for i in redirected}
         # The redirected form (redirected_statement) must produce at least one
         # hash not present in the bare echo set
-        assert redirected_hashes - bare_hashes, (
-            ">&2 redirect must produce a distinct hash from bare echo"
-        )
+        assert redirected_hashes - bare_hashes, ">&2 redirect must produce a distinct hash from bare echo"
 
 
 # ---------------------------------------------------------------------------

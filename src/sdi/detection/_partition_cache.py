@@ -46,9 +46,7 @@ def _read_cache(cache_dir: Path) -> dict | None:
             return None
         return data
     except (json.JSONDecodeError, OSError):
-        logger.warning(
-            "Partition cache at %s is corrupt; using cold start.", cache_path
-        )
+        logger.warning("Partition cache at %s is corrupt; using cold start.", cache_path)
         return None
 
 
@@ -91,12 +89,8 @@ def _build_initial_membership(graph: igraph.Graph, cache: dict) -> list[int]:
     Returns:
         List of initial cluster assignments, one per current vertex.
     """
-    name_to_cluster: dict[str, int] = dict(
-        zip(cache["vertex_names"], cache["stable_partition"])
-    )
-    names: list[str] = (
-        graph.vs["name"] if "name" in graph.vertex_attributes() else []
-    )
+    name_to_cluster: dict[str, int] = dict(zip(cache["vertex_names"], cache["stable_partition"]))
+    names: list[str] = graph.vs["name"] if "name" in graph.vertex_attributes() else []
     return [name_to_cluster.get(name, 0) for name in names]
 
 
@@ -126,9 +120,7 @@ def _apply_debounce(
         Tuple of (stable_partition, node_history). node_history is ready
         to be stored in the next cache write.
     """
-    prev_history: dict = (
-        prev_cache.get("node_history", {}) if prev_cache is not None else {}
-    )
+    prev_history: dict = prev_cache.get("node_history", {}) if prev_cache is not None else {}
     stable_partition: list[int] = []
     node_history: dict = {}
 
@@ -194,9 +186,7 @@ def _compute_stability_score(
     """
     if prev_cache is None:
         return 1.0
-    prev_mapping: dict[str, int] = dict(
-        zip(prev_cache["vertex_names"], prev_cache["stable_partition"])
-    )
+    prev_mapping: dict[str, int] = dict(zip(prev_cache["vertex_names"], prev_cache["stable_partition"]))
     matching = 0
     compared = 0
     for name, cluster in zip(vertex_names, new_stable):

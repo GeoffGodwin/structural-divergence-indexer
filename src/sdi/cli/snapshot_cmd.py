@@ -89,9 +89,7 @@ def _run_graph_and_detection(
     try:
         import igraph  # noqa: F401
     except ImportError:
-        click.echo(
-            "[warning] igraph not installed; skipping graph analysis.", err=True
-        )
+        click.echo("[warning] igraph not installed; skipping graph analysis.", err=True)
         return {}, None
 
     from sdi.graph import build_dependency_graph, compute_graph_metrics
@@ -146,9 +144,7 @@ def _print_snapshot_summary(snap: Snapshot, output_format: str) -> None:
         )
         return
 
-    langs = ", ".join(
-        f"{lang}: {cnt}" for lang, cnt in snap.language_breakdown.items()
-    )
+    langs = ", ".join(f"{lang}: {cnt}" for lang, cnt in snap.language_breakdown.items())
     click.echo(f"Snapshot captured at {snap.timestamp}")
     if snap.commit_sha:
         click.echo(f"  Commit    {snap.commit_sha}")
@@ -188,6 +184,7 @@ def snapshot_cmd(ctx: click.Context) -> None:
         click.echo("Stage 1/5: Parsing source files...", err=True)
 
     from sdi.parsing import parse_repository
+
     records = parse_repository(repo_root, config)
 
     if not quiet:

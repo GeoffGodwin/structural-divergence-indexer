@@ -15,8 +15,7 @@ try:
     import igraph
 except ImportError:
     print(
-        "[error] igraph is required for graph construction. "
-        "Install with: pip install igraph",
+        "[error] igraph is required for graph construction. Install with: pip install igraph",
         file=sys.stderr,
     )
     raise
@@ -185,9 +184,7 @@ def build_dependency_graph(
 
             if tgt_id == src_id:
                 self_import_count += 1
-                logger.debug(
-                    "Self-import %r skipped in %r", import_str, record.file_path
-                )
+                logger.debug("Self-import %r skipped in %r", import_str, record.file_path)
                 continue
 
             raw_edges.append((src_id, tgt_id))

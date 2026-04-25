@@ -153,9 +153,7 @@ class TestPatternEntropyDelta:
 
     def test_multi_category_entropy_summed(self) -> None:
         prev = _make_snap(pattern_catalog=_catalog({"cat_a": ["h1"], "cat_b": ["h2"]}))
-        curr = _make_snap(
-            pattern_catalog=_catalog({"cat_a": ["h1", "h3"], "cat_b": ["h2", "h4"]})
-        )
+        curr = _make_snap(pattern_catalog=_catalog({"cat_a": ["h1", "h3"], "cat_b": ["h2", "h4"]}))
         assert compute_delta(curr, prev).pattern_entropy_delta == pytest.approx(2.0)
 
 
@@ -219,9 +217,7 @@ class TestBoundaryViolationVelocity:
     """boundary_violations_delta = current inter-cluster edges - previous."""
 
     def test_positive_when_violations_increase(self) -> None:
-        prev = _make_snap(
-            partition_data=_partition([{"source_cluster": 0, "target_cluster": 1, "count": 2}])
-        )
+        prev = _make_snap(partition_data=_partition([{"source_cluster": 0, "target_cluster": 1, "count": 2}]))
         curr = _make_snap(
             partition_data=_partition(
                 [

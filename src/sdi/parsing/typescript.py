@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import tree_sitter_typescript as _tsts
-from tree_sitter import Language, Parser
+from tree_sitter import Language, Node, Parser
 
 from sdi.parsing._js_ts_common import (
     count_loc,
@@ -46,7 +46,7 @@ def _get_tsx_parser() -> Parser:
     return _TSX_PARSER
 
 
-def _extract_type_only_imports(root) -> list[str]:
+def _extract_type_only_imports(root: Node) -> list[str]:
     """Extract type-only import paths, annotated with ``type:`` prefix.
 
     Covers ``import type { Foo } from './bar'``.
@@ -72,7 +72,7 @@ def _extract_type_only_imports(root) -> list[str]:
     return found
 
 
-def _build_imports(root) -> list[str]:
+def _build_imports(root: Node) -> list[str]:
     """Build the full import list for a TypeScript file.
 
     Combines ES imports, type-only imports (prefixed ``type:``),

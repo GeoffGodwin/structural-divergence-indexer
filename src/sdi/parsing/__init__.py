@@ -4,10 +4,10 @@ Public API:
     parse_repository(root, config) -> list[FeatureRecord]
 """
 
-from sdi.parsing.discovery import discover_files, detect_language
-from sdi.parsing.base import LanguageAdapter
-from sdi.snapshot.model import FeatureRecord
 from sdi.parsing._runner import parse_repository
+from sdi.parsing.base import LanguageAdapter
+from sdi.parsing.discovery import detect_language, discover_files
+from sdi.snapshot.model import FeatureRecord
 
 __all__ = [
     "FeatureRecord",

@@ -175,11 +175,13 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
         if node.type == "if_statement":
             cond = node.child_by_field_name("condition")
             if cond is not None and "err" in _node_text(cond):
-                instances.append({
-                    "category": "error_handling",
-                    "ast_hash": _structural_hash(node),
-                    "location": _location(node),
-                })
+                instances.append(
+                    {
+                        "category": "error_handling",
+                        "ast_hash": _structural_hash(node),
+                        "location": _location(node),
+                    }
+                )
     return instances
 
 

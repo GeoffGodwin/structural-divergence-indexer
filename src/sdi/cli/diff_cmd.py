@@ -70,9 +70,7 @@ def _load_pair(
     )
 
 
-def _print_diff_text(
-    name_a: str, name_b: str, div: DivergenceSummary
-) -> None:
+def _print_diff_text(name_a: str, name_b: str, div: DivergenceSummary) -> None:
     """Print a human-readable diff summary.
 
     Args:
@@ -92,9 +90,7 @@ def _print_diff_text(
             val_s = f"{val:.4f}"
         else:
             val_s = str(val)
-        click.echo(
-            "  {:<28} {:>10}  {:>12}".format(name, val_s, format_delta(delta))
-        )
+        click.echo("  {:<28} {:>10}  {:>12}".format(name, val_s, format_delta(delta)))
 
     d = div
     row("pattern_entropy", d.pattern_entropy, d.pattern_entropy_delta)

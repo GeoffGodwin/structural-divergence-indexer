@@ -29,25 +29,15 @@ def _format_catalog_text(catalog: PatternCatalog) -> None:
 
     for cat_name, cat in sorted(catalog.categories.items()):
         click.echo(f"\n{cat_name}")
-        click.echo(
-            f"  entropy={cat.entropy}  canonical={cat.canonical_hash or 'none'}"
-        )
+        click.echo(f"  entropy={cat.entropy}  canonical={cat.canonical_hash or 'none'}")
         if not cat.shapes:
             click.echo("  (no shapes)")
             continue
-        click.echo(
-            "  {:<22} {:>8}  {:>8}  {:>6}  {}".format(
-                "hash", "instances", "velocity", "spread", "files"
-            )
-        )
+        click.echo("  {:<22} {:>8}  {:>8}  {:>6}  {}".format("hash", "instances", "velocity", "spread", "files"))
         click.echo("  " + "-" * 72)
-        for shape in sorted(
-            cat.shapes.values(), key=lambda s: -s.instance_count
-        ):
+        for shape in sorted(cat.shapes.values(), key=lambda s: -s.instance_count):
             vel = "N/A" if shape.velocity is None else str(shape.velocity)
-            spread = (
-                "N/A" if shape.boundary_spread is None else str(shape.boundary_spread)
-            )
+            spread = "N/A" if shape.boundary_spread is None else str(shape.boundary_spread)
             files_preview = ", ".join(shape.file_paths[:3])
             if len(shape.file_paths) > 3:
                 files_preview += f" (+{len(shape.file_paths) - 3})"

@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from sdi.config import SDIConfig
 from sdi.parsing.python import PythonAdapter
 from sdi.patterns.catalog import PatternCatalog, build_pattern_catalog
@@ -60,18 +58,13 @@ def test_fixture_dir_contains_expected_files():
         "logging_module.py",
         "mixed_patterns.py",
     }
-    assert set(py_files) == expected, (
-        f"Unexpected files in fixture dir. Got: {py_files}"
-    )
+    assert set(py_files) == expected, f"Unexpected files in fixture dir. Got: {py_files}"
 
 
 def test_parsing_produces_records_for_all_files():
     """PythonAdapter produces one FeatureRecord per fixture file."""
     adapter = PythonAdapter(repo_root=FIXTURE_DIR)
-    records = [
-        adapter.parse_file(p, p.read_bytes())
-        for p in sorted(FIXTURE_DIR.glob("*.py"))
-    ]
+    records = [adapter.parse_file(p, p.read_bytes()) for p in sorted(FIXTURE_DIR.glob("*.py"))]
     assert len(records) == 11
     for record in records:
         assert record.language == "python"
@@ -85,13 +78,8 @@ def test_error_handling_files_produce_pattern_instances():
     assert len(error_files) == 5, "Expected 5 error_* fixture files"
     for py_file in error_files:
         record = adapter.parse_file(py_file, py_file.read_bytes())
-        eh_instances = [
-            inst for inst in record.pattern_instances
-            if inst.get("category") == "error_handling"
-        ]
-        assert len(eh_instances) >= 1, (
-            f"{py_file.name} produced no error_handling instances"
-        )
+        eh_instances = [inst for inst in record.pattern_instances if inst.get("category") == "error_handling"]
+        assert len(eh_instances) >= 1, f"{py_file.name} produced no error_handling instances"
 
 
 def test_error_handling_entropy_ge_4_from_real_parsing():
@@ -156,9 +144,7 @@ def test_error_handling_shapes_have_nonzero_instance_counts():
     eh_cat = catalog.get_category("error_handling")
     assert eh_cat is not None
     for hash_val, shape in eh_cat.shapes.items():
-        assert shape.instance_count >= 1, (
-            f"Shape {hash_val!r} has zero instance count"
-        )
+        assert shape.instance_count >= 1, f"Shape {hash_val!r} has zero instance count"
 
 
 def test_velocity_is_null_on_real_first_parse():
@@ -177,13 +163,7 @@ def test_min_pattern_nodes_filter_reduces_shape_count():
     catalog_unfiltered = _parse_fixtures(min_nodes=1)
     catalog_filtered = _parse_fixtures(min_nodes=20)
 
-    total_unfiltered = sum(
-        len(cat.shapes) for cat in catalog_unfiltered.categories.values()
-    )
-    total_filtered = sum(
-        len(cat.shapes) for cat in catalog_filtered.categories.values()
-    )
+    total_unfiltered = sum(len(cat.shapes) for cat in catalog_unfiltered.categories.values())
+    total_filtered = sum(len(cat.shapes) for cat in catalog_filtered.categories.values())
     # With a high min_nodes threshold, some (or all) shapes should be filtered out
-    assert total_filtered <= total_unfiltered, (
-        "Filtered catalog should have fewer or equal shapes than unfiltered"
-    )
+    assert total_filtered <= total_unfiltered, "Filtered catalog should have fewer or equal shapes than unfiltered"

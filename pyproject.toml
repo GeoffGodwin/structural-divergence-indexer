@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sdi"
-version = "0.1.9"
+version = "0.14.0"
 description = "Structural Divergence Indexer — measure and track structural drift in codebases"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -39,6 +39,12 @@ dev = [
     "ruff>=0.3",
     "mypy>=1.0",
 ]
+docs = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.7,<10",
+    "pymdown-extensions>=10.21,<11",
+    "pygments>=2.20,<3",
+]
 all = [
     "tree-sitter>=0.24",
     "tree-sitter-python",
@@ -62,7 +68,10 @@ where = ["src"]
 
 [tool.ruff]
 src = ["src"]
-line-length = 88
+line-length = 120
+extend-exclude = [
+    "tests/fixtures",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from sdi.parsing.javascript import JavaScriptAdapter
 from sdi.parsing import FeatureRecord
-
+from sdi.parsing.javascript import JavaScriptAdapter
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
@@ -34,6 +34,7 @@ def _parse(adapter: JavaScriptAdapter, path: Path, source: str) -> FeatureRecord
 # ---------------------------------------------------------------------------
 # ES import extraction
 # ---------------------------------------------------------------------------
+
 
 class TestESImports:
     def test_named_import(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
@@ -63,6 +64,7 @@ class TestESImports:
 # CommonJS require
 # ---------------------------------------------------------------------------
 
+
 class TestCommonJSRequire:
     def test_simple_require(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.js"
@@ -85,17 +87,14 @@ class TestCommonJSRequire:
 # Dynamic imports
 # ---------------------------------------------------------------------------
 
+
 class TestDynamicImports:
-    def test_dynamic_import_expression(
-        self, adapter: JavaScriptAdapter, repo_root: Path
-    ) -> None:
+    def test_dynamic_import_expression(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.js"
         record = _parse(adapter, path, "const m = import('./dynamic');\n")
         assert "./dynamic" in record.imports
 
-    def test_await_dynamic_import(
-        self, adapter: JavaScriptAdapter, repo_root: Path
-    ) -> None:
+    def test_await_dynamic_import(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.js"
         record = _parse(adapter, path, "const m = await import('./lazy');\n")
         assert "./lazy" in record.imports
@@ -104,6 +103,7 @@ class TestDynamicImports:
 # ---------------------------------------------------------------------------
 # Symbol extraction
 # ---------------------------------------------------------------------------
+
 
 class TestSymbolExtraction:
     def test_function_declaration(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
@@ -126,6 +126,7 @@ class TestSymbolExtraction:
 # Pattern instances
 # ---------------------------------------------------------------------------
 
+
 class TestPatternInstances:
     def test_try_catch_detected(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.js"
@@ -144,6 +145,7 @@ class TestPatternInstances:
 # ---------------------------------------------------------------------------
 # FeatureRecord metadata
 # ---------------------------------------------------------------------------
+
 
 class TestFeatureRecordMetadata:
     def test_language_is_javascript(self, adapter: JavaScriptAdapter, repo_root: Path) -> None:

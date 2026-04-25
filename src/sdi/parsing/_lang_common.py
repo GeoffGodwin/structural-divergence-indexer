@@ -8,6 +8,7 @@ objects and raw source bytes with no language-specific assumptions.
 from __future__ import annotations
 
 import hashlib
+from typing import Iterator
 
 from tree_sitter import Node
 
@@ -22,6 +23,7 @@ def _structural_hash(node: Node, max_depth: int = 6) -> str:
     Returns:
         8-character hex string.
     """
+
     def _serialize(n: Node, depth: int) -> str:
         if depth == 0:
             return n.type
@@ -37,7 +39,7 @@ def _location(node: Node) -> dict[str, int]:
     return {"line": node.start_point[0] + 1, "col": node.start_point[1]}
 
 
-def _walk_nodes(node: Node):
+def _walk_nodes(node: Node) -> Iterator[Node]:
     """Yield all descendant nodes via depth-first traversal."""
     yield node
     for child in node.children:

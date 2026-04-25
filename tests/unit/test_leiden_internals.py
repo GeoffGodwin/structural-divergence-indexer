@@ -28,7 +28,6 @@ from sdi.detection.leiden import (
     _compute_surface_area_ratios,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -48,8 +47,7 @@ def _prev_cache(names: list[str], partition: list[int]) -> dict:
         "vertex_names": names,
         "stable_partition": partition,
         "node_history": {
-            n: {"stable_cluster": c, "candidate_cluster": c, "consecutive_runs": 0}
-            for n, c in zip(names, partition)
+            n: {"stable_cluster": c, "candidate_cluster": c, "consecutive_runs": 0} for n, c in zip(names, partition)
         },
     }
 
@@ -243,10 +241,7 @@ def test_read_cache_toplevel_array_returns_none(tmp_path: Path) -> None:
     cache_dir.mkdir()
     (cache_dir / "partition.json").write_text("[1, 2, 3]")
     result = _read_cache(cache_dir)
-    assert result is None, (
-        "_read_cache should return None for a top-level JSON array, "
-        "not raise AttributeError"
-    )
+    assert result is None, "_read_cache should return None for a top-level JSON array, not raise AttributeError"
 
 
 # ---------------------------------------------------------------------------

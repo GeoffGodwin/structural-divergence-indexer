@@ -17,9 +17,7 @@ def _parse(tmp_path: Path, src: str) -> object:
 
 
 def _by_cat(tmp_path: Path, src: str, category: str) -> list[dict]:
-    return [
-        i for i in _parse(tmp_path, src).pattern_instances if i["category"] == category
-    ]
+    return [i for i in _parse(tmp_path, src).pattern_instances if i["category"] == category]
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +53,7 @@ class TestShellErrorHandlingExtended:
         assert len({i["ast_hash"] for i in instances}) == 2
 
     def test_if_return_nonzero(self, tmp_path: Path) -> None:
-        src = "validate() { if [ -z \"$1\" ]; then return 1; fi; }\n"
+        src = 'validate() { if [ -z "$1" ]; then return 1; fi; }\n'
         instances = _by_cat(tmp_path, src, "error_handling")
         assert len(instances) >= 1
 
@@ -70,13 +68,7 @@ class TestShellErrorHandlingExtended:
         assert len(instances) >= 1
 
     def test_five_new_shapes_have_distinct_hashes(self, tmp_path: Path) -> None:
-        src = (
-            "set -euo pipefail\n"
-            "trap cleanup ERR\n"
-            "trap done EXIT\n"
-            "if ! foo; then exit 1; fi\n"
-            "bar || false\n"
-        )
+        src = "set -euo pipefail\ntrap cleanup ERR\ntrap done EXIT\nif ! foo; then exit 1; fi\nbar || false\n"
         instances = _by_cat(tmp_path, src, "error_handling")
         assert len({i["ast_hash"] for i in instances}) >= 4
 

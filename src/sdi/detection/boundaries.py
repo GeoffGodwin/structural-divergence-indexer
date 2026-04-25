@@ -76,11 +76,7 @@ class IntentDivergence:
     @property
     def total_violations(self) -> int:
         """Total count of all violations (files + edge groups)."""
-        return (
-            len(self.misplaced_files)
-            + len(self.unauthorized_cross_boundary)
-            + len(self.layer_violations)
-        )
+        return len(self.misplaced_files) + len(self.unauthorized_cross_boundary) + len(self.layer_violations)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict for snapshot storage."""
@@ -113,9 +109,7 @@ def _parse_spec(inner: dict[str, Any]) -> BoundarySpec:
         else None
     )
     allowed = [
-        AllowedCrossDomain(
-            from_module=a["from"], to=a["to"], via=a.get("via", ""), reason=a.get("reason", "")
-        )
+        AllowedCrossDomain(from_module=a["from"], to=a["to"], via=a.get("via", ""), reason=a.get("reason", ""))
         for a in inner.get("allowed_cross_domain", [])
     ]
     splits = [
@@ -156,8 +150,7 @@ def load_boundary_spec(path: Path) -> BoundarySpec | None:
         from ruamel.yaml import YAML
     except ImportError:
         print(
-            "[error] ruamel.yaml is required for boundary specs. "
-            "Install: pip install ruamel.yaml",
+            "[error] ruamel.yaml is required for boundary specs. Install: pip install ruamel.yaml",
             file=sys.stderr,
         )
         raise SystemExit(2)
@@ -261,8 +254,6 @@ def compute_intent_divergence(
     cluster_module = _build_cluster_module_map(partition_data, spec.modules)
     return IntentDivergence(
         misplaced_files=_find_misplaced_files(spec, partition_data),
-        unauthorized_cross_boundary=_find_unauthorized_cross_boundary(
-            spec, partition_data, cluster_module
-        ),
+        unauthorized_cross_boundary=_find_unauthorized_cross_boundary(spec, partition_data, cluster_module),
         layer_violations=_find_layer_violations(spec, partition_data, cluster_module),
     )

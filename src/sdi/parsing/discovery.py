@@ -27,9 +27,7 @@ _EXTENSION_TO_LANGUAGE: dict[str, str] = {
 
 # Interpreter names that indicate a shell script shebang.
 # Checked against Path(interpreter).name so "bashbrew" won't match "bash".
-_SHELL_INTERPRETERS: frozenset[str] = frozenset(
-    {"sh", "bash", "zsh", "ksh", "dash", "ash"}
-)
+_SHELL_INTERPRETERS: frozenset[str] = frozenset({"sh", "bash", "zsh", "ksh", "dash", "ash"})
 
 
 def detect_language(path: Path) -> str | None:

@@ -88,12 +88,7 @@ def _update_gitignore(gitignore_path: Path) -> None:
         existing = gitignore_path.read_text(encoding="utf-8")
         if entry in existing:
             return
-        updated = (
-            existing.rstrip("\n")
-            + "\n\n# SDI cache (auto-generated, do not commit)\n"
-            + entry
-            + "\n"
-        )
+        updated = existing.rstrip("\n") + "\n\n# SDI cache (auto-generated, do not commit)\n" + entry + "\n"
     else:
         updated = "# SDI cache (auto-generated, do not commit)\n" + entry + "\n"
     write_atomic(gitignore_path, updated)
@@ -229,8 +224,8 @@ def _infer_boundaries_from_snapshot(sdi_dir: Path) -> str | None:
     if not snapshots_dir.exists():
         return None
     try:
-        from sdi.snapshot.storage import list_snapshots, read_snapshot
         from sdi.detection.boundaries import partition_to_proposed_yaml
+        from sdi.snapshot.storage import list_snapshots, read_snapshot
 
         paths = list_snapshots(snapshots_dir)
         if not paths:

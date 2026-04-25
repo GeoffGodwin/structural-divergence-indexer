@@ -20,15 +20,13 @@ import warnings
 from pathlib import Path
 
 import igraph
-import pytest
 
 from sdi.config import SDIConfig
-from sdi.detection import CommunityResult, detect_communities
+from sdi.detection import detect_communities
 from sdi.detection._partition_cache import (
     PARTITION_CACHE_VERSION,
     _read_cache,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -46,10 +44,20 @@ def _make_graph(n: int, edges: list[tuple[int, int]]) -> igraph.Graph:
 def _cluster_graph() -> igraph.Graph:
     """Three clear communities of 4 nodes each, weakly connected between them."""
     edges = [
-        (0, 1), (1, 2), (2, 3), (3, 0),
-        (4, 5), (5, 6), (6, 7), (7, 4),
-        (8, 9), (9, 10), (10, 11), (11, 8),
-        (3, 4), (7, 8),
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 0),
+        (4, 5),
+        (5, 6),
+        (6, 7),
+        (7, 4),
+        (8, 9),
+        (9, 10),
+        (10, 11),
+        (11, 8),
+        (3, 4),
+        (7, 8),
     ]
     return _make_graph(12, edges)
 
@@ -189,9 +197,7 @@ def test_cache_is_written_after_run(tmp_path: Path) -> None:
 
 def test_missing_cache_triggers_cold_start(tmp_path: Path) -> None:
     """Missing cache file causes cold start without error."""
-    result = detect_communities(
-        _cluster_graph(), _default_config(), tmp_path / "no_cache_here"
-    )
+    result = detect_communities(_cluster_graph(), _default_config(), tmp_path / "no_cache_here")
     assert result.stability_score == 1.0
     assert result.cluster_count > 0
 

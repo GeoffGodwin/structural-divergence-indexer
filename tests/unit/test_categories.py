@@ -97,9 +97,7 @@ _SHELL_PATTERN_CATEGORIES: list[str] = [
 def test_shell_supported_categories_are_registered():
     """The four shell-pattern categories are present in the built-in registry."""
     for name in _SHELL_PATTERN_CATEGORIES:
-        assert is_registered_category(name), (
-            f"Shell-pattern category '{name}' missing from registry"
-        )
+        assert is_registered_category(name), f"Shell-pattern category '{name}' missing from registry"
 
 
 def test_shell_categories_have_no_shell_ts_query():

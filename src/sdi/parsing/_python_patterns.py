@@ -6,7 +6,7 @@ Private module — used only by sdi.parsing.python.
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Iterator
 
 from tree_sitter import Node
 
@@ -24,6 +24,7 @@ def _structural_hash(node: Node, max_depth: int = 6) -> str:
     Returns:
         8-character hex string.
     """
+
     def _serialize(n: Node, depth: int) -> str:
         if depth == 0:
             return n.type
@@ -79,7 +80,7 @@ def _is_data_access_call(node: Node) -> bool:
     return method in data_methods
 
 
-def _walk_nodes(node: Node):
+def _walk_nodes(node: Node) -> Iterator[Node]:
     """Yield all descendant nodes via depth-first traversal."""
     yield node
     for child in node.children:
@@ -104,24 +105,30 @@ def extract_pattern_instances(root: Node) -> list[dict[str, Any]]:
 
     for node in _walk_nodes(root):
         if node.type == "try_statement":
-            instances.append({
-                "category": "error_handling",
-                "ast_hash": _structural_hash(node),
-                "location": _location(node),
-            })
+            instances.append(
+                {
+                    "category": "error_handling",
+                    "ast_hash": _structural_hash(node),
+                    "location": _location(node),
+                }
+            )
         elif node.type == "call":
             if _is_logging_call(node):
-                instances.append({
-                    "category": "logging",
-                    "ast_hash": _structural_hash(node),
-                    "location": _location(node),
-                })
+                instances.append(
+                    {
+                        "category": "logging",
+                        "ast_hash": _structural_hash(node),
+                        "location": _location(node),
+                    }
+                )
             elif _is_data_access_call(node):
-                instances.append({
-                    "category": "data_access",
-                    "ast_hash": _structural_hash(node),
-                    "location": _location(node),
-                })
+                instances.append(
+                    {
+                        "category": "data_access",
+                        "ast_hash": _structural_hash(node),
+                        "location": _location(node),
+                    }
+                )
 
     return instances
 
@@ -136,7 +143,6 @@ def count_loc(source_bytes: bytes) -> int:
         Integer line count.
     """
     count = 0
-    in_multiline_string = False
     for raw_line in source_bytes.decode("utf-8", errors="replace").splitlines():
         line = raw_line.strip()
         if not line:

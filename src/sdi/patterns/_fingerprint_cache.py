@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 _SUBDIR = "fingerprints"
 
 
-def read_fingerprint_cache(
-    cache_dir: Path, file_hash: str
-) -> list[dict[str, Any]] | None:
+def read_fingerprint_cache(cache_dir: Path, file_hash: str) -> list[dict[str, Any]] | None:
     """Read cached fingerprint dicts for a file by content hash.
 
     Args:
@@ -51,9 +49,7 @@ def read_fingerprint_cache(
         return None
 
 
-def write_fingerprint_cache(
-    cache_dir: Path, file_hash: str, fps: list[PatternFingerprint]
-) -> None:
+def write_fingerprint_cache(cache_dir: Path, file_hash: str, fps: list[PatternFingerprint]) -> None:
     """Atomically write fingerprints to the fingerprint cache.
 
     Args:
@@ -65,8 +61,7 @@ def write_fingerprint_cache(
     subdir.mkdir(parents=True, exist_ok=True)
     target = subdir / f"{file_hash}.json"
     payload = [
-        {"category": fp.category, "structural_hash": fp.structural_hash, "node_count": fp.node_count}
-        for fp in fps
+        {"category": fp.category, "structural_hash": fp.structural_hash, "node_count": fp.node_count} for fp in fps
     ]
     tmp_fd, tmp_name = tempfile.mkstemp(dir=subdir, suffix=".tmp")
     try:
@@ -81,9 +76,7 @@ def write_fingerprint_cache(
         raise
 
 
-def cleanup_orphan_fingerprint_cache(
-    cache_dir: Path, active_hashes: set[str]
-) -> int:
+def cleanup_orphan_fingerprint_cache(cache_dir: Path, active_hashes: set[str]) -> int:
     """Remove fingerprint cache entries not present in active_hashes.
 
     Args:

@@ -29,9 +29,7 @@ def _print_trend_text(
         dim_names: Ordered dimension names to display.
     """
     # Header row
-    header = f"  {'Timestamp':<26}" + "".join(
-        f"  {d[:18]:>18}" for d in dim_names
-    )
+    header = f"  {'Timestamp':<26}" + "".join(f"  {d[:18]:>18}" for d in dim_names)
     click.echo(header)
     click.echo("  " + "-" * (26 + 20 * len(dim_names)))
 
@@ -104,8 +102,7 @@ def trend_cmd(
         invalid = [d for d in dimensions if d not in ALL_DIMENSIONS]
         if invalid:
             click.echo(
-                f"[error] Unknown dimension(s): {', '.join(invalid)}. "
-                f"Valid: {', '.join(sorted(ALL_DIMENSIONS))}",
+                f"[error] Unknown dimension(s): {', '.join(invalid)}. Valid: {', '.join(sorted(ALL_DIMENSIONS))}",
                 err=True,
             )
             raise SystemExit(2)
@@ -120,10 +117,7 @@ def trend_cmd(
         headers = ["timestamp"] + dim_names
         rows = []
         for i, ts in enumerate(trend.timestamps):
-            row = [ts] + [
-                trend.dimensions[d][i] if i < len(trend.dimensions.get(d, [])) else None
-                for d in dim_names
-            ]
+            row = [ts] + [trend.dimensions[d][i] if i < len(trend.dimensions.get(d, [])) else None for d in dim_names]
             rows.append(row)
         emit_rows_csv(headers, rows)
     else:
