@@ -13,6 +13,35 @@ on:
       - main
 
 jobs:
+  changelog-hygiene:
+    name: Changelog Hygiene
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check that src/ changes are accompanied by a CHANGELOG entry
+        run: |
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          changed=$(git diff --name-only "$base_sha...$head_sha")
+
+          src_changed=$(printf '%s\n' "$changed" | grep '^src/' || true)
+          changelog_changed=$(printf '%s\n' "$changed" | grep '^CHANGELOG\.md$' || true)
+
+          if [ -n "$src_changed" ] && [ -z "$changelog_changed" ]; then
+            echo "::error::This PR changes files under src/ but does not update CHANGELOG.md."
+            echo "Add an entry under [Unreleased] in CHANGELOG.md, or override this check at review time if the change is genuinely user-invisible."
+            echo
+            echo "src/ files changed in this PR:"
+            printf '%s\n' "$src_changed" | sed 's/^/  /'
+            exit 1
+          fi
+
+          echo "Changelog hygiene OK."
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
