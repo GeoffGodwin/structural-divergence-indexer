@@ -80,7 +80,9 @@ select = ["E", "F", "I"]
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["tomli", "leidenalg", "igraph", "tree_sitter_bash"]
+# tomllib is stdlib in 3.11+ but absent on 3.10 (where we fall back to tomli).
+# Ignore the missing-import error on 3.10 where mypy can't find the stdlib stub.
+module = ["tomli", "tomllib", "leidenalg", "igraph", "tree_sitter_bash"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
