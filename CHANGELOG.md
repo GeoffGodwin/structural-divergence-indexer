@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-04-25
+
+Patch against the v0.14 era addressing UX friction surfaced while pressure-testing SDI on a downstream Next.js project (bifl-tracker). Focus is on making per-snapshot output internally consistent and reducing noise from co-located AI-tooling directories. No new milestones, no schema changes, no breaking API changes.
+
+### Changed
+- **`convention_drift_delta` is now expressed in the same units as `convention_drift`.** Previously the absolute value was a fraction in `[0.0, 1.0]` (non-canonical instances ÷ total instances) but the delta was a signed integer count of distinct shapes added/removed between snapshots. The CLI surfaced both under columns labelled "Value" and "Delta", which produced confusing rows like `convention_drift  0.7  Δ +1.000` even when the absolute fraction had decreased. The delta is now `current_drift − previous_drift`, so `Value + Δ ≈ NewValue` holds. The shape-count signal that the old delta carried is largely redundant with `pattern_entropy_delta`, which already counts net new distinct shapes. (`src/sdi/snapshot/delta.py`)
+- **Default `convention_drift_rate` lowered from `3.0` to `0.10`.** The old default was tuned for the integer shape-count delta and did not make sense against a fraction in `[0.0, 1.0]`. `0.10` flags a snapshot in which the non-canonical fraction shifts by more than 10 percentage points.
+- **Default `boundary_violation_rate` raised from `2.0` to `5.0`.** Empirically calibrated against milestone-sized work on small projects: a default of `2.0` is breached by introducing a single new module and its tests, which is normal milestone activity. `5.0` keeps the gate sensitive to escalation without firing on routine module additions. Teams can still tighten via per-category overrides.
+- **`.claude/**` added to the default `[core] exclude` list.** Vendored Claude Code dashboard, milestones, and agent files were being parsed and counted toward pattern entropy / convention drift, swamping signal from actual source. The new entry is additive — projects that explicitly set `exclude` in `.sdi/config.toml` are unaffected.
+
+### Fixed
+- `sdi diff` and `sdi show` no longer present `convention_drift` and its delta in incompatible units. Existing snapshots are unaffected; trend rows that span the boundary will show the unit transition once.
+
+### Migration Notes
+- No action required for projects using default thresholds — new defaults activate on first run after upgrade.
+- Projects with explicit `convention_drift_rate` in `.sdi/config.toml` should review whether their value (likely tuned for the old shape-count semantics) still matches intent in the new fraction-based delta semantics.
+- Old snapshots are still readable; the `convention_drift_delta` field on snapshots written by `0.14.0` and earlier is a stale shape-count value and should be interpreted in that historical context.
+
 ## [0.14.0] - 2026-04-24
 
 This is the cement-the-moment release for the v0 era. M1–M14 are shipped, the project lifecycle (CI, release pipeline, docs, version single-sourcing) is wired up, and `0.14.0` is cut as the last v0 MILESTONE before the v1 era begins at `1.0.0`.

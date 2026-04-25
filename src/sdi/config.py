@@ -30,6 +30,7 @@ _DEFAULT_EXCLUDE = (
     "**/dist/**",
     "**/build/**",
     "**/.git/**",
+    "**/.claude/**",
 )
 
 
@@ -87,9 +88,9 @@ class ThresholdsConfig:
     """Alert threshold configuration."""
 
     pattern_entropy_rate: float = 2.0
-    convention_drift_rate: float = 3.0
+    convention_drift_rate: float = 0.10
     coupling_delta_rate: float = 0.15
-    boundary_violation_rate: float = 2.0
+    boundary_violation_rate: float = 5.0
     overrides: dict[str, ThresholdOverride] = field(default_factory=dict)
 
 
@@ -257,9 +258,9 @@ def _dict_to_config(data: dict) -> SDIConfig:
         ),
         thresholds=ThresholdsConfig(
             pattern_entropy_rate=thresh.get("pattern_entropy_rate", 2.0),
-            convention_drift_rate=thresh.get("convention_drift_rate", 3.0),
+            convention_drift_rate=thresh.get("convention_drift_rate", 0.10),
             coupling_delta_rate=thresh.get("coupling_delta_rate", 0.15),
-            boundary_violation_rate=thresh.get("boundary_violation_rate", 2.0),
+            boundary_violation_rate=thresh.get("boundary_violation_rate", 5.0),
             overrides=overrides,
         ),
         change_coupling=ChangeCouplingConfig(

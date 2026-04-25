@@ -19,6 +19,8 @@ from typing import Any
 from sdi.patterns.catalog import PatternCatalog
 from sdi.snapshot.model import DivergenceSummary, Snapshot
 
+__all__ = ["compute_delta"]
+
 # ---------------------------------------------------------------------------
 # Absolute-value helpers
 # ---------------------------------------------------------------------------
@@ -108,30 +110,6 @@ def _count_boundary_violations(partition_data: dict[str, Any]) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Shape-set helper for convention_drift_delta
-# ---------------------------------------------------------------------------
-
-
-def _shape_set(catalog_dict: dict[str, Any]) -> set[tuple[str, str]]:
-    """Return the set of (category_name, structural_hash) pairs in a catalog.
-
-    Args:
-        catalog_dict: Serialized PatternCatalog dict.
-
-    Returns:
-        Set of (category, hash) tuples — one per distinct shape.
-    """
-    if not catalog_dict:
-        return set()
-    catalog = PatternCatalog.from_dict(catalog_dict)
-    result: set[tuple[str, str]] = set()
-    for cat_name, cat in catalog.categories.items():
-        for hash_val in cat.shapes:
-            result.add((cat_name, hash_val))
-    return result
-
-
-# ---------------------------------------------------------------------------
 # Version compatibility
 # ---------------------------------------------------------------------------
 
@@ -202,19 +180,15 @@ def compute_delta(
         )
 
     prev_entropy = _catalog_pattern_entropy(previous.pattern_catalog)
+    prev_drift = _catalog_convention_drift(previous.pattern_catalog)
     prev_coupling = _coupling_composite(previous.graph_metrics)
     prev_violations = _count_boundary_violations(previous.partition_data)
-
-    curr_shapes = _shape_set(current.pattern_catalog)
-    prev_shapes = _shape_set(previous.pattern_catalog)
-    new_shapes = len(curr_shapes - prev_shapes)
-    lost_shapes = len(prev_shapes - curr_shapes)
 
     return DivergenceSummary(
         pattern_entropy=pattern_entropy,
         pattern_entropy_delta=pattern_entropy - prev_entropy,
         convention_drift=convention_drift,
-        convention_drift_delta=float(new_shapes - lost_shapes),
+        convention_drift_delta=convention_drift - prev_drift,
         coupling_topology=coupling_topology,
         coupling_topology_delta=coupling_topology - prev_coupling,
         boundary_violations=boundary_violations,

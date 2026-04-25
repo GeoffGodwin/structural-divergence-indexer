@@ -22,7 +22,10 @@ _CONFIG_TEMPLATE = """\
 # Languages to analyze. "auto" detects from file extensions.
 # languages = "auto"
 # Files/directories to exclude (additive to .gitignore).
-# exclude = ["**/vendor/**", "**/node_modules/**", "**/__pycache__/**", "**/dist/**", "**/build/**", "**/.git/**"]
+# exclude = [
+#   "**/vendor/**", "**/node_modules/**", "**/__pycache__/**",
+#   "**/dist/**", "**/build/**", "**/.git/**", "**/.claude/**",
+# ]
 # Random seed for reproducible Leiden partitioning on cold start.
 # random_seed = 42
 
@@ -51,9 +54,9 @@ _CONFIG_TEMPLATE = """\
 [thresholds]
 # Max acceptable delta per snapshot interval for each dimension.
 # pattern_entropy_rate = 2.0
-# convention_drift_rate = 3.0
+# convention_drift_rate = 0.10
 # coupling_delta_rate = 0.15
-# boundary_violation_rate = 2.0
+# boundary_violation_rate = 5.0
 
 [change_coupling]
 # Minimum co-change frequency (0.0-1.0) to flag cross-boundary coupling.

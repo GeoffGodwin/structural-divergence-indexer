@@ -183,9 +183,9 @@ SDI supports Python, TypeScript, JavaScript, Go, Java, and Rust out of the box w
 ```toml
 [thresholds]
 pattern_entropy_rate = 2.0
-convention_drift_rate = 3.0
+convention_drift_rate = 0.10
 coupling_delta_rate = 0.15
-boundary_violation_rate = 2.0
+boundary_violation_rate = 5.0
 
 # Time-boxed migration intent (required: expires)
 [thresholds.overrides.error_handling]
