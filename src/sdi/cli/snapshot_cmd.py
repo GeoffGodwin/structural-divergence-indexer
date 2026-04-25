@@ -94,7 +94,7 @@ def _run_graph_and_detection(
 
     from sdi.graph import build_dependency_graph, compute_graph_metrics
 
-    graph, _ = build_dependency_graph(records, config)
+    graph, _ = build_dependency_graph(records, config, repo_root=repo_root)
     metrics = compute_graph_metrics(graph)
 
     try:
