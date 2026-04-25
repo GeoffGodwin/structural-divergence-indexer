@@ -1,5 +1,10 @@
 # Structural Divergence Indexer (SDI)
 
+[![CI](https://github.com/GeoffGodwin/structural-divergence-indexer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GeoffGodwin/structural-divergence-indexer/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://geoffgodwin.github.io/structural-divergence-indexer/)
+[![Latest release](https://img.shields.io/github/v/release/GeoffGodwin/structural-divergence-indexer?include_prereleases&sort=semver)](https://github.com/GeoffGodwin/structural-divergence-indexer/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](#license)
+
 SDI is a CLI tool for measuring structural drift in a codebase over time.
 
 It captures periodic snapshots, computes deltas, and helps teams answer:
