@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from sdi.config import SDIConfig
 from sdi.graph.builder import (
     _build_module_map,
     _file_path_to_module_key,
+    _load_ts_path_aliases,
+    _match_alias,
     _resolve_import,
+    _resolve_js_import,
+    _strip_jsonc,
+    _try_extensions_and_index,
     build_dependency_graph,
 )
 from sdi.parsing import FeatureRecord
@@ -341,13 +348,10 @@ class TestFilePathToModuleKeyDeepSrcLayout:
 
 
 class TestBuildDependencyGraphNonPythonRecords:
-    def test_typescript_record_silently_ignored_as_node(self) -> None:
-        """Non-Python files produce no module key and are not added to the module map.
-
-        The TypeScript file still becomes a vertex (all records do), but it
-        cannot be a target of import resolution, so no edges point to it from
-        normal Python import strings.
-        """
+    def test_python_dotted_string_in_typescript_record_is_external(self) -> None:
+        """A Python-style dotted import ``some.ts.dep`` in a TS record is
+        treated as a bare specifier (no ``./``, ``../``, ``/`` prefix and no
+        alias match) and dropped as external."""
         records = [
             _make_record("a.py", ["b"]),
             _make_record("b.py", []),
@@ -361,16 +365,13 @@ class TestBuildDependencyGraphNonPythonRecords:
             ),
         ]
         g, meta = build_dependency_graph(records, _make_config())
-        # All three files become vertices
         assert g.vcount() == 3
-        # Only the Python→Python edge exists; TypeScript import is unresolved
         assert g.ecount() == 1
-        # The TypeScript import "some.ts.dep" is unresolved
         assert meta["unresolved_count"] >= 1
 
     def test_python_cannot_resolve_to_typescript_file(self) -> None:
-        """An import that might textually match a .ts filename resolves to None
-        because non-Python files are excluded from the module map."""
+        """Python uses dotted-module resolution against .py files only —
+        a Python ``frontend.app`` import never lands on ``frontend/app.ts``."""
         records = [
             _make_record("service.py", ["frontend.app"]),
             FeatureRecord(
@@ -383,13 +384,12 @@ class TestBuildDependencyGraphNonPythonRecords:
             ),
         ]
         g, meta = build_dependency_graph(records, _make_config())
-        # "frontend.app" does not resolve to the .ts file
         assert g.ecount() == 0
         assert meta["unresolved_count"] == 1
 
-    def test_all_non_python_records_no_edges(self) -> None:
-        """A set of only non-Python records produces a graph with vertices but
-        no edges and all imports counted as unresolved."""
+    def test_bare_specifier_typescript_imports_are_external(self) -> None:
+        """``react``, ``next/link`` etc. are npm packages — bare specifiers
+        without a relative prefix or alias match are dropped silently."""
         records = [
             FeatureRecord(
                 file_path="index.ts",
@@ -402,7 +402,7 @@ class TestBuildDependencyGraphNonPythonRecords:
             FeatureRecord(
                 file_path="utils.ts",
                 language="typescript",
-                imports=["index"],
+                imports=["next/link"],
                 symbols=[],
                 pattern_instances=[],
                 lines_of_code=1,
@@ -411,7 +411,6 @@ class TestBuildDependencyGraphNonPythonRecords:
         g, meta = build_dependency_graph(records, _make_config())
         assert g.vcount() == 2
         assert g.ecount() == 0
-        # Both imports are unresolvable (no Python files in module map)
         assert meta["unresolved_count"] == 2
 
 
@@ -485,3 +484,349 @@ class TestResolveImportTieBreaking:
         # "models.user" ends with ".user" (dotted) → matches "user"
         # "models.user" does NOT end with ".sers" → no match for "sers"
         assert result == "models/user.py"
+
+
+# ---------------------------------------------------------------------------
+# _strip_jsonc — tolerant tsconfig.json preprocessor
+# ---------------------------------------------------------------------------
+
+
+class TestStripJsonc:
+    def test_passes_plain_json_unchanged_in_meaning(self) -> None:
+        text = '{"a": 1, "b": 2}'
+        import json as _json
+
+        assert _json.loads(_strip_jsonc(text)) == {"a": 1, "b": 2}
+
+    def test_strips_line_comments(self) -> None:
+        text = '{\n  // top-level comment\n  "a": 1 // trailing\n}'
+        import json as _json
+
+        assert _json.loads(_strip_jsonc(text)) == {"a": 1}
+
+    def test_strips_block_comments(self) -> None:
+        text = '{ /* leading */ "a": /* inline */ 1 }'
+        import json as _json
+
+        assert _json.loads(_strip_jsonc(text)) == {"a": 1}
+
+    def test_strips_trailing_commas(self) -> None:
+        text = '{"a": [1, 2, 3,], "b": {"c": 1,},}'
+        import json as _json
+
+        assert _json.loads(_strip_jsonc(text)) == {"a": [1, 2, 3], "b": {"c": 1}}
+
+
+# ---------------------------------------------------------------------------
+# _match_alias — TS path alias pattern matching
+# ---------------------------------------------------------------------------
+
+
+class TestMatchAlias:
+    def test_exact_match_no_wildcard(self) -> None:
+        assert _match_alias("@app", "@app") == ""
+
+    def test_no_match_no_wildcard(self) -> None:
+        assert _match_alias("@app/foo", "@app") is None
+
+    def test_wildcard_captures_suffix(self) -> None:
+        assert _match_alias("@/lib/db", "@/*") == "lib/db"
+
+    def test_wildcard_with_suffix(self) -> None:
+        assert _match_alias("foo/bar.ts", "foo/*.ts") == "bar"
+
+    def test_no_match_when_prefix_differs(self) -> None:
+        assert _match_alias("~/foo", "@/*") is None
+
+    def test_no_match_when_suffix_differs(self) -> None:
+        assert _match_alias("foo/bar.css", "foo/*.ts") is None
+
+    def test_no_match_too_short_for_prefix_plus_suffix(self) -> None:
+        # prefix + suffix longer than import_str → no match
+        assert _match_alias("ab", "abc/*xyz") is None
+
+
+# ---------------------------------------------------------------------------
+# _load_ts_path_aliases — load aliases from tsconfig.json / jsconfig.json
+# ---------------------------------------------------------------------------
+
+
+class TestLoadTsPathAliases:
+    def test_no_config_returns_empty(self, tmp_path: Path) -> None:
+        assert _load_ts_path_aliases(tmp_path) == []
+
+    def test_loads_simple_paths_from_tsconfig(self, tmp_path: Path) -> None:
+        (tmp_path / "tsconfig.json").write_text('{"compilerOptions": {"paths": {"@/*": ["./*"]}}}')
+        aliases = _load_ts_path_aliases(tmp_path)
+        assert aliases == [("@/*", ["*"])]
+
+    def test_resolves_targets_against_base_url(self, tmp_path: Path) -> None:
+        (tmp_path / "tsconfig.json").write_text('{"compilerOptions": {"baseUrl": "./src", "paths": {"@/*": ["./*"]}}}')
+        aliases = _load_ts_path_aliases(tmp_path)
+        assert aliases == [("@/*", ["src/*"])]
+
+    def test_handles_jsonc_comments(self, tmp_path: Path) -> None:
+        (tmp_path / "tsconfig.json").write_text(
+            '{\n  // editor hint\n  "compilerOptions": { "paths": { "@/*": ["./*"], } }\n}'
+        )
+        aliases = _load_ts_path_aliases(tmp_path)
+        assert aliases == [("@/*", ["*"])]
+
+    def test_falls_back_to_jsconfig_when_tsconfig_absent(self, tmp_path: Path) -> None:
+        (tmp_path / "jsconfig.json").write_text('{"compilerOptions": {"paths": {"~/*": ["./src/*"]}}}')
+        aliases = _load_ts_path_aliases(tmp_path)
+        assert aliases == [("~/*", ["src/*"])]
+
+    def test_unparseable_config_returns_empty(self, tmp_path: Path) -> None:
+        (tmp_path / "tsconfig.json").write_text("not even close to json {")
+        assert _load_ts_path_aliases(tmp_path) == []
+
+
+# ---------------------------------------------------------------------------
+# _try_extensions_and_index — file probe with extension/index fallbacks
+# ---------------------------------------------------------------------------
+
+
+class TestTryExtensionsAndIndex:
+    def test_exact_match(self) -> None:
+        files = {"lib/foo.ts"}
+        assert _try_extensions_and_index("lib/foo.ts", files) == "lib/foo.ts"
+
+    def test_appends_ts_extension(self) -> None:
+        files = {"lib/foo.ts"}
+        assert _try_extensions_and_index("lib/foo", files) == "lib/foo.ts"
+
+    def test_prefers_ts_over_js_when_both_exist(self) -> None:
+        files = {"lib/foo.ts", "lib/foo.js"}
+        # Order of _JS_TS_EXTS puts .ts first
+        assert _try_extensions_and_index("lib/foo", files) == "lib/foo.ts"
+
+    def test_directory_index_resolution(self) -> None:
+        files = {"lib/foo/index.ts"}
+        assert _try_extensions_and_index("lib/foo", files) == "lib/foo/index.ts"
+
+    def test_js_import_rewrites_to_ts(self) -> None:
+        # ESM convention: import './foo.js' even when foo.ts is the source
+        files = {"lib/foo.ts"}
+        assert _try_extensions_and_index("lib/foo.js", files) == "lib/foo.ts"
+
+    def test_returns_none_when_nothing_matches(self) -> None:
+        files = {"other.ts"}
+        assert _try_extensions_and_index("missing", files) is None
+
+
+# ---------------------------------------------------------------------------
+# _resolve_js_import — end-to-end JS/TS import resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveJsImport:
+    def test_relative_import_resolves(self) -> None:
+        files = {"lib/db/migrate.ts", "lib/config.ts"}
+        # lib/db/migrate.ts imports '../config' → lib/config.ts
+        result = _resolve_js_import("../config", "lib/db/migrate.ts", files, [])
+        assert result == "lib/config.ts"
+
+    def test_same_dir_relative_import(self) -> None:
+        files = {"app/page.tsx", "app/layout.tsx"}
+        result = _resolve_js_import("./layout", "app/page.tsx", files, [])
+        assert result == "app/layout.tsx"
+
+    def test_directory_import_finds_index(self) -> None:
+        files = {"lib/db/index.ts", "app/page.tsx"}
+        result = _resolve_js_import("../lib/db", "app/page.tsx", files, [])
+        assert result == "lib/db/index.ts"
+
+    def test_strips_type_prefix(self) -> None:
+        files = {"types.ts", "client.ts"}
+        result = _resolve_js_import("type:./types", "client.ts", files, [])
+        assert result == "types.ts"
+
+    def test_bare_specifier_returns_none(self) -> None:
+        files = {"index.ts"}
+        assert _resolve_js_import("react", "index.ts", files, []) is None
+        assert _resolve_js_import("@scope/pkg", "index.ts", files, []) is None
+        assert _resolve_js_import("next/link", "index.ts", files, []) is None
+
+    def test_alias_resolves_via_paths_mapping(self) -> None:
+        # Next.js convention: "@/*" → "./*"
+        files = {"lib/db/index.ts"}
+        aliases = [("@/*", ["*"])]
+        result = _resolve_js_import("@/lib/db", "app/page.tsx", files, aliases)
+        assert result == "lib/db/index.ts"
+
+    def test_alias_with_baseurl_src(self) -> None:
+        # tsconfig with baseUrl=./src and "@/*": ["./*"] → "src/*"
+        files = {"src/lib/util.ts"}
+        aliases = [("@/*", ["src/*"])]
+        result = _resolve_js_import("@/lib/util", "src/app/page.tsx", files, aliases)
+        assert result == "src/lib/util.ts"
+
+    def test_explicit_js_extension_resolves_to_ts(self) -> None:
+        files = {"foo.ts"}
+        result = _resolve_js_import("./foo.js", "bar.ts", files, [])
+        assert result == "foo.ts"
+
+    def test_css_import_dropped(self) -> None:
+        files = {"app/globals.css", "app/layout.tsx"}
+        # Even though the .css is in the project, it's not a JS/TS source
+        # and is excluded from js_path_set (caller filters via _build_js_path_set)
+        result = _resolve_js_import("./globals.css", "app/layout.tsx", files, [])
+        assert result is None
+
+    def test_unresolvable_relative_returns_none(self) -> None:
+        files = {"a.ts"}
+        result = _resolve_js_import("./does-not-exist", "a.ts", files, [])
+        assert result is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert _resolve_js_import("", "a.ts", set(), []) is None
+        assert _resolve_js_import("type:", "a.ts", set(), []) is None
+
+
+# ---------------------------------------------------------------------------
+# build_dependency_graph — TypeScript / JavaScript end-to-end edge construction
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDependencyGraphTypeScriptEdges:
+    @staticmethod
+    def _ts(path: str, imports: list[str]) -> FeatureRecord:
+        return FeatureRecord(
+            file_path=path,
+            language="typescript",
+            imports=imports,
+            symbols=[],
+            pattern_instances=[],
+            lines_of_code=10,
+        )
+
+    def test_typescript_relative_import_creates_edge(self) -> None:
+        records = [
+            self._ts("lib/db/migrate.ts", ["../config"]),
+            self._ts("lib/config.ts", []),
+        ]
+        g, meta = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 1
+        # migrate → config
+        names = g.vs["name"]
+        src_idx = names.index("lib/db/migrate.ts")
+        tgt_idx = names.index("lib/config.ts")
+        assert g.are_adjacent(src_idx, tgt_idx) is True
+        assert meta["unresolved_count"] == 0
+
+    def test_typescript_bare_specifier_does_not_create_edge(self) -> None:
+        records = [
+            self._ts("a.ts", ["react", "next/link"]),
+            self._ts("b.ts", []),
+        ]
+        g, meta = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 0
+        # Bare specifiers are dropped silently (no edge, no unresolved count
+        # for external packages would be ideal — but the current contract is
+        # "anything that isn't an intra-project edge bumps unresolved_count")
+        assert meta["unresolved_count"] >= 2
+
+    def test_typescript_directory_import_resolves_to_index(self) -> None:
+        records = [
+            self._ts("app/page.tsx", ["../lib/db"]),
+            self._ts("lib/db/index.ts", []),
+        ]
+        g, _ = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 1
+
+    def test_typescript_type_only_import_creates_edge(self) -> None:
+        # TS adapter prefixes type-only imports with "type:"
+        records = [
+            self._ts("client.ts", ["type:./types"]),
+            self._ts("types.ts", []),
+        ]
+        g, _ = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 1
+
+    def test_typescript_alias_resolution_with_repo_root(self, tmp_path: Path) -> None:
+        # Write a tsconfig.json with @/* alias and verify build_dependency_graph
+        # picks it up via repo_root.
+        (tmp_path / "tsconfig.json").write_text('{"compilerOptions": {"paths": {"@/*": ["./*"]}}}')
+        records = [
+            self._ts("app/page.tsx", ["@/lib/db"]),
+            self._ts("lib/db/index.ts", []),
+        ]
+        g, meta = build_dependency_graph(records, _make_config(), repo_root=tmp_path)
+        assert g.ecount() == 1
+        assert meta["unresolved_count"] == 0
+
+    def test_typescript_alias_unused_when_repo_root_none(self) -> None:
+        records = [
+            self._ts("app/page.tsx", ["@/lib/db"]),
+            self._ts("lib/db/index.ts", []),
+        ]
+        g, meta = build_dependency_graph(records, _make_config())
+        # Without repo_root, no aliases load → @/ is treated as bare → no edge
+        assert g.ecount() == 0
+        assert meta["unresolved_count"] == 1
+
+    def test_javascript_relative_import_creates_edge(self) -> None:
+        records = [
+            FeatureRecord(
+                file_path="src/main.js",
+                language="javascript",
+                imports=["./util"],
+                symbols=[],
+                pattern_instances=[],
+                lines_of_code=5,
+            ),
+            FeatureRecord(
+                file_path="src/util.js",
+                language="javascript",
+                imports=[],
+                symbols=[],
+                pattern_instances=[],
+                lines_of_code=5,
+            ),
+        ]
+        g, _ = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 1
+
+    def test_typescript_imports_can_target_javascript_files(self) -> None:
+        # TS file imports from a JS file in the same project — should resolve.
+        records = [
+            self._ts("app/page.tsx", ["./helper"]),
+            FeatureRecord(
+                file_path="app/helper.js",
+                language="javascript",
+                imports=[],
+                symbols=[],
+                pattern_instances=[],
+                lines_of_code=3,
+            ),
+        ]
+        g, _ = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 1
+
+    def test_typescript_self_import_skipped(self) -> None:
+        records = [
+            self._ts("foo.ts", ["./foo"]),
+        ]
+        g, meta = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 0
+        assert meta["self_import_count"] == 1
+
+    def test_typescript_does_not_resolve_to_python(self) -> None:
+        # Cross-language: TS import string that happens to match a Python file
+        # path must not produce an edge (Python files are excluded from
+        # js_path_set).
+        records = [
+            self._ts("a.ts", ["./b"]),
+            FeatureRecord(
+                file_path="b.py",
+                language="python",
+                imports=[],
+                symbols=[],
+                pattern_instances=[],
+                lines_of_code=1,
+            ),
+        ]
+        g, meta = build_dependency_graph(records, _make_config())
+        assert g.ecount() == 0
+        assert meta["unresolved_count"] == 1

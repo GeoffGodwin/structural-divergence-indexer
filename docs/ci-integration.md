@@ -276,9 +276,9 @@ Thresholds are configured in `.sdi/config.toml`. The defaults are conservative:
 ```toml
 [thresholds]
 pattern_entropy_rate = 2.0
-convention_drift_rate = 3.0
+convention_drift_rate = 0.10
 coupling_delta_rate = 0.15
-boundary_violation_rate = 2.0
+boundary_violation_rate = 5.0
 ```
 
 To declare a migration window (suppresses a threshold temporarily):
@@ -296,7 +296,7 @@ Overrides without an `expires` date are rejected with exit code 2.
 
 ## Shell-Heavy Repositories
 
-Default thresholds are tuned for application code (Python, TypeScript, Go, etc.). Shell-script-heavy repositories (ops tooling, CI scripts, deploy pipelines) often have higher shape diversity by nature; the default `pattern_entropy_rate = 2.0` and `convention_drift_rate = 3.0` may fire more frequently than intended.
+Default thresholds are tuned for application code (Python, TypeScript, Go, etc.). Shell-script-heavy repositories (ops tooling, CI scripts, deploy pipelines) often have higher shape diversity by nature; the default `pattern_entropy_rate = 2.0` and `convention_drift_rate = 0.10` may fire more frequently than intended.
 
 ### Worked example: running `sdi check` against a shell-heavy repo
 

@@ -12,9 +12,9 @@ from sdi.snapshot.model import DivergenceSummary
 
 def _config(
     pattern_entropy_rate: float = 2.0,
-    convention_drift_rate: float = 3.0,
+    convention_drift_rate: float = 0.10,
     coupling_delta_rate: float = 0.15,
-    boundary_violation_rate: float = 2.0,
+    boundary_violation_rate: float = 5.0,
     overrides: dict | None = None,
 ) -> SDIConfig:
     """Build a minimal SDIConfig for threshold testing."""

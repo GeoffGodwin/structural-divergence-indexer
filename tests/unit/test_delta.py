@@ -158,30 +158,42 @@ class TestPatternEntropyDelta:
 
 
 # ---------------------------------------------------------------------------
-# Convention drift delta: new shapes minus lost shapes
+# Convention drift delta: change in non-canonical instance fraction
 # ---------------------------------------------------------------------------
 
 
 class TestConventionDriftDelta:
-    """convention_drift_delta = new shape count - lost shape count."""
+    """convention_drift_delta = current_drift_fraction - previous_drift_fraction.
 
-    def test_positive_when_shapes_added(self) -> None:
+    Both the absolute value and the delta are expressed in the same units
+    (non-canonical fraction in [0.0, 1.0]), so Value + Δ ≈ NewValue.
+    """
+
+    def test_positive_when_drift_increases(self) -> None:
+        # prev: 1/2 non-canonical = 0.5; curr: 2/3 non-canonical ≈ 0.667 → +0.167
         prev = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2"]}))
         curr = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2", "h3"]}))
-        # 1 new, 0 lost → +1
-        assert compute_delta(curr, prev).convention_drift_delta == pytest.approx(1.0)
+        assert compute_delta(curr, prev).convention_drift_delta == pytest.approx(2 / 3 - 1 / 2)
 
-    def test_negative_when_shapes_removed(self) -> None:
+    def test_negative_when_drift_decreases(self) -> None:
+        # prev: 2/3 non-canonical ≈ 0.667; curr: 0/1 = 0.0 → -0.667
         prev = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2", "h3"]}))
         curr = _make_snap(pattern_catalog=_catalog({"eh": ["h1"]}))
-        # 0 new, 2 lost → -2
-        assert compute_delta(curr, prev).convention_drift_delta == pytest.approx(-2.0)
+        assert compute_delta(curr, prev).convention_drift_delta == pytest.approx(-2 / 3)
 
-    def test_zero_net_when_shapes_swap(self) -> None:
+    def test_zero_when_fraction_unchanged(self) -> None:
+        # Swapping shapes 1:1 keeps non-canonical fraction at 1/2 → delta 0.0
         prev = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2"]}))
         curr = _make_snap(pattern_catalog=_catalog({"eh": ["h3", "h4"]}))
-        # 2 new, 2 lost → 0
         assert compute_delta(curr, prev).convention_drift_delta == pytest.approx(0.0)
+
+    def test_value_plus_delta_equals_new_value(self) -> None:
+        # The arithmetic identity that motivated the unit fix.
+        prev = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2"]}))
+        curr = _make_snap(pattern_catalog=_catalog({"eh": ["h1", "h2", "h3", "h4"]}))
+        result = compute_delta(curr, prev)
+        prev_value = compute_delta(prev, None).convention_drift
+        assert prev_value + result.convention_drift_delta == pytest.approx(result.convention_drift)
 
 
 # ---------------------------------------------------------------------------
