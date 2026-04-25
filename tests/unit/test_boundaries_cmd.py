@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -20,7 +19,6 @@ from sdi.detection.boundaries import (
     ModuleSpec,
     partition_to_proposed_yaml,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -153,10 +151,12 @@ class TestSpecAsText:
         assert isinstance(text, str)
 
     def test_module_count_in_header(self) -> None:
-        spec = _spec(modules=[
-            ModuleSpec(name="a", paths=["src/a/"]),
-            ModuleSpec(name="b", paths=["src/b/"]),
-        ])
+        spec = _spec(
+            modules=[
+                ModuleSpec(name="a", paths=["src/a/"]),
+                ModuleSpec(name="b", paths=["src/b/"]),
+            ]
+        )
         text = _spec_as_text(spec)
         assert "Modules (2)" in text
 
@@ -225,25 +225,19 @@ class TestPartitionToProposedYaml:
 class TestDoShow:
     """_do_show() outputs the correct message based on spec presence."""
 
-    def test_outputs_no_spec_message_when_spec_is_none(
-        self, capsys: pytest.CaptureFixture, tmp_path: Path
-    ) -> None:
+    def test_outputs_no_spec_message_when_spec_is_none(self, capsys: pytest.CaptureFixture, tmp_path: Path) -> None:
         spec_path = tmp_path / "boundaries.yaml"
         _do_show(None, spec_path)
         out = capsys.readouterr().out
         assert "No boundary spec found" in out
 
-    def test_no_spec_message_includes_spec_path(
-        self, capsys: pytest.CaptureFixture, tmp_path: Path
-    ) -> None:
+    def test_no_spec_message_includes_spec_path(self, capsys: pytest.CaptureFixture, tmp_path: Path) -> None:
         spec_path = tmp_path / "boundaries.yaml"
         _do_show(None, spec_path)
         out = capsys.readouterr().out
         assert str(spec_path) in out
 
-    def test_outputs_spec_text_when_spec_present(
-        self, capsys: pytest.CaptureFixture, tmp_path: Path
-    ) -> None:
+    def test_outputs_spec_text_when_spec_present(self, capsys: pytest.CaptureFixture, tmp_path: Path) -> None:
         spec = _spec(
             version="0.1.0",
             modules=[ModuleSpec(name="billing", paths=["src/billing/"])],
@@ -253,9 +247,7 @@ class TestDoShow:
         assert "billing" in out
         assert "0.1.0" in out
 
-    def test_no_spec_message_suggests_propose_flag(
-        self, capsys: pytest.CaptureFixture, tmp_path: Path
-    ) -> None:
+    def test_no_spec_message_suggests_propose_flag(self, capsys: pytest.CaptureFixture, tmp_path: Path) -> None:
         _do_show(None, tmp_path / "boundaries.yaml")
         out = capsys.readouterr().out
         assert "--propose" in out
@@ -296,4 +288,3 @@ class TestDoExport:
         out_path = tmp_path / "nested" / "dir" / "spec.txt"
         _do_export(spec, out_path)
         assert out_path.exists()
-

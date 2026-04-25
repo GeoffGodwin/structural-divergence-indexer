@@ -80,8 +80,12 @@ def _extract_symbols(root: Node) -> list[str]:
     """
     symbols: list[str] = []
     for node in root.children:
-        if node.type in ("class_declaration", "interface_declaration",
-                         "enum_declaration", "annotation_type_declaration"):
+        if node.type in (
+            "class_declaration",
+            "interface_declaration",
+            "enum_declaration",
+            "annotation_type_declaration",
+        ):
             for child in node.children:
                 if child.type == "identifier":
                     symbols.append(_node_text(child))
@@ -104,11 +108,13 @@ def _extract_patterns(root: Node) -> list[dict[str, Any]]:
     instances: list[dict[str, Any]] = []
     for node in _walk_nodes(root):
         if node.type == "try_statement":
-            instances.append({
-                "category": "error_handling",
-                "ast_hash": _structural_hash(node),
-                "location": _location(node),
-            })
+            instances.append(
+                {
+                    "category": "error_handling",
+                    "ast_hash": _structural_hash(node),
+                    "location": _location(node),
+                }
+            )
     return instances
 
 

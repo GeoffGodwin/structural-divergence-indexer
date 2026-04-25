@@ -69,9 +69,7 @@ class TestFullSnapshotWorkflow:
 
     def test_snapshot_json_output(self, cli_runner, initialized_project):
         """sdi snapshot --format json -q outputs valid snapshot JSON."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], initialized_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], initialized_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert "snapshot_version" in data
@@ -87,9 +85,7 @@ class TestFullSnapshotWorkflow:
     def test_catalog_after_snapshot(self, cli_runner, initialized_project):
         """sdi catalog works after sdi snapshot and returns JSON catalog."""
         run_sdi(cli_runner, ["-q", "snapshot"], initialized_project)
-        result = run_sdi(
-            cli_runner, ["-q", "--format", "json", "catalog"], initialized_project
-        )
+        result = run_sdi(cli_runner, ["-q", "--format", "json", "catalog"], initialized_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "catalog" in data
@@ -113,18 +109,14 @@ class TestFullSnapshotWorkflow:
         """sdi trend after two snapshots returns two timestamps."""
         run_sdi(cli_runner, ["-q", "snapshot"], initialized_project)
         run_sdi(cli_runner, ["-q", "snapshot"], initialized_project)
-        result = run_sdi(
-            cli_runner, ["-q", "--format", "json", "trend"], initialized_project
-        )
+        result = run_sdi(cli_runner, ["-q", "--format", "json", "trend"], initialized_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert len(data["timestamps"]) == 2
 
     def test_snapshot_writes_feature_records(self, cli_runner, initialized_project):
         """Snapshot JSON includes file_count > 0 for a project with Python files."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], initialized_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], initialized_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert data["file_count"] > 0
@@ -148,9 +140,7 @@ class TestFullSnapshotWorkflow:
     def test_retention_enforced(self, cli_runner, initialized_project):
         """Retention limit is enforced: with retention=2, old snapshots are pruned."""
         config_content = "[snapshots]\nretention = 2\n"
-        (initialized_project / ".sdi" / "config.toml").write_text(
-            config_content, encoding="utf-8"
-        )
+        (initialized_project / ".sdi" / "config.toml").write_text(config_content, encoding="utf-8")
         for _ in range(4):
             run_sdi(cli_runner, ["-q", "snapshot"], initialized_project)
 
@@ -184,9 +174,7 @@ class TestMultiLanguagePipeline:
 
     def test_snapshot_detects_python_files(self, cli_runner, multilang_project):
         """Snapshot detects Python files in a multi-language project."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], multilang_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], multilang_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert "python" in data["language_breakdown"]
@@ -194,9 +182,7 @@ class TestMultiLanguagePipeline:
     @requires_ts_adapter
     def test_snapshot_detects_both_languages(self, cli_runner, multilang_project):
         """Snapshot detects both Python and TypeScript files."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], multilang_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], multilang_project)
         assert result.exit_code == 0, result.output
         breakdown = json.loads(result.output)["language_breakdown"]
         assert "python" in breakdown and "typescript" in breakdown
@@ -232,18 +218,14 @@ class TestHighEntropyPipeline:
     def test_catalog_contains_error_handling(self, cli_runner, high_entropy_project):
         """Catalog from high-entropy fixture includes error_handling category."""
         run_sdi(cli_runner, ["-q", "snapshot"], high_entropy_project)
-        result = run_sdi(
-            cli_runner, ["--format", "json", "catalog"], high_entropy_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "catalog"], high_entropy_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "error_handling" in data["catalog"]["categories"]
 
     def test_snapshot_file_count(self, cli_runner, high_entropy_project):
         """Snapshot records correct file count for the high-entropy fixture."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], high_entropy_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], high_entropy_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["file_count"] >= 10

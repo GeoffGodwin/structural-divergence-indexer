@@ -102,9 +102,7 @@ def _add_drift_files(repo: Path) -> None:
 class TestMultiSnapshotLifecycle:
     """Full init → snapshot → modify → snapshot → diff → trend → check lifecycle."""
 
-    def test_first_snapshot_has_null_deltas(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_first_snapshot_has_null_deltas(self, cli_runner: object, evolving_project: Path) -> None:
         """First snapshot baseline must have null deltas in all dimensions."""
         result = run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         assert result.exit_code == 0, result.output
@@ -117,9 +115,7 @@ class TestMultiSnapshotLifecycle:
         assert div["coupling_topology_delta"] is None
         assert div["boundary_violations_delta"] is None
 
-    def test_second_snapshot_has_non_null_deltas(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_second_snapshot_has_non_null_deltas(self, cli_runner: object, evolving_project: Path) -> None:
         """Second snapshot after adding drift files has non-null deltas.
 
         Reads the second snapshot directly by mtime (rather than via `sdi show`)
@@ -136,9 +132,7 @@ class TestMultiSnapshotLifecycle:
         assert snap2.divergence.pattern_entropy_delta is not None
         assert snap2.divergence.convention_drift_delta is not None
 
-    def test_diff_text_shows_arrow(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_diff_text_shows_arrow(self, cli_runner: object, evolving_project: Path) -> None:
         """diff command text output contains the → arrow between snapshots."""
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         _add_drift_files(evolving_project)
@@ -148,9 +142,7 @@ class TestMultiSnapshotLifecycle:
         assert result.exit_code == 0
         assert "→" in result.output
 
-    def test_diff_json_structure(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_diff_json_structure(self, cli_runner: object, evolving_project: Path) -> None:
         """diff --format json has snapshot_a, snapshot_b, and divergence keys."""
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         _add_drift_files(evolving_project)
@@ -163,38 +155,28 @@ class TestMultiSnapshotLifecycle:
         assert "snapshot_b" in data
         assert "divergence" in data
 
-    def test_trend_returns_two_data_points(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_trend_returns_two_data_points(self, cli_runner: object, evolving_project: Path) -> None:
         """trend after two snapshots returns exactly two timestamps."""
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         _add_drift_files(evolving_project)
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
 
-        result = run_sdi(
-            cli_runner, ["--format", "json", "trend"], evolving_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "trend"], evolving_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert len(data["timestamps"]) == 2
 
-    def test_trend_csv_starts_with_timestamp(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_trend_csv_starts_with_timestamp(self, cli_runner: object, evolving_project: Path) -> None:
         """trend --format csv first column is timestamp."""
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         _add_drift_files(evolving_project)
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
 
-        result = run_sdi(
-            cli_runner, ["--format", "csv", "trend"], evolving_project
-        )
+        result = run_sdi(cli_runner, ["--format", "csv", "trend"], evolving_project)
         assert result.exit_code == 0
         assert result.output.splitlines()[0].startswith("timestamp")
 
-    def test_check_relaxed_thresholds_exits_0(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_check_relaxed_thresholds_exits_0(self, cli_runner: object, evolving_project: Path) -> None:
         """check with very relaxed thresholds exits 0 after drift."""
         (evolving_project / ".sdi" / "config.toml").write_text(
             "[thresholds]\n"
@@ -211,9 +193,7 @@ class TestMultiSnapshotLifecycle:
         result = run_sdi(cli_runner, ["check"], evolving_project)
         assert result.exit_code == 0
 
-    def test_check_tight_thresholds_exits_10(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_check_tight_thresholds_exits_10(self, cli_runner: object, evolving_project: Path) -> None:
         """check exits 10 when the drift snapshot has deltas exceeding tight thresholds.
 
         After both snapshots are taken the second snapshot is identified by mtime
@@ -240,15 +220,11 @@ class TestMultiSnapshotLifecycle:
         result = run_sdi(cli_runner, ["check", snap2_ref], evolving_project)
         assert result.exit_code == 10
 
-    def test_check_json_output_structure(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_check_json_output_structure(self, cli_runner: object, evolving_project: Path) -> None:
         """check --format json returns status and checks list."""
         run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
 
-        result = run_sdi(
-            cli_runner, ["--format", "json", "check"], evolving_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "check"], evolving_project)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "status" in data
@@ -265,40 +241,28 @@ class TestMultiSnapshotLifecycle:
 class TestBoundariesCommand:
     """sdi boundaries command in the multi-snapshot lifecycle."""
 
-    def test_boundaries_show_no_spec_exits_0(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_boundaries_show_no_spec_exits_0(self, cli_runner: object, evolving_project: Path) -> None:
         """sdi boundaries with no boundaries.yaml exits 0 and reports absence."""
         result = run_sdi(cli_runner, ["boundaries"], evolving_project)
         assert result.exit_code == 0, result.output
         assert "No boundary spec found" in result.output
 
-    def test_boundaries_propose_exits_1_without_snapshot(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_boundaries_propose_exits_1_without_snapshot(self, cli_runner: object, evolving_project: Path) -> None:
         """sdi boundaries --propose exits 1 when no snapshots have been taken yet."""
-        result = run_sdi(
-            cli_runner, ["boundaries", "--propose"], evolving_project
-        )
+        result = run_sdi(cli_runner, ["boundaries", "--propose"], evolving_project)
         assert result.exit_code == 1
 
-    def test_boundaries_propose_after_snapshot_shows_yaml(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_boundaries_propose_after_snapshot_shows_yaml(self, cli_runner: object, evolving_project: Path) -> None:
         """sdi boundaries --propose after a snapshot outputs a proposed YAML spec."""
         snap_result = run_sdi(cli_runner, ["-q", "snapshot"], evolving_project)
         assert snap_result.exit_code == 0, snap_result.output
 
-        result = run_sdi(
-            cli_runner, ["boundaries", "--propose"], evolving_project
-        )
+        result = run_sdi(cli_runner, ["boundaries", "--propose"], evolving_project)
         assert result.exit_code == 0, result.output
         assert "sdi_boundaries:" in result.output
         assert "modules:" in result.output
 
-    def test_boundaries_show_with_spec_file(
-        self, cli_runner: object, evolving_project: Path
-    ) -> None:
+    def test_boundaries_show_with_spec_file(self, cli_runner: object, evolving_project: Path) -> None:
         """sdi boundaries with a valid boundaries.yaml displays the module listing."""
         spec_content = (
             "sdi_boundaries:\n"

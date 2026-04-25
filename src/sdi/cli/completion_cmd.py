@@ -7,11 +7,11 @@ import click
 _INSTRUCTIONS: dict[str, tuple[str, str]] = {
     "bash": (
         'eval "$(_SDI_COMPLETE=bash_source sdi)"',
-        "Add to ~/.bashrc, or run: eval \"$(sdi completion bash)\"",
+        'Add to ~/.bashrc, or run: eval "$(sdi completion bash)"',
     ),
     "zsh": (
         'eval "$(_SDI_COMPLETE=zsh_source sdi)"',
-        "Add to ~/.zshrc, or run: eval \"$(sdi completion zsh)\"",
+        'Add to ~/.zshrc, or run: eval "$(sdi completion zsh)"',
     ),
     "fish": (
         "_SDI_COMPLETE=fish_source sdi | source",

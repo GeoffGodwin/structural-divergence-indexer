@@ -5,12 +5,10 @@ Extracts imports, symbols, and pattern instances from Python source files.
 
 from __future__ import annotations
 
-import hashlib
-import sys
 from pathlib import Path
 
-from tree_sitter import Language, Node, Parser
 import tree_sitter_python as _tsp
+from tree_sitter import Language, Node, Parser
 
 from sdi.parsing.base import LanguageAdapter
 from sdi.snapshot.model import FeatureRecord
@@ -30,6 +28,7 @@ def _get_parser() -> Parser:
 # ---------------------------------------------------------------------------
 # Import extraction
 # ---------------------------------------------------------------------------
+
 
 def _node_text(node: Node) -> str:
     """Decode a node's source text as UTF-8."""
@@ -166,6 +165,7 @@ def _extract_from_import(node: Node, file_pkg: str) -> list[str]:
 # Symbol extraction
 # ---------------------------------------------------------------------------
 
+
 def _extract_symbols(root: Node) -> list[str]:
     """Extract top-level symbol names (classes, functions, assignments).
 
@@ -208,6 +208,7 @@ def _extract_symbols(root: Node) -> list[str]:
 # ---------------------------------------------------------------------------
 # Python language adapter
 # ---------------------------------------------------------------------------
+
 
 class PythonAdapter(LanguageAdapter):
     """Tree-sitter based Python language adapter."""

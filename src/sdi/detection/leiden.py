@@ -31,8 +31,7 @@ try:
     import igraph
 except ImportError:
     print(
-        "[error] igraph is required for community detection. "
-        "Install with: pip install igraph",
+        "[error] igraph is required for community detection. Install with: pip install igraph",
         file=sys.stderr,
     )
     raise
@@ -41,8 +40,7 @@ try:
     import leidenalg
 except ImportError:
     print(
-        "[error] leidenalg is required for community detection. "
-        "Install with: pip install leidenalg",
+        "[error] leidenalg is required for community detection. Install with: pip install leidenalg",
         file=sys.stderr,
     )
     raise
@@ -80,9 +78,7 @@ class CommunityResult:
     vertex_names: list[str]
 
 
-def _compute_inter_cluster_edges(
-    graph: igraph.Graph, partition: list[int]
-) -> list[dict[str, int]]:
+def _compute_inter_cluster_edges(graph: igraph.Graph, partition: list[int]) -> list[dict[str, int]]:
     """Compute directed edge counts between distinct clusters.
 
     Args:
@@ -100,10 +96,7 @@ def _compute_inter_cluster_edges(
         if sc != tc:
             key = (sc, tc)
             counts[key] = counts.get(key, 0) + 1
-    return [
-        {"source_cluster": s, "target_cluster": t, "count": c}
-        for (s, t), c in sorted(counts.items())
-    ]
+    return [{"source_cluster": s, "target_cluster": t, "count": c} for (s, t), c in sorted(counts.items())]
 
 
 def _compute_surface_area_ratios(
@@ -139,10 +132,7 @@ def _compute_surface_area_ratios(
             external[sc] = external.get(sc, 0) + 1
             external[tc] = external.get(tc, 0) + 1
 
-    return {
-        c: external.get(c, 0) / total[c] if total.get(c, 0) > 0 else 0.0
-        for c in cluster_ids
-    }
+    return {c: external.get(c, 0) / total[c] if total.get(c, 0) > 0 else 0.0 for c in cluster_ids}
 
 
 def run_leiden(
@@ -166,11 +156,7 @@ def run_leiden(
         CommunityResult with stable partition, stability score, and metrics.
     """
     n = graph.vcount()
-    vertex_names: list[str] = (
-        graph.vs["name"]
-        if "name" in graph.vertex_attributes()
-        else [str(i) for i in range(n)]
-    )
+    vertex_names: list[str] = graph.vs["name"] if "name" in graph.vertex_attributes() else [str(i) for i in range(n)]
 
     if n < _TRIVIAL_GRAPH_THRESHOLD:
         warnings.warn(
@@ -212,9 +198,7 @@ def run_leiden(
     )
     raw_partition: list[int] = list(lpart.membership)
 
-    stable_partition, node_history = _apply_debounce(
-        vertex_names, raw_partition, prev_cache, threshold
-    )
+    stable_partition, node_history = _apply_debounce(vertex_names, raw_partition, prev_cache, threshold)
     stability_score = _compute_stability_score(prev_cache, stable_partition, vertex_names)
     cluster_count = len(set(stable_partition)) if stable_partition else 0
 

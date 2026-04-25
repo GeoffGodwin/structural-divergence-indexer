@@ -15,8 +15,7 @@ try:
     import igraph
 except ImportError:
     print(
-        "[error] igraph is required for graph metrics. "
-        "Install with: pip install igraph",
+        "[error] igraph is required for graph metrics. Install with: pip install igraph",
         file=sys.stderr,
     )
     raise
@@ -76,9 +75,7 @@ def _compute_hub_info(
     else:
         names = [str(i) for i in range(n)]
 
-    hub_nodes = [
-        names[i] for i, d in enumerate(indegrees) if d >= HUB_INDEGREE_THRESHOLD
-    ]
+    hub_nodes = [names[i] for i, d in enumerate(indegrees) if d >= HUB_INDEGREE_THRESHOLD]
     hub_concentration = len(hub_nodes) / n
     return hub_concentration, hub_nodes
 

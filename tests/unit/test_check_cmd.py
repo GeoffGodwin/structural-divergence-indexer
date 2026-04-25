@@ -153,9 +153,7 @@ class TestRunChecksOverrides:
             expires="2099-12-31",
             pattern_entropy_rate=100.0,
         )
-        config = _config(
-            convention_drift_rate=3.0, overrides={"migration": override}
-        )
+        config = _config(convention_drift_rate=3.0, overrides={"migration": override})
         div = _div(cd_delta=4.0)  # Exceeds convention_drift_rate=3.0
         results = run_checks(div, config)
         cd = next(r for r in results if r.dimension == "convention_drift_delta")

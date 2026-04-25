@@ -15,7 +15,6 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
-
 # Node types that are identifiers — normalized to "_ID_" in the structural serialization.
 _IDENTIFIER_TYPES: frozenset[str] = frozenset({"identifier", "name", "attribute"})
 

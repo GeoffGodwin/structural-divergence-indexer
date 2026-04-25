@@ -138,8 +138,7 @@ def parse_repository(root: Path, config: SDIConfig) -> list[FeatureRecord]:
     for lang in sorted(unsupported_languages):
         count = len(files_by_language[lang])
         print(
-            f"[warning] No grammar for language '{lang}'; "
-            f"skipping {count} file(s).",
+            f"[warning] No grammar for language '{lang}'; skipping {count} file(s).",
             file=sys.stderr,
         )
 

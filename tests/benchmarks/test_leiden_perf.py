@@ -14,7 +14,6 @@ import time
 
 import pytest
 
-
 try:
     import igraph
     import leidenalg  # noqa: F401
@@ -89,13 +88,8 @@ def test_leiden_partition_time(node_count: int):
     )
     elapsed = time.perf_counter() - start
     cluster_count = len(set(lpart.membership))
-    print(
-        f"\n  {node_count} nodes: {elapsed:.3f}s"
-        f" edges={g.ecount()} clusters={cluster_count}"
-    )
-    assert elapsed < 60.0, (
-        f"Leiden on {node_count} nodes took {elapsed:.1f}s (limit: 60s)"
-    )
+    print(f"\n  {node_count} nodes: {elapsed:.3f}s edges={g.ecount()} clusters={cluster_count}")
+    assert elapsed < 60.0, f"Leiden on {node_count} nodes took {elapsed:.1f}s (limit: 60s)"
 
 
 @pytest.mark.benchmark

@@ -82,8 +82,7 @@ def _find_misplaced_files(
             module_cluster_counts[mod][cid] = module_cluster_counts[mod].get(cid, 0) + 1
 
     module_home: dict[str, int] = {
-        mod: max(counts, key=lambda c: counts[c])
-        for mod, counts in module_cluster_counts.items()
+        mod: max(counts, key=lambda c: counts[c]) for mod, counts in module_cluster_counts.items()
     }
 
     return [
@@ -121,9 +120,7 @@ def _find_unauthorized_cross_boundary(
         src = cluster_module.get(edge["source_cluster"])
         tgt = cluster_module.get(edge["target_cluster"])
         if src and tgt and src != tgt and (src, tgt) not in allowed:
-            violations.append(
-                {"from_module": src, "to_module": tgt, "count": edge.get("count", 1)}
-            )
+            violations.append({"from_module": src, "to_module": tgt, "count": edge.get("count", 1)})
     return violations
 
 

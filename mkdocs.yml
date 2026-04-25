@@ -73,4 +73,5 @@ nav:
   - Maintenance:
       - Release Process: maintenance/releases.md
       - Versioning: maintenance/versioning.md
+      - Known Issues: maintenance/known-issues.md
   - Changelog: changelog.md

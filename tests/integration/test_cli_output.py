@@ -76,18 +76,14 @@ class TestShowCommand:
         assert text.exit_code == 0
         assert "pattern_entropy" in text.output
 
-        js = run_sdi(
-            cli_runner, ["--format", "json", "show"], sdi_project_with_snapshot
-        )
+        js = run_sdi(cli_runner, ["--format", "json", "show"], sdi_project_with_snapshot)
         assert js.exit_code == 0
         data = json.loads(js.output)
         assert "snapshot_version" in data and "divergence" in data
 
     def test_show_csv_headers(self, cli_runner, sdi_project_with_snapshot):
         """CSV output has correct headers and four data rows."""
-        result = run_sdi(
-            cli_runner, ["--format", "csv", "show"], sdi_project_with_snapshot
-        )
+        result = run_sdi(cli_runner, ["--format", "csv", "show"], sdi_project_with_snapshot)
         assert result.exit_code == 0
         lines = [line for line in result.output.splitlines() if line.strip()]
         assert lines[0] == "dimension,value,delta"
@@ -137,17 +133,13 @@ class TestDiffCommand:
     def test_diff_invalid_ref_a_exits_1(self, cli_runner, sdi_project_dir):
         """diff with a non-existent ref_a exits 1."""
         _write_two_snapshots(sdi_project_dir / ".sdi" / "snapshots")
-        result = run_sdi(
-            cli_runner, ["diff", "no_such_prefix", "1"], sdi_project_dir
-        )
+        result = run_sdi(cli_runner, ["diff", "no_such_prefix", "1"], sdi_project_dir)
         assert result.exit_code == 1
 
     def test_diff_invalid_ref_b_exits_1(self, cli_runner, sdi_project_dir):
         """diff with a non-existent ref_b exits 1."""
         _write_two_snapshots(sdi_project_dir / ".sdi" / "snapshots")
-        result = run_sdi(
-            cli_runner, ["diff", "1", "no_such_prefix"], sdi_project_dir
-        )
+        result = run_sdi(cli_runner, ["diff", "1", "no_such_prefix"], sdi_project_dir)
         assert result.exit_code == 1
 
 
@@ -165,22 +157,16 @@ class TestTrendCommand:
 
     def test_trend_json_and_csv(self, cli_runner, sdi_project_with_snapshot):
         """JSON trend has timestamps+dimensions; CSV has timestamp as first column."""
-        js = run_sdi(
-            cli_runner, ["--format", "json", "trend"], sdi_project_with_snapshot
-        )
+        js = run_sdi(cli_runner, ["--format", "json", "trend"], sdi_project_with_snapshot)
         assert js.exit_code == 0
         data = json.loads(js.output)
         assert "timestamps" in data and "dimensions" in data
 
-        csv_r = run_sdi(
-            cli_runner, ["--format", "csv", "trend"], sdi_project_with_snapshot
-        )
+        csv_r = run_sdi(cli_runner, ["--format", "csv", "trend"], sdi_project_with_snapshot)
         assert csv_r.exit_code == 0
         assert csv_r.output.splitlines()[0].startswith("timestamp")
 
-    def test_trend_invalid_dimension_exits_2(
-        self, cli_runner, sdi_project_with_snapshot
-    ):
+    def test_trend_invalid_dimension_exits_2(self, cli_runner, sdi_project_with_snapshot):
         result = run_sdi(
             cli_runner,
             ["trend", "--dimension", "not_a_real_dimension"],
@@ -191,7 +177,8 @@ class TestTrendCommand:
     def test_trend_last_n(self, cli_runner, sdi_project_with_snapshot):
         """--last 1 restricts output to one snapshot."""
         result = run_sdi(
-            cli_runner, ["--format", "json", "trend", "--last", "1"],
+            cli_runner,
+            ["--format", "json", "trend", "--last", "1"],
             sdi_project_with_snapshot,
         )
         assert result.exit_code == 0
@@ -211,9 +198,7 @@ class TestCheckCommand:
         result = run_sdi(cli_runner, ["check"], sdi_project_with_snapshot)
         assert result.exit_code == 0
 
-        js = run_sdi(
-            cli_runner, ["--format", "json", "check"], sdi_project_with_snapshot
-        )
+        js = run_sdi(cli_runner, ["--format", "json", "check"], sdi_project_with_snapshot)
         assert js.exit_code == 0
         data = json.loads(js.output)
         assert data["status"] == "ok" and len(data["checks"]) == 4
@@ -226,9 +211,7 @@ class TestCheckCommand:
 
     def test_check_csv_headers(self, cli_runner, sdi_project_with_snapshot):
         """CSV check output contains dimension and threshold columns."""
-        result = run_sdi(
-            cli_runner, ["--format", "csv", "check"], sdi_project_with_snapshot
-        )
+        result = run_sdi(cli_runner, ["--format", "csv", "check"], sdi_project_with_snapshot)
         assert result.exit_code == 0
         header = result.output.splitlines()[0]
         assert "dimension" in header and "threshold" in header
@@ -278,9 +261,7 @@ class TestCatalogCommand:
             pattern_catalog=catalog.to_dict(),
         )
         write_snapshot(snap, sdi_project_dir / ".sdi" / "snapshots")
-        result = run_sdi(
-            cli_runner, ["--format", "json", "catalog"], sdi_project_dir
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "catalog"], sdi_project_dir)
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "catalog" in data

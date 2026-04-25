@@ -68,7 +68,10 @@ where = ["src"]
 
 [tool.ruff]
 src = ["src"]
-line-length = 88
+line-length = 120
+extend-exclude = [
+    "tests/fixtures",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

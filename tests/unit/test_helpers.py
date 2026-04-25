@@ -71,9 +71,7 @@ class TestResolveSnapshotsDirPathTraversalRejection:
             resolve_snapshots_dir(repo_root, config)
         assert exc_info.value.code == 2
 
-    def test_traversal_via_symlink_component_raises_sysexit_2(
-        self, tmp_path: Path
-    ) -> None:
+    def test_traversal_via_symlink_component_raises_sysexit_2(self, tmp_path: Path) -> None:
         # ../../secrets is a traversal pattern regardless of depth
         config = _config_with_dir("../../secrets/credentials")
         with pytest.raises(SystemExit) as exc_info:

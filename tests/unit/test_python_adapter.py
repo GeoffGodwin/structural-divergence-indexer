@@ -6,20 +6,18 @@ from pathlib import Path
 
 import pytest
 
+from sdi.parsing import FeatureRecord
+from sdi.parsing._python_patterns import count_loc
 from sdi.parsing.python import (
     PythonAdapter,
-    _extract_imports,
-    _extract_symbols,
     _file_package,
     _resolve_relative_import,
 )
-from sdi.parsing._python_patterns import count_loc, extract_pattern_instances
-from sdi.parsing import FeatureRecord
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
@@ -42,6 +40,7 @@ def _parse(adapter: PythonAdapter, path: Path, source: str) -> FeatureRecord:
 # _file_package
 # ---------------------------------------------------------------------------
 
+
 class TestFilePackage:
     def test_src_layout_stripping(self, tmp_path: Path) -> None:
         path = tmp_path / "src" / "sdi" / "parsing" / "python.py"
@@ -59,6 +58,7 @@ class TestFilePackage:
 # ---------------------------------------------------------------------------
 # _resolve_relative_import
 # ---------------------------------------------------------------------------
+
 
 class TestResolveRelativeImport:
     def test_from_dot_import_foo(self) -> None:
@@ -86,6 +86,7 @@ class TestResolveRelativeImport:
 # ---------------------------------------------------------------------------
 # Import extraction tests (via parse_file)
 # ---------------------------------------------------------------------------
+
 
 class TestImportExtraction:
     def test_simple_import(self, adapter: PythonAdapter, repo_root: Path) -> None:
@@ -136,6 +137,7 @@ class TestImportExtraction:
 # Symbol extraction tests
 # ---------------------------------------------------------------------------
 
+
 class TestSymbolExtraction:
     def test_function_definition(self, adapter: PythonAdapter, repo_root: Path) -> None:
         path = repo_root / "main.py"
@@ -166,9 +168,7 @@ class TestSymbolExtraction:
         assert "b" in record.symbols
         assert "C" in record.symbols
 
-    def test_nested_function_not_in_symbols(
-        self, adapter: PythonAdapter, repo_root: Path
-    ) -> None:
+    def test_nested_function_not_in_symbols(self, adapter: PythonAdapter, repo_root: Path) -> None:
         path = repo_root / "main.py"
         source = "def outer():\n    def inner():\n        pass\n"
         record = _parse(adapter, path, source)
@@ -179,6 +179,7 @@ class TestSymbolExtraction:
 # ---------------------------------------------------------------------------
 # Pattern instance tests
 # ---------------------------------------------------------------------------
+
 
 class TestPatternInstances:
     def test_try_except_detected(self, adapter: PythonAdapter, repo_root: Path) -> None:
@@ -195,9 +196,7 @@ class TestPatternInstances:
         categories = [pi["category"] for pi in record.pattern_instances]
         assert "logging" in categories
 
-    def test_pattern_instance_has_required_keys(
-        self, adapter: PythonAdapter, repo_root: Path
-    ) -> None:
+    def test_pattern_instance_has_required_keys(self, adapter: PythonAdapter, repo_root: Path) -> None:
         path = repo_root / "main.py"
         source = "def f():\n    try:\n        pass\n    except Exception:\n        pass\n"
         record = _parse(adapter, path, source)
@@ -207,9 +206,7 @@ class TestPatternInstances:
             assert "location" in pi
             assert "line" in pi["location"]
 
-    def test_no_patterns_in_simple_file(
-        self, adapter: PythonAdapter, repo_root: Path
-    ) -> None:
+    def test_no_patterns_in_simple_file(self, adapter: PythonAdapter, repo_root: Path) -> None:
         path = repo_root / "main.py"
         source = "x = 1\ny = 2\n"
         record = _parse(adapter, path, source)
@@ -225,9 +222,7 @@ class TestPatternInstances:
             "    try:\n        pass\n    except TypeError:\n        pass\n"
         )
         record = _parse(adapter, path, source)
-        error_handling = [
-            pi for pi in record.pattern_instances if pi["category"] == "error_handling"
-        ]
+        error_handling = [pi for pi in record.pattern_instances if pi["category"] == "error_handling"]
         assert len(error_handling) == 2
 
 
@@ -235,10 +230,9 @@ class TestPatternInstances:
 # FeatureRecord metadata tests
 # ---------------------------------------------------------------------------
 
+
 class TestFeatureRecordMetadata:
-    def test_file_path_is_relative(
-        self, adapter: PythonAdapter, repo_root: Path
-    ) -> None:
+    def test_file_path_is_relative(self, adapter: PythonAdapter, repo_root: Path) -> None:
         path = repo_root / "sub" / "mod.py"
         record = _parse(adapter, path, "x = 1\n")
         assert not Path(record.file_path).is_absolute()
@@ -268,6 +262,7 @@ class TestFeatureRecordMetadata:
 # ---------------------------------------------------------------------------
 # LOC counter tests (unit)
 # ---------------------------------------------------------------------------
+
 
 class TestCountLoc:
     def test_empty(self) -> None:

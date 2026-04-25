@@ -15,6 +15,7 @@ from sdi.parsing import FeatureRecord
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_config(weighted: bool = False) -> SDIConfig:
     """Return an SDIConfig with weighted_edges set as requested."""
     cfg = SDIConfig()
@@ -40,6 +41,7 @@ def _make_record(
 # ---------------------------------------------------------------------------
 # _file_path_to_module_key
 # ---------------------------------------------------------------------------
+
 
 class TestFilePathToModuleKey:
     def test_simple_file(self) -> None:
@@ -72,6 +74,7 @@ class TestFilePathToModuleKey:
 # _build_module_map
 # ---------------------------------------------------------------------------
 
+
 class TestBuildModuleMap:
     def test_basic(self) -> None:
         result = _build_module_map({"models/user.py", "utils/helpers.py"})
@@ -94,6 +97,7 @@ class TestBuildModuleMap:
 # ---------------------------------------------------------------------------
 # _resolve_import
 # ---------------------------------------------------------------------------
+
 
 class TestResolveImport:
     def test_exact_match(self) -> None:
@@ -129,6 +133,7 @@ class TestResolveImport:
 # build_dependency_graph — empty input
 # ---------------------------------------------------------------------------
 
+
 class TestBuildDependencyGraphEmpty:
     def test_empty_records(self) -> None:
         g, meta = build_dependency_graph([], _make_config())
@@ -141,6 +146,7 @@ class TestBuildDependencyGraphEmpty:
 # ---------------------------------------------------------------------------
 # build_dependency_graph — basic graph
 # ---------------------------------------------------------------------------
+
 
 class TestBuildDependencyGraphBasic:
     def _three_node_records(self) -> list[FeatureRecord]:
@@ -171,6 +177,7 @@ class TestBuildDependencyGraphBasic:
 # ---------------------------------------------------------------------------
 # build_dependency_graph — external imports excluded
 # ---------------------------------------------------------------------------
+
 
 class TestBuildDependencyGraphExternalExcluded:
     def test_stdlib_imports_excluded(self) -> None:
@@ -204,6 +211,7 @@ class TestBuildDependencyGraphExternalExcluded:
 # build_dependency_graph — self-imports
 # ---------------------------------------------------------------------------
 
+
 class TestBuildDependencyGraphSelfImport:
     def test_self_import_skipped(self) -> None:
         # "a" resolves to "a.py" which is the same file
@@ -221,6 +229,7 @@ class TestBuildDependencyGraphSelfImport:
 # ---------------------------------------------------------------------------
 # build_dependency_graph — duplicate imports
 # ---------------------------------------------------------------------------
+
 
 class TestBuildDependencyGraphDuplicates:
     def test_duplicate_unweighted_creates_single_edge(self) -> None:
@@ -246,6 +255,7 @@ class TestBuildDependencyGraphDuplicates:
 # build_dependency_graph — weighted edges
 # ---------------------------------------------------------------------------
 
+
 class TestBuildDependencyGraphWeighted:
     def test_weighted_edges_have_weight_attribute(self) -> None:
         records = [
@@ -269,6 +279,7 @@ class TestBuildDependencyGraphWeighted:
 # build_dependency_graph — suffix-based import resolution
 # ---------------------------------------------------------------------------
 
+
 class TestBuildDependencyGraphSuffixResolution:
     def test_package_prefix_stripped(self) -> None:
         """Import 'pkg.models.user' resolves to 'models/user.py'."""
@@ -285,6 +296,7 @@ class TestBuildDependencyGraphSuffixResolution:
 # build_dependency_graph — cycle detection (edge presence)
 # ---------------------------------------------------------------------------
 
+
 class TestBuildDependencyGraphCycles:
     def test_circular_import_creates_edges(self) -> None:
         records = [
@@ -299,6 +311,7 @@ class TestBuildDependencyGraphCycles:
 # ---------------------------------------------------------------------------
 # _file_path_to_module_key — deep src-layout paths (Coverage Gap 1)
 # ---------------------------------------------------------------------------
+
 
 class TestFilePathToModuleKeyDeepSrcLayout:
     def test_deep_src_layout_three_levels(self) -> None:
@@ -325,6 +338,7 @@ class TestFilePathToModuleKeyDeepSrcLayout:
 # ---------------------------------------------------------------------------
 # build_dependency_graph — non-Python FeatureRecords silently ignored (Gap 2)
 # ---------------------------------------------------------------------------
+
 
 class TestBuildDependencyGraphNonPythonRecords:
     def test_typescript_record_silently_ignored_as_node(self) -> None:
@@ -405,6 +419,7 @@ class TestBuildDependencyGraphNonPythonRecords:
 # _resolve_import — equal-length tie-breaking in suffix match (Coverage Gap 3)
 # ---------------------------------------------------------------------------
 
+
 class TestResolveImportTieBreaking:
     def test_two_equal_length_suffix_keys_returns_one_result(self) -> None:
         """When two module keys have the same length and both match as a suffix,
@@ -464,7 +479,7 @@ class TestResolveImportTieBreaking:
         while proper dotted-suffix matching still works."""
         module_map = {
             "user": "models/user.py",  # length 4
-            "sers": "other/sers.py",   # length 4 — same length, NOT a dotted suffix of "models.user"
+            "sers": "other/sers.py",  # length 4 — same length, NOT a dotted suffix of "models.user"
         }
         result = _resolve_import("models.user", module_map)
         # "models.user" ends with ".user" (dotted) → matches "user"

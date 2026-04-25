@@ -9,21 +9,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tree_sitter import Language, Parser
 import tree_sitter_javascript as _tsjs
+from tree_sitter import Language, Node, Parser
 
-from sdi.parsing.base import LanguageAdapter
 from sdi.parsing._js_ts_common import (
+    _walk_nodes,
     count_loc,
     extract_es_imports,
     extract_pattern_instances,
     extract_reexport_imports,
     extract_require_imports,
     extract_symbols,
-    node_text,
     string_fragment,
-    _walk_nodes,
 )
+from sdi.parsing.base import LanguageAdapter
 from sdi.snapshot.model import FeatureRecord
 
 # Lazily initialized; shared across calls in one process.
@@ -38,7 +37,7 @@ def _get_parser() -> Parser:
     return _PARSER
 
 
-def _extract_dynamic_imports(root) -> list[str]:
+def _extract_dynamic_imports(root: Node) -> list[str]:
     """Find dynamic ``import('...')`` expressions and return module paths.
 
     Matches patterns like ``import('./foo')`` and ``await import('./bar')``.
@@ -67,7 +66,7 @@ def _extract_dynamic_imports(root) -> list[str]:
     return found
 
 
-def _build_imports(root) -> list[str]:
+def _build_imports(root: Node) -> list[str]:
     """Build the full import list for a JavaScript file.
 
     Combines ES imports, CommonJS require() calls, dynamic import()

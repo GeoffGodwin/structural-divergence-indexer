@@ -15,15 +15,38 @@ from sdi.parsing._lang_common import _location, _structural_hash, _walk_nodes
 _TRAP_SIGNALS: frozenset[str] = frozenset({"ERR", "EXIT", "INT", "TERM", "HUP", "QUIT"})
 _LOGGING_COMMANDS: frozenset[str] = frozenset({"echo", "printf", "logger", "tee"})
 _BAIL_COMMANDS: frozenset[str] = frozenset({"exit", "return", "false"})
-_DATA_ACCESS_COMMANDS: frozenset[str] = frozenset({
-    "curl", "wget", "jq", "yq", "psql", "mysql", "mysqldump", "pg_dump",
-    "redis-cli", "mongo", "mongosh", "sqlite3", "aws", "gcloud", "kubectl",
-    "az", "doctl", "terraform",
-})
+_DATA_ACCESS_COMMANDS: frozenset[str] = frozenset(
+    {
+        "curl",
+        "wget",
+        "jq",
+        "yq",
+        "psql",
+        "mysql",
+        "mysqldump",
+        "pg_dump",
+        "redis-cli",
+        "mongo",
+        "mongosh",
+        "sqlite3",
+        "aws",
+        "gcloud",
+        "kubectl",
+        "az",
+        "doctl",
+        "terraform",
+    }
+)
 # Node types whose direct children may include background `&` operators.
-_BACKGROUND_CONTAINERS: frozenset[str] = frozenset({
-    "program", "compound_statement", "subshell", "function_body", "do_group",
-})
+_BACKGROUND_CONTAINERS: frozenset[str] = frozenset(
+    {
+        "program",
+        "compound_statement",
+        "subshell",
+        "function_body",
+        "do_group",
+    }
+)
 
 
 def _node_text(node: Node) -> str:
@@ -72,10 +95,7 @@ def _shell_structural_hash(node: Node, max_depth: int = 6) -> str:
 
 
 def _is_set_error_handling(args: list[Node]) -> bool:
-    return any(
-        _node_text(a).startswith("-") and any(c in _node_text(a) for c in "euo")
-        for a in args
-    )
+    return any(_node_text(a).startswith("-") and any(c in _node_text(a) for c in "euo") for a in args)
 
 
 def _is_trap_error_handling(args: list[Node]) -> bool:
@@ -115,10 +135,7 @@ def _check_if_exit_or_return(node: Node) -> bool:
 
 
 def _has_test_command_substitution(node: Node) -> bool:
-    return any(
-        sub is not node and sub.type == "command_substitution"
-        for sub in _walk_nodes(node)
-    )
+    return any(sub is not node and sub.type == "command_substitution" for sub in _walk_nodes(node))
 
 
 def _check_background_children(node: Node) -> list[Node]:
@@ -140,8 +157,7 @@ def _is_parallel_xargs(args: list[Node]) -> bool:
 
 def _is_stderr_redirect(node: Node) -> bool:
     return node.type == "redirected_statement" and any(
-        c.type == "file_redirect" and ">&2" in _node_text(c)
-        for c in node.children
+        c.type == "file_redirect" and ">&2" in _node_text(c) for c in node.children
     )
 
 

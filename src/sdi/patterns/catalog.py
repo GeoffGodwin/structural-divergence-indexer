@@ -100,10 +100,7 @@ class CategoryStats:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CategoryStats:
         """Deserialize from a plain dict."""
-        shapes = {
-            h: ShapeStats.from_dict(sd)
-            for h, sd in data.get("shapes", {}).items()
-        }
+        shapes = {h: ShapeStats.from_dict(sd) for h, sd in data.get("shapes", {}).items()}
         return cls(name=data["name"], shapes=shapes)
 
 
@@ -133,20 +130,12 @@ class PatternCatalog:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict."""
-        return {
-            "categories": {
-                name: cat.to_dict()
-                for name, cat in self.categories.items()
-            }
-        }
+        return {"categories": {name: cat.to_dict() for name, cat in self.categories.items()}}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatternCatalog:
         """Deserialize from a plain dict (as produced by to_dict)."""
-        categories = {
-            name: CategoryStats.from_dict(cd)
-            for name, cd in data.get("categories", {}).items()
-        }
+        categories = {name: CategoryStats.from_dict(cd) for name, cd in data.get("categories", {}).items()}
         return cls(categories=categories)
 
 
@@ -159,10 +148,7 @@ def _build_partition_lookup(partition: CommunityResult) -> dict[str, int]:
     Returns:
         Dict mapping each vertex name (file path) to its cluster ID.
     """
-    return {
-        name: partition.partition[i]
-        for i, name in enumerate(partition.vertex_names)
-    }
+    return {name: partition.partition[i] for i, name in enumerate(partition.vertex_names)}
 
 
 def build_pattern_catalog(
@@ -195,9 +181,7 @@ def build_pattern_catalog(
     min_nodes: int = config.patterns.min_pattern_nodes
 
     # raw[category][hash] = {"count": int, "files": list[str]}
-    raw: dict[str, dict[str, dict[str, Any]]] = defaultdict(
-        lambda: defaultdict(lambda: {"count": 0, "files": []})
-    )
+    raw: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {"count": 0, "files": []}))
 
     for record in records:
         for fp in get_file_fingerprints(record, min_nodes, cache_dir):
@@ -205,14 +189,10 @@ def build_pattern_catalog(
             entry["count"] += 1
             entry["files"].append(record.file_path)
 
-    name_to_cluster: dict[str, int] = (
-        _build_partition_lookup(partition) if partition is not None else {}
-    )
+    name_to_cluster: dict[str, int] = _build_partition_lookup(partition) if partition is not None else {}
 
     # Include all seven built-in categories, plus any extras found in records.
-    all_names = list(CATEGORY_NAMES) + [
-        cat for cat in raw if cat not in CATEGORY_NAMES
-    ]
+    all_names = list(CATEGORY_NAMES) + [cat for cat in raw if cat not in CATEGORY_NAMES]
 
     categories: dict[str, CategoryStats] = {}
     for cat_name in all_names:
@@ -222,9 +202,7 @@ def build_pattern_catalog(
 
         for hash_val, data in shapes_data.items():
             velocity = _compute_velocity(hash_val, data["count"], prev_catalog, prev_cat)
-            boundary_spread = _compute_boundary_spread(
-                data["files"], name_to_cluster, partition
-            )
+            boundary_spread = _compute_boundary_spread(data["files"], name_to_cluster, partition)
             shapes[hash_val] = ShapeStats(
                 structural_hash=hash_val,
                 instance_count=data["count"],
@@ -257,11 +235,7 @@ def _compute_velocity(
     """
     if prev_catalog is None:
         return None
-    prev_count = (
-        prev_cat.shapes[hash_val].instance_count
-        if prev_cat and hash_val in prev_cat.shapes
-        else 0
-    )
+    prev_count = prev_cat.shapes[hash_val].instance_count if prev_cat and hash_val in prev_cat.shapes else 0
     return current_count - prev_count
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -19,7 +19,6 @@ from sdi.detection.leiden import CommunityResult
 from sdi.patterns.catalog import CategoryStats, PatternCatalog, ShapeStats
 from sdi.snapshot.assembly import _attach_intent_divergence, _compute_config_hash, assemble_snapshot
 from sdi.snapshot.model import SNAPSHOT_VERSION, DivergenceSummary, FeatureRecord, Snapshot
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -346,9 +345,7 @@ class TestAssembleSnapshotFirstSnapshot:
                 timestamp="2026-04-10T12:00:00Z",
                 repo_root=tmp_path,
             )
-        assert call_order == ["write", "retain"], (
-            "enforce_retention must be called immediately after write_snapshot"
-        )
+        assert call_order == ["write", "retain"], "enforce_retention must be called immediately after write_snapshot"
 
     def test_enforce_retention_receives_correct_limit(self, tmp_path: Path) -> None:
         cfg = _make_config(retention=7)
@@ -684,7 +681,7 @@ class TestAssembleSnapshotRealDiskRoundTrip:
 
     def test_snapshot_file_created_on_disk(self, tmp_path: Path) -> None:
         cfg = _make_config(snapshots_dir=".sdi/snapshots")
-        result = assemble_snapshot(
+        assemble_snapshot(
             records=_make_records(["python", "python"]),
             graph_metrics=_make_graph_metrics(),
             community=_make_community(),

@@ -93,9 +93,7 @@ def require_initialized(cwd: Path) -> tuple[Path, SDIConfig]:
         click.echo("[error] Not inside a git repository.", err=True)
         raise SystemExit(2)
     if not (git_root / ".sdi").exists():
-        click.echo(
-            "[error] SDI not initialized. Run `sdi init` first.", err=True
-        )
+        click.echo("[error] SDI not initialized. Run `sdi init` first.", err=True)
         raise SystemExit(2)
     config = load_config(git_root)
     return git_root, config
@@ -136,9 +134,7 @@ def resolve_snapshot_ref(snapshots_dir: Path, ref: str | None) -> Path | None:
     return None
 
 
-def load_snapshot_by_ref(
-    snapshots_dir: Path, ref: str | None, label: str = "snapshot"
-) -> tuple[Snapshot, Path]:
+def load_snapshot_by_ref(snapshots_dir: Path, ref: str | None, label: str = "snapshot") -> tuple[Snapshot, Path]:
     """Load a snapshot by reference, or exit with code 1.
 
     Args:

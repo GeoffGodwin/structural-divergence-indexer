@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from sdi.parsing.typescript import TypeScriptAdapter, _build_imports, _extract_type_only_imports
-from sdi.parsing._js_ts_common import extract_symbols, count_loc
 from sdi.parsing import FeatureRecord
+from sdi.parsing.typescript import TypeScriptAdapter
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
@@ -34,6 +34,7 @@ def _parse(adapter: TypeScriptAdapter, path: Path, source: str) -> FeatureRecord
 # ---------------------------------------------------------------------------
 # ES import extraction
 # ---------------------------------------------------------------------------
+
 
 class TestESImports:
     def test_named_import(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
@@ -69,27 +70,21 @@ class TestESImports:
 # Type-only imports
 # ---------------------------------------------------------------------------
 
+
 class TestTypeOnlyImports:
     def test_type_import_annotated(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
         record = _parse(adapter, path, "import type { Foo } from './types';\n")
         assert "type:./types" in record.imports
 
-    def test_type_import_excluded_from_plain(
-        self, adapter: TypeScriptAdapter, repo_root: Path
-    ) -> None:
+    def test_type_import_excluded_from_plain(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
         record = _parse(adapter, path, "import type { Foo } from './types';\n")
         assert "./types" not in record.imports
 
-    def test_mixed_type_and_value_imports(
-        self, adapter: TypeScriptAdapter, repo_root: Path
-    ) -> None:
+    def test_mixed_type_and_value_imports(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
-        source = (
-            "import { Foo } from './value';\n"
-            "import type { Bar } from './types';\n"
-        )
+        source = "import { Foo } from './value';\nimport type { Bar } from './types';\n"
         record = _parse(adapter, path, source)
         assert "./value" in record.imports
         assert "type:./types" in record.imports
@@ -99,6 +94,7 @@ class TestTypeOnlyImports:
 # ---------------------------------------------------------------------------
 # CommonJS require
 # ---------------------------------------------------------------------------
+
 
 class TestCommonJSRequire:
     def test_require_statement(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
@@ -116,6 +112,7 @@ class TestCommonJSRequire:
 # Re-exports
 # ---------------------------------------------------------------------------
 
+
 class TestReExports:
     def test_named_reexport(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
@@ -131,6 +128,7 @@ class TestReExports:
 # ---------------------------------------------------------------------------
 # Symbol extraction
 # ---------------------------------------------------------------------------
+
 
 class TestSymbolExtraction:
     def test_function_declaration(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
@@ -163,6 +161,7 @@ class TestSymbolExtraction:
 # Pattern instances
 # ---------------------------------------------------------------------------
 
+
 class TestPatternInstances:
     def test_try_catch_detected(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
@@ -178,9 +177,7 @@ class TestPatternInstances:
         categories = [pi["category"] for pi in record.pattern_instances]
         assert "logging" in categories
 
-    def test_pattern_has_required_keys(
-        self, adapter: TypeScriptAdapter, repo_root: Path
-    ) -> None:
+    def test_pattern_has_required_keys(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:
         path = repo_root / "a.ts"
         source = "try { x(); } catch (e) {}\n"
         record = _parse(adapter, path, source)
@@ -194,6 +191,7 @@ class TestPatternInstances:
 # ---------------------------------------------------------------------------
 # FeatureRecord metadata
 # ---------------------------------------------------------------------------
+
 
 class TestFeatureRecordMetadata:
     def test_language_is_typescript(self, adapter: TypeScriptAdapter, repo_root: Path) -> None:

@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from sdi.patterns.fingerprint import (
     PatternFingerprint,
     compute_structural_hash,
     fingerprint_from_instance,
 )
-
 
 # ---------------------------------------------------------------------------
 # compute_structural_hash — normalization and hashing
@@ -148,23 +145,15 @@ def test_returns_tuple_hash_and_node_count():
 
 def test_fingerprint_equality_based_on_hash():
     """Two fingerprints with the same structural_hash are equal."""
-    fp1 = PatternFingerprint(
-        category="error_handling", structural_hash="abc123", node_count=10
-    )
-    fp2 = PatternFingerprint(
-        category="error_handling", structural_hash="abc123", node_count=99
-    )
+    fp1 = PatternFingerprint(category="error_handling", structural_hash="abc123", node_count=10)
+    fp2 = PatternFingerprint(category="error_handling", structural_hash="abc123", node_count=99)
     assert fp1 == fp2
 
 
 def test_fingerprint_inequality_different_hash():
     """Two fingerprints with different structural hashes are not equal."""
-    fp1 = PatternFingerprint(
-        category="error_handling", structural_hash="abc123", node_count=10
-    )
-    fp2 = PatternFingerprint(
-        category="logging", structural_hash="def456", node_count=10
-    )
+    fp1 = PatternFingerprint(category="error_handling", structural_hash="abc123", node_count=10)
+    fp2 = PatternFingerprint(category="logging", structural_hash="def456", node_count=10)
     assert fp1 != fp2
 
 
@@ -306,9 +295,7 @@ def test_deeply_nested_descriptor_produces_expected_serialized_hash():
                                         "children": [
                                             {
                                                 "type": "return_statement",
-                                                "children": [
-                                                    {"type": "none", "text": "None"}
-                                                ],
+                                                "children": [{"type": "none", "text": "None"}],
                                             }
                                         ],
                                     },

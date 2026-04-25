@@ -55,9 +55,7 @@ def read_parse_cache(cache_dir: Path, file_hash: str) -> FeatureRecord | None:
         return None
 
 
-def write_parse_cache(
-    cache_dir: Path, file_hash: str, record: FeatureRecord
-) -> None:
+def write_parse_cache(cache_dir: Path, file_hash: str, record: FeatureRecord) -> None:
     """Atomically write a FeatureRecord to the parse cache.
 
     Args:
@@ -81,9 +79,7 @@ def write_parse_cache(
         raise
 
 
-def cleanup_orphan_parse_cache(
-    cache_dir: Path, active_hashes: set[str]
-) -> int:
+def cleanup_orphan_parse_cache(cache_dir: Path, active_hashes: set[str]) -> int:
     """Remove parse cache entries not present in active_hashes.
 
     An orphan entry is one whose content hash does not correspond to any

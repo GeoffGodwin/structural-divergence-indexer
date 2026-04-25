@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from sdi.patterns._fingerprint_cache import (
     cleanup_orphan_fingerprint_cache,
     get_file_fingerprints,
@@ -15,7 +13,6 @@ from sdi.patterns._fingerprint_cache import (
 )
 from sdi.patterns.fingerprint import PatternFingerprint
 from sdi.snapshot.model import FeatureRecord
-
 
 # ---------------------------------------------------------------------------
 # Helpers

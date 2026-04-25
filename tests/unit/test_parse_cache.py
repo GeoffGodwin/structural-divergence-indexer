@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-
-import pytest
 
 from sdi.parsing._parse_cache import (
     cleanup_orphan_parse_cache,
@@ -14,7 +11,6 @@ from sdi.parsing._parse_cache import (
     write_parse_cache,
 )
 from sdi.snapshot.model import FeatureRecord
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from sdi.parsing.go import GoAdapter, count_loc
 from sdi.parsing import FeatureRecord
-
+from sdi.parsing.go import GoAdapter, count_loc
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
@@ -34,6 +34,7 @@ def _parse(adapter: GoAdapter, path: Path, source: str) -> FeatureRecord:
 # ---------------------------------------------------------------------------
 # Import declarations
 # ---------------------------------------------------------------------------
+
 
 class TestImportDeclarations:
     def test_single_import(self, adapter: GoAdapter, repo_root: Path) -> None:
@@ -77,6 +78,7 @@ class TestImportDeclarations:
 # Exported symbol detection
 # ---------------------------------------------------------------------------
 
+
 class TestExportedSymbols:
     def test_exported_function(self, adapter: GoAdapter, repo_root: Path) -> None:
         path = repo_root / "main.go"
@@ -84,9 +86,7 @@ class TestExportedSymbols:
         record = _parse(adapter, path, source)
         assert "Greet" in record.symbols
 
-    def test_unexported_function_excluded(
-        self, adapter: GoAdapter, repo_root: Path
-    ) -> None:
+    def test_unexported_function_excluded(self, adapter: GoAdapter, repo_root: Path) -> None:
         path = repo_root / "main.go"
         source = "package main\nfunc helper() {}\n"
         record = _parse(adapter, path, source)
@@ -98,9 +98,7 @@ class TestExportedSymbols:
         record = _parse(adapter, path, source)
         assert "MyStruct" in record.symbols
 
-    def test_unexported_struct_excluded(
-        self, adapter: GoAdapter, repo_root: Path
-    ) -> None:
+    def test_unexported_struct_excluded(self, adapter: GoAdapter, repo_root: Path) -> None:
         path = repo_root / "main.go"
         source = "package main\ntype privateStruct struct { x int }\n"
         record = _parse(adapter, path, source)
@@ -117,14 +115,15 @@ class TestExportedSymbols:
 # Pattern instances
 # ---------------------------------------------------------------------------
 
+
 class TestPatternInstances:
     def test_error_check_detected(self, adapter: GoAdapter, repo_root: Path) -> None:
         path = repo_root / "main.go"
         source = (
             "package main\n"
-            "import \"errors\"\n"
+            'import "errors"\n'
             "func f() error {\n"
-            "    err := errors.New(\"oops\")\n"
+            '    err := errors.New("oops")\n'
             "    if err != nil {\n"
             "        return err\n"
             "    }\n"
@@ -135,14 +134,9 @@ class TestPatternInstances:
         categories = [pi["category"] for pi in record.pattern_instances]
         assert "error_handling" in categories
 
-    def test_pattern_has_required_keys(
-        self, adapter: GoAdapter, repo_root: Path
-    ) -> None:
+    def test_pattern_has_required_keys(self, adapter: GoAdapter, repo_root: Path) -> None:
         path = repo_root / "main.go"
-        source = (
-            "package main\n"
-            "func f() { if err != nil { return } }\n"
-        )
+        source = "package main\nfunc f() { if err != nil { return } }\n"
         record = _parse(adapter, path, source)
         for pi in record.pattern_instances:
             assert "category" in pi
@@ -153,6 +147,7 @@ class TestPatternInstances:
 # ---------------------------------------------------------------------------
 # FeatureRecord metadata
 # ---------------------------------------------------------------------------
+
 
 class TestFeatureRecordMetadata:
     def test_language_is_go(self, adapter: GoAdapter, repo_root: Path) -> None:
@@ -176,6 +171,7 @@ class TestFeatureRecordMetadata:
 # ---------------------------------------------------------------------------
 # count_loc — direct unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestCountLoc:
     def test_empty_source_returns_zero(self) -> None:
@@ -207,12 +203,12 @@ class TestCountLoc:
 
     def test_mixed_code_and_comments(self) -> None:
         source = (
-            b"package main\n"           # code  (+1)
-            b"\n"                        # blank
-            b"// imports\n"             # line comment
-            b'import "fmt"\n'           # code  (+1)
-            b"/* block */\n"            # block comment
-            b"func main() {}\n"         # code  (+1)
+            b"package main\n"  # code  (+1)
+            b"\n"  # blank
+            b"// imports\n"  # line comment
+            b'import "fmt"\n'  # code  (+1)
+            b"/* block */\n"  # block comment
+            b"func main() {}\n"  # code  (+1)
         )
         assert count_loc(source) == 3
 

@@ -201,11 +201,13 @@ def extract_pattern_instances(root: Node) -> list[dict[str, Any]]:
 
     for node in _walk_nodes(root):
         if node.type == "try_statement":
-            instances.append({
-                "category": "error_handling",
-                "ast_hash": _structural_hash(node),
-                "location": _location(node),
-            })
+            instances.append(
+                {
+                    "category": "error_handling",
+                    "ast_hash": _structural_hash(node),
+                    "location": _location(node),
+                }
+            )
         elif node.type == "call_expression":
             func = node.child_by_field_name("function")
             if func is not None:
@@ -213,16 +215,22 @@ def extract_pattern_instances(root: Node) -> list[dict[str, Any]]:
                 if "." in text:
                     method = text.rsplit(".", 1)[-1]
                     logging_methods = {
-                        "debug", "info", "warn", "warning", "error",
-                        "critical", "exception", "log",
+                        "debug",
+                        "info",
+                        "warn",
+                        "warning",
+                        "error",
+                        "critical",
+                        "exception",
+                        "log",
                     }
                     if method in logging_methods:
-                        instances.append({
-                            "category": "logging",
-                            "ast_hash": _structural_hash(node),
-                            "location": _location(node),
-                        })
+                        instances.append(
+                            {
+                                "category": "logging",
+                                "ast_hash": _structural_hash(node),
+                                "location": _location(node),
+                            }
+                        )
 
     return instances
-
-

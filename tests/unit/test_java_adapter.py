@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from sdi.parsing.java import JavaAdapter, count_loc
 from sdi.parsing import FeatureRecord
-
+from sdi.parsing.java import JavaAdapter, count_loc
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
@@ -35,6 +35,7 @@ def _parse(adapter: JavaAdapter, path: Path, source: str) -> FeatureRecord:
 # Import statements
 # ---------------------------------------------------------------------------
 
+
 class TestImportStatements:
     def test_simple_import(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
@@ -44,12 +45,7 @@ class TestImportStatements:
 
     def test_multiple_imports(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "import java.util.List;\n"
-            "import java.util.Map;\n"
-            "import com.example.Service;\n"
-            "public class App {}\n"
-        )
+        source = "import java.util.List;\nimport java.util.Map;\nimport com.example.Service;\npublic class App {}\n"
         record = _parse(adapter, path, source)
         assert "java.util.List" in record.imports
         assert "java.util.Map" in record.imports
@@ -57,11 +53,7 @@ class TestImportStatements:
 
     def test_no_duplicate_imports(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "import java.util.List;\n"
-            "import java.util.List;\n"
-            "public class App {}\n"
-        )
+        source = "import java.util.List;\nimport java.util.List;\npublic class App {}\n"
         record = _parse(adapter, path, source)
         assert record.imports.count("java.util.List") == 1
 
@@ -69,6 +61,7 @@ class TestImportStatements:
 # ---------------------------------------------------------------------------
 # Wildcard imports
 # ---------------------------------------------------------------------------
+
 
 class TestWildcardImports:
     def test_wildcard_import(self, adapter: JavaAdapter, repo_root: Path) -> None:
@@ -79,11 +72,7 @@ class TestWildcardImports:
 
     def test_specific_and_wildcard(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "import java.util.List;\n"
-            "import java.io.*;\n"
-            "public class App {}\n"
-        )
+        source = "import java.util.List;\nimport java.io.*;\npublic class App {}\n"
         record = _parse(adapter, path, source)
         assert "java.util.List" in record.imports
         assert "java.io.*" in record.imports
@@ -92,6 +81,7 @@ class TestWildcardImports:
 # ---------------------------------------------------------------------------
 # Package declarations
 # ---------------------------------------------------------------------------
+
 
 class TestPackageDeclarations:
     def test_package_not_in_imports(self, adapter: JavaAdapter, repo_root: Path) -> None:
@@ -103,11 +93,7 @@ class TestPackageDeclarations:
 
     def test_package_with_imports(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "package com.example;\n"
-            "import java.util.List;\n"
-            "public class App {}\n"
-        )
+        source = "package com.example;\nimport java.util.List;\npublic class App {}\n"
         record = _parse(adapter, path, source)
         assert "java.util.List" in record.imports
         assert "com.example" not in record.imports
@@ -116,6 +102,7 @@ class TestPackageDeclarations:
 # ---------------------------------------------------------------------------
 # Class and interface definitions
 # ---------------------------------------------------------------------------
+
 
 class TestClassAndInterfaceDefinitions:
     def test_class_definition(self, adapter: JavaAdapter, repo_root: Path) -> None:
@@ -142,29 +129,18 @@ class TestClassAndInterfaceDefinitions:
 # Pattern instances
 # ---------------------------------------------------------------------------
 
+
 class TestPatternInstances:
     def test_try_catch_detected(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "public class App {\n"
-            "    void f() {\n"
-            "        try { doThing(); } catch (Exception e) { }\n"
-            "    }\n"
-            "}\n"
-        )
+        source = "public class App {\n    void f() {\n        try { doThing(); } catch (Exception e) { }\n    }\n}\n"
         record = _parse(adapter, path, source)
         categories = [pi["category"] for pi in record.pattern_instances]
         assert "error_handling" in categories
 
-    def test_pattern_has_required_keys(
-        self, adapter: JavaAdapter, repo_root: Path
-    ) -> None:
+    def test_pattern_has_required_keys(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "public class App {\n"
-            "    void f() { try { } catch (Exception e) { } }\n"
-            "}\n"
-        )
+        source = "public class App {\n    void f() { try { } catch (Exception e) { } }\n}\n"
         record = _parse(adapter, path, source)
         for pi in record.pattern_instances:
             assert "category" in pi
@@ -175,6 +151,7 @@ class TestPatternInstances:
 # ---------------------------------------------------------------------------
 # FeatureRecord metadata
 # ---------------------------------------------------------------------------
+
 
 class TestFeatureRecordMetadata:
     def test_language_is_java(self, adapter: JavaAdapter, repo_root: Path) -> None:
@@ -199,6 +176,7 @@ class TestFeatureRecordMetadata:
 # Static imports
 # ---------------------------------------------------------------------------
 
+
 class TestStaticImports:
     def test_static_import_simple(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
@@ -212,22 +190,14 @@ class TestStaticImports:
         record = _parse(adapter, path, source)
         assert "java.lang.Math.*" in record.imports
 
-    def test_static_import_mixed_with_regular(
-        self, adapter: JavaAdapter, repo_root: Path
-    ) -> None:
+    def test_static_import_mixed_with_regular(self, adapter: JavaAdapter, repo_root: Path) -> None:
         path = repo_root / "App.java"
-        source = (
-            "import java.util.List;\n"
-            "import static java.util.Collections.sort;\n"
-            "public class App {}\n"
-        )
+        source = "import java.util.List;\nimport static java.util.Collections.sort;\npublic class App {}\n"
         record = _parse(adapter, path, source)
         assert "java.util.List" in record.imports
         assert "java.util.Collections.sort" in record.imports
 
-    def test_static_import_no_static_prefix_in_result(
-        self, adapter: JavaAdapter, repo_root: Path
-    ) -> None:
+    def test_static_import_no_static_prefix_in_result(self, adapter: JavaAdapter, repo_root: Path) -> None:
         # The word "static" must be stripped — it is not part of the path.
         path = repo_root / "App.java"
         source = "import static org.junit.Assert.assertEquals;\npublic class App {}\n"
@@ -239,6 +209,7 @@ class TestStaticImports:
 # ---------------------------------------------------------------------------
 # count_loc — direct unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestCountLoc:
     def test_empty_source_returns_zero(self) -> None:
@@ -274,12 +245,12 @@ class TestCountLoc:
 
     def test_mixed_code_comments_and_blanks(self) -> None:
         source = (
-            b"// Header comment\n"        # line comment
-            b"\n"                          # blank
-            b"public class App {\n"       # code (+1)
-            b"    /* note */\n"           # block comment (not at line start but stripped)
-            b"    void run() {}\n"        # code (+1)
-            b"}\n"                        # code (+1)
+            b"// Header comment\n"  # line comment
+            b"\n"  # blank
+            b"public class App {\n"  # code (+1)
+            b"    /* note */\n"  # block comment (not at line start but stripped)
+            b"    void run() {}\n"  # code (+1)
+            b"}\n"  # code (+1)
         )
         # "    /* note */" stripped → "/* note */", starts with /*
         assert count_loc(source) == 3

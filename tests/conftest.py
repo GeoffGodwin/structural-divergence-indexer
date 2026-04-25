@@ -19,7 +19,6 @@ from sdi.snapshot.model import (
     Snapshot,
 )
 
-
 # ---------------------------------------------------------------------------
 # Adapter availability guards (used by integration tests)
 # ---------------------------------------------------------------------------
