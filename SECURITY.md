@@ -34,7 +34,7 @@ When `1.0.0` cuts, the table updates to mark the latest 1.x minor as supported a
 
 ## Bug Bounty
 
-There is no bug-bounty program. SDI is not yet published to PyPI and has no production user base; once it is, this policy will be revisited.
+There is no bug-bounty program. SDI is a free, open-source project; contributions and disclosures are welcomed but not compensated. Patches via pull request are the preferred way to help.
 
 ## Scope
 
