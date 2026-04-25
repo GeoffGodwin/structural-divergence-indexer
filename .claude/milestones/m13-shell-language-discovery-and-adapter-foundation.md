@@ -1,7 +1,7 @@
 ### Milestone 13: Shell Language Discovery and Adapter Foundation
 <!-- milestone-meta
 id: "13"
-status: "planned"
+status: "done"
 -->
 
 

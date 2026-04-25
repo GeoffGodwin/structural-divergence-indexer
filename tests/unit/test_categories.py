@@ -80,3 +80,38 @@ def test_get_all_categories_is_copy():
     all_cats = get_all_categories()
     all_cats["injected"] = None  # type: ignore[assignment]
     assert get_category("injected") is None
+
+
+# ---------------------------------------------------------------------------
+# M14 architecture guard: shell extraction is imperative, not query-based
+# ---------------------------------------------------------------------------
+
+_SHELL_PATTERN_CATEGORIES: list[str] = [
+    "error_handling",
+    "logging",
+    "data_access",
+    "async_patterns",
+]
+
+
+def test_shell_supported_categories_are_registered():
+    """The four shell-pattern categories are present in the built-in registry."""
+    for name in _SHELL_PATTERN_CATEGORIES:
+        assert is_registered_category(name), (
+            f"Shell-pattern category '{name}' missing from registry"
+        )
+
+
+def test_shell_categories_have_no_shell_ts_query():
+    """Shell extraction uses _shell_patterns.py, not ts_queries.
+
+    No category's ts_queries dict should have a 'shell' key — shell pattern
+    detection is done imperatively by extract_pattern_instances() in
+    _shell_patterns.py, not by the tree-sitter query runner.
+    """
+    all_cats = get_all_categories()
+    for name, defn in all_cats.items():
+        assert "shell" not in defn.ts_queries, (
+            f"Category '{name}' has an unexpected 'shell' key in ts_queries; "
+            "shell extraction must go through _shell_patterns.py instead"
+        )

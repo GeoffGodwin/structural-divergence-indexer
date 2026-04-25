@@ -113,6 +113,7 @@ def _build_registry() -> dict[str, CategoryDefinition]:
         ts_queries: dict[str, str] = {}
         if name in _PYTHON_QUERIES:
             ts_queries["python"] = _PYTHON_QUERIES[name]
+        # Shell extraction lives in _shell_patterns.py, not in ts_queries.
         registry[name] = CategoryDefinition(
             name=name,
             description=_DESCRIPTIONS[name],

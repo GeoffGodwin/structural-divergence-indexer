@@ -17,7 +17,19 @@ _EXTENSION_TO_LANGUAGE: dict[str, str] = {
     ".go": "go",
     ".java": "java",
     ".rs": "rust",
+    ".sh": "shell",
+    ".bash": "shell",
+    ".zsh": "shell",
+    ".ksh": "shell",
+    ".dash": "shell",
+    ".ash": "shell",
 }
+
+# Interpreter names that indicate a shell script shebang.
+# Checked against Path(interpreter).name so "bashbrew" won't match "bash".
+_SHELL_INTERPRETERS: frozenset[str] = frozenset(
+    {"sh", "bash", "zsh", "ksh", "dash", "ash"}
+)
 
 
 def detect_language(path: Path) -> str | None:
@@ -30,6 +42,43 @@ def detect_language(path: Path) -> str | None:
         Language name string (e.g. "python") or None.
     """
     return _EXTENSION_TO_LANGUAGE.get(path.suffix.lower())
+
+
+def _detect_shell_shebang(path: Path) -> bool:
+    """Return True if path is an extensionless executable shell script.
+
+    Reads at most 256 bytes and inspects only the first line for a shell
+    shebang. Never called for files with a known or unknown extension.
+
+    Args:
+        path: File path (must have no suffix and executable bit set).
+
+    Returns:
+        True if the shebang identifies a supported shell interpreter.
+    """
+    try:
+        raw = path.read_bytes()[:256]
+    except OSError:
+        return False
+
+    first_line = raw.decode("utf-8", errors="replace").splitlines()[0] if raw else ""
+    if not first_line.startswith("#!"):
+        return False
+
+    interp_line = first_line[2:].strip()
+    # Split on whitespace to get the interpreter path (and optional args)
+    parts = interp_line.split()
+    if not parts:
+        return False
+
+    interp = parts[0]
+    # Handle `#!/usr/bin/env bash` — take the token after env
+    if Path(interp).name == "env":
+        if len(parts) < 2:
+            return False
+        interp = parts[1]
+
+    return Path(interp).name in _SHELL_INTERPRETERS
 
 
 def _load_gitignore(root: Path) -> pathspec.PathSpec:
@@ -72,6 +121,8 @@ def discover_files(
     Files matching .gitignore or configured exclude patterns are excluded.
     Files with unsupported extensions are silently skipped.
     The .git directory is always excluded regardless of exclude_patterns.
+    Extensionless executable scripts with a supported shell shebang are
+    included as language "shell".
 
     Args:
         root: Repository root directory (absolute).
@@ -116,9 +167,18 @@ def discover_files(
             continue
 
         language = detect_language(path)
-        if language is None:
+        if language is not None:
+            results.append((path, language))
             continue
 
-        results.append((path, language))
+        # Shebang detection for extensionless executable scripts only.
+        # Never read file content if the path has any extension.
+        if path.suffix == "":
+            try:
+                mode = path.stat().st_mode
+            except OSError:
+                continue
+            if mode & 0o111 and _detect_shell_shebang(path):
+                results.append((path, "shell"))
 
     return results

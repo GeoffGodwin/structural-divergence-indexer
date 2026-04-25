@@ -146,6 +146,31 @@ A practical interpretation:
 - Rising `coupling_topology_delta` suggests dependency structure is becoming denser or less modular.
 - Rising `boundary_violations_delta` suggests increasing cross-boundary leakage.
 
+## Language Support
+
+SDI supports Python, TypeScript, JavaScript, Go, Java, and Rust out of the box with `pip install sdi`. Full language support including shell is installed with `pip install 'sdi[all]'`.
+
+### Shell
+
+**Supported extensions:** `.sh`, `.bash`, `.zsh`, `.ksh`, `.dash`, `.ash`. Note: `.fish` is not supported (fish syntax is not parsed by the underlying tree-sitter-bash grammar).
+
+**Shebang detection:** Extensionless executable files with a recognized bash/sh/zsh shebang line (e.g. `#!/usr/bin/env bash`, `#!/bin/sh`) are automatically included in analysis without requiring a file extension.
+
+**Installation:** `pip install 'sdi[all]'` installs `tree-sitter-bash` and enables shell analysis. Without it, shell files are skipped with a per-file warning.
+
+**Categories detected for shell:**
+- `error_handling` — `set -e`/`-u`/`-o pipefail` invocations, `trap` handlers (ERR, EXIT, INT, TERM, HUP, QUIT), `exit`/`return` non-zero, `cmd || exit` list-bail patterns, `if_statement` bodies with exit/return, test expressions containing command substitutions.
+- `logging` — `echo`, `printf`, `logger`, `tee` commands; `>&2` stderr redirect forms (tracked as a distinct shape from stdout logging).
+- `data_access` — Commands from a fixed allow-list: `curl`, `wget`, `jq`, `yq`, `psql`, `mysql`, `mysqldump`, `pg_dump`, `redis-cli`, `mongo`, `mongosh`, `sqlite3`, `aws`, `gcloud`, `kubectl`, `az`, `doctl`, `terraform`.
+- `async_patterns` — Background jobs (`cmd &`), `wait`, wide pipelines (3+ stages), `xargs`/`parallel` with `-P`/`--max-procs`.
+
+**Known limits:**
+- Dynamic `source` paths (e.g. `source "$DIR/lib.sh"`) are silently skipped; only static literals are resolved to repo-relative paths.
+- Heredoc bodies are not pattern-matched.
+- Fish syntax is not supported.
+- Parse failures emit a per-file warning and skip the file; analysis continues with available files.
+- Generated shell wrappers (e.g. autotools scripts, codegen output) can inflate entropy. Add such directories to `[core] exclude` in `.sdi/config.toml`.
+
 ## Configuration
 
 `sdi init` writes `.sdi/config.toml` with defaults and comments. Common edits:

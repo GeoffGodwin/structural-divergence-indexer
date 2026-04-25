@@ -225,3 +225,72 @@ def test_high_entropy_logging(high_entropy_records: list[FeatureRecord]):
     log_cat = catalog.get_category("logging")
     assert log_cat is not None
     assert log_cat.entropy >= 2
+
+
+# ---------------------------------------------------------------------------
+# Shell velocity and boundary spread (M14)
+# ---------------------------------------------------------------------------
+
+
+def make_shell_record(file_path: str, instances: list[dict]) -> FeatureRecord:
+    """Build a shell FeatureRecord with specific pattern_instances."""
+    return FeatureRecord(
+        file_path=file_path,
+        language="shell",
+        imports=[],
+        symbols=[],
+        pattern_instances=instances,
+        lines_of_code=15,
+    )
+
+
+def test_shell_velocity_new_shape_equals_count():
+    """A shell shape not in prev_catalog has velocity equal to its current instance count."""
+    cfg = default_config()
+    records = [
+        make_shell_record("deploy.sh", [make_instance("error_handling", "sh_eh_trap")]),
+        make_shell_record("run.sh", [make_instance("error_handling", "sh_eh_trap")]),
+    ]
+    prev_shapes = {"old_hash": ShapeStats("old_hash", 2, ["setup.sh"], None, None)}
+    prev_stats = CategoryStats(name="error_handling", shapes=prev_shapes)
+    prev_catalog = PatternCatalog(categories={"error_handling": prev_stats})
+
+    catalog = build_pattern_catalog(records, cfg, prev_catalog, None)
+    eh_cat = catalog.get_category("error_handling")
+    assert eh_cat is not None
+    # sh_eh_trap is new (not in prev), count=2, velocity = 2-0 = 2
+    assert eh_cat.shapes["sh_eh_trap"].velocity == 2
+
+
+def test_shell_velocity_unchanged_shape_is_zero():
+    """A shell shape present in both prev and current with same count has velocity 0."""
+    cfg = default_config()
+    records = [make_shell_record("setup.sh", [make_instance("error_handling", "sh_set_e")])]
+    prev_shapes = {"sh_set_e": ShapeStats("sh_set_e", 1, ["setup.sh"], None, None)}
+    prev_stats = CategoryStats(name="error_handling", shapes=prev_shapes)
+    prev_catalog = PatternCatalog(categories={"error_handling": prev_stats})
+
+    catalog = build_pattern_catalog(records, cfg, prev_catalog, None)
+    eh_cat = catalog.get_category("error_handling")
+    assert eh_cat.shapes["sh_set_e"].velocity == 0
+
+
+def test_shell_boundary_spread_across_two_clusters():
+    """A shell error_handling shape spanning two Leiden clusters has boundary_spread == 2."""
+    partition = CommunityResult(
+        partition=[0, 0, 1, 1],
+        stability_score=1.0,
+        cluster_count=2,
+        inter_cluster_edges=[],
+        surface_area_ratios={0: 0.0, 1: 0.0},
+        vertex_names=["deploy/deploy.sh", "deploy/rollback.sh", "ops/backup.sh", "ops/restore.sh"],
+    )
+    cfg = default_config()
+    records = [
+        make_shell_record("deploy/deploy.sh", [make_instance("error_handling", "sh_trap_err")]),
+        make_shell_record("ops/backup.sh", [make_instance("error_handling", "sh_trap_err")]),
+    ]
+    catalog = build_pattern_catalog(records, cfg, None, partition)
+    eh_cat = catalog.get_category("error_handling")
+    assert eh_cat is not None
+    assert eh_cat.shapes["sh_trap_err"].boundary_spread == 2

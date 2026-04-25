@@ -294,6 +294,52 @@ Overrides without an `expires` date are rejected with exit code 2.
 
 ---
 
+## Shell-Heavy Repositories
+
+Default thresholds are tuned for application code (Python, TypeScript, Go, etc.). Shell-script-heavy repositories (ops tooling, CI scripts, deploy pipelines) often have higher shape diversity by nature; the default `pattern_entropy_rate = 2.0` and `convention_drift_rate = 3.0` may fire more frequently than intended.
+
+### Worked example: running `sdi check` against a shell-heavy repo
+
+```bash
+# Install with shell grammar support
+pip install 'sdi[all]'
+
+# Initialize and capture baseline
+cd /path/to/my-ops-repo
+sdi init
+sdi snapshot
+
+# After adding new shell scripts (e.g. deploy/health-check.sh with xargs -P):
+sdi snapshot
+sdi check   # may exit 10 if new shapes exceed pattern_entropy_rate = 2.0
+sdi diff    # shows which dimensions changed and by how much
+```
+
+If `sdi check` exits 10 after expected script additions, use a time-boxed override instead of lowering the global thresholds.
+
+### TOML override for shell-script-heavy repos
+
+Add to `.sdi/config.toml` while migrating ops scripts:
+
+```toml
+[thresholds.overrides.error_handling]
+pattern_entropy_rate = 6.0
+expires = "2026-Q4"
+reason = "Migrating ops scripts from set -e to explicit error traps"
+
+[thresholds.overrides.async_patterns]
+pattern_entropy_rate = 5.0
+expires = "2026-12-31"
+reason = "Pipeline parallelism rollout in deploy/"
+```
+
+> **Note:** Overrides without an `expires` date are rejected with exit code 2.
+> Expired overrides are silently ignored — default thresholds resume automatically.
+
+The override mechanism is the supported relief valve. Default thresholds are not lowered globally to accommodate script-heavy repos.
+
+---
+
 ## Exit Code Reference
 
 | Code | Meaning |

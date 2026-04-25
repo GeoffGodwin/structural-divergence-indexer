@@ -657,3 +657,241 @@ status: "done"
 - This milestone produces a shippable v0.1.0 — the complete SDI tool ready for early adopter feedback
 - The CI workflow becomes the ongoing quality gate for all future development
 - The evolving fixture becomes the canonical test for trend computation accuracy
+
+---
+
+## Archived: 2026-04-24 — Unknown Initiative
+
+### Milestone 13: Shell Language Discovery and Adapter Foundation
+<!-- milestone-meta
+id: "13"
+status: "done"
+-->
+
+
+**Scope:** Add first-class shell parsing support to SDI's Stage 1 pipeline so shell scripts are discovered, parsed, and represented as FeatureRecords with deterministic behavior and graceful degradation when grammar dependencies are missing.
+
+**Deliverables:**
+- Shell grammar dependency wiring:
+  - Add `tree-sitter-bash` (canonical PyPI package, no version pin needed beyond what `tree-sitter>=0.24` constrains) to the `all` optional extra in `pyproject.toml` (alongside the other `tree-sitter-*` packages at `pyproject.toml:42-52`).
+  - Add `tree-sitter-bash` to the `[[tool.mypy.overrides]] module = [...]` list at `pyproject.toml:72-74` so missing type stubs do not fail `mypy`.
+  - Import failure handling is automatic: `_register_adapters` in `src/sdi/parsing/_runner.py:22-44` already wraps adapter imports in `try/except ImportError` and emits a `[warning]` to stderr. The shell adapter only needs to be appended to the `_adapter_modules` list — no additional warning code required.
+- Discovery updates in `src/sdi/parsing/discovery.py`:
+  - Extend `_EXTENSION_TO_LANGUAGE` (`discovery.py:10-20`) with: `.sh`, `.bash`, `.zsh`, `.ksh`, `.dash`, `.ash` → `"shell"`. Do **not** map `.fish`; fish syntax is incompatible with `tree-sitter-bash` and parse failures would corrupt downstream analysis. `.fish` files fall into the existing "no grammar" warning path automatically.
+  - Add shebang-based detection for extensionless scripts via a private helper `_detect_shell_shebang(path: Path) -> bool` in `discovery.py`. Behaviour:
+    - **Trigger:** only for files where `detect_language(path)` returns `None` AND `path.suffix == ""` AND the executable bit is set (`path.stat().st_mode & 0o111 != 0`). Skip otherwise — never read content for files that already have a known/unknown extension.
+    - **Read:** open in binary mode and read at most 256 bytes (one `read(256)`). Decode with `errors="replace"`. Inspect only the first line.
+    - **Match rule:** the first line must start with `#!` and the remainder must contain a path component (split on `/` and whitespace) equal to one of: `sh`, `bash`, `zsh`, `ksh`, `dash`, `ash`. Reject `python`, `python3`, `node`, `ruby`, `perl`, `awk`, `sed`, etc. For `#!/usr/bin/env <cmd>`, take `<cmd>` (the first whitespace-separated token after `env`) and apply the same allow-list.
+    - **Integration:** call `_detect_shell_shebang` inside `discover_files` after the existing `detect_language` check; on True, append `(path, "shell")` to results. Apply gitignore/exclude filters before the shebang check (mirror existing order).
+  - File-content I/O cost is bounded: only extensionless executable files trigger a `read(256)`. Unsupported text files (no extension, no exec bit, or non-shell shebang) remain silently ignored — no warnings.
+- New adapter implementation in `src/sdi/parsing/shell.py` (model after `src/sdi/parsing/go.py`):
+  - Implement `ShellAdapter(LanguageAdapter)` using `tree_sitter_bash`. `language_name` returns `"shell"` for all supported extensions. `file_extensions = frozenset({".sh", ".bash", ".zsh", ".ksh", ".dash", ".ash"})`.
+  - Use the lazy `_PARSER` singleton pattern from `go.py:22-30`. Reuse helpers from `_lang_common.py`: `_structural_hash`, `_location`, `_walk_nodes`, `count_loc`.
+  - **Imports / includes** — populate `FeatureRecord.imports` from `command` AST nodes whose `command_name` is `source` or `.`, with a single literal-string argument:
+    - Resolve the literal path to a repo-relative POSIX string. If the literal is absolute or starts with `/`, attempt `Path(literal).resolve().relative_to(repo_root)`; on failure, drop the import.
+    - If the literal is relative (`./common.sh`, `../lib/util.sh`, `common.sh`), resolve relative to the **importing file's directory**, then `relative_to(repo_root)`. Drop on failure.
+    - Skip dynamic forms entirely: any argument containing `$`, backticks, command substitution `$(...)`, glob metacharacters, or word-splitting whitespace. Static literal only.
+    - Output format matches what `graph/builder.py` already consumes for file-based languages (the same convention Python uses for resolved relative imports): a repo-relative POSIX path string, e.g. `"src/lib/util.sh"`. Unresolved imports are silently dropped (consistent with existing adapters).
+  - **Symbols** — extract from `function_definition` nodes. The name is the `name` field text (`child_by_field_name("name")`). Both shell forms (`foo() { ... }` and `function foo { ... }`) parse to the same `function_definition` node — no special-casing needed. No namespacing; append the bare name to `symbols`.
+  - **Pattern instances** — write a private module `src/sdi/parsing/_shell_patterns.py` mirroring `_python_patterns.py` (custom AST walker; do **not** use `categories.py` query strings — see Watch For). Detect:
+    - `error_handling`:
+      - `command` nodes with `command_name == "set"` whose argument list contains any of `-e`, `-u`, `-o pipefail`, `-eu`, `-eo`, `-uo`, `-euo`, or any `-` flag combination including `e`, `u`, or starting with `-o`.
+      - `command` nodes with `command_name == "trap"` whose last argument is `ERR`, `EXIT`, `INT`, `TERM`, or `HUP`.
+      - `command` nodes with `command_name in {"exit", "return"}` whose first argument is a numeric literal `!= "0"`.
+      - `list` nodes (the `||` and `&&` constructs) whose right side is a `command` with `command_name in {"exit", "return", "false"}`.
+    - `logging`:
+      - `command` nodes with `command_name in {"echo", "printf", "logger", "tee"}`.
+    - **Structural hash composition for shell:** because `command` nodes share the same node type regardless of `command_name`, fold `command_name` into the structural fingerprint when emitting an instance. Implement a `_shell_structural_hash(node)` helper in `_shell_patterns.py` that, for `command` nodes, prepends `command_name` text to the serialization before hashing; falls back to `_lang_common._structural_hash` for non-command nodes. This keeps `set -e`, `trap ERR`, and `exit 1` as distinct shapes.
+  - **Pattern category registration** — add a decorative `_SHELL_QUERIES: dict[str, str] = {}` plus a shell entry in the per-language registry inside `src/sdi/patterns/categories.py:46-122` for parity. Leave `_SHELL_QUERIES` empty in v1 — the actual extraction lives in `_shell_patterns.py`. This keeps `categories.py` aware of shell as a registered language without misleading query strings.
+- Runner registration in `src/sdi/parsing/_runner.py`:
+  - Append `("shell", "sdi.parsing.shell", "ShellAdapter")` to `_adapter_modules` in `_register_adapters` (`_runner.py:28-35`). No other changes needed — the existing `try/except ImportError` block at lines 37-44 produces the warning automatically.
+- Parse cache (`src/sdi/parsing/_parse_cache.py`):
+  - **No changes required.** The cache is keyed on file content SHA-256 and is language-agnostic; shell `FeatureRecord`s round-trip through the existing read/write paths automatically. Mention only to pre-empt over-engineering.
+- Test conftest (`tests/conftest.py`):
+  - Add `_has_shell_adapter()` and `requires_shell_adapter` markers mirroring `_has_python_adapter` / `requires_python_adapter` at `conftest.py:28-56`. Every shell-touching test must be gated by `requires_shell_adapter`.
+- Fixture and test coverage:
+  - Add `tests/fixtures/simple-shell/` with **3 scripts** (≈10–20 LOC each):
+    - `deploy.sh`: starts with `set -euo pipefail`, contains `source ./lib/util.sh`, defines one function, has one `echo` and one `logger` call, includes one `trap cleanup ERR`.
+    - `lib/util.sh`: defines two functions, contains one `printf`-based logging call, no error handling.
+    - `extensionless-script` (no extension, exec bit set, shebang `#!/usr/bin/env bash`): defines one function and one `echo`.
+  - Add `tests/unit/test_shell_adapter.py` (gated by `requires_shell_adapter`):
+    - import/include extraction: literal `source ./x.sh` and `. ./x.sh` resolve to repo-relative paths.
+    - dynamic-source rejection: `source "$DIR/x.sh"`, `source $(which foo)`, and `source ${LIB}/x.sh` produce zero imports.
+    - function symbol extraction: both `foo() { ... }` and `function foo { ... }` add `foo` to `symbols`.
+    - error_handling instances: `set -e`, `set -euo pipefail`, `trap cleanup ERR`, and `exit 1` each produce one instance with distinct `ast_hash` values.
+    - logging instances: `echo`, `printf`, and `logger` calls each produce one `logging` instance with distinct `ast_hash` values.
+    - empty file → zero instances, zero imports, zero symbols, no exception.
+    - syntactically broken script → adapter emits warning via `parse_file_safe`, returns `None`, no exception escapes.
+    - structural-hash stability: parsing the same script bytes twice yields identical `ast_hash` values for every instance.
+  - Extend `tests/unit/test_discovery.py`:
+    - extensions `.sh`, `.bash`, `.zsh`, `.ksh`, `.dash`, `.ash` map to `"shell"`.
+    - `.fish` does **not** map to `"shell"` (returns `None` from `detect_language`).
+    - extensionless executable file with `#!/usr/bin/env bash` is discovered as `("shell", path)`.
+    - extensionless executable file with `#!/usr/bin/env python3` is **not** discovered (returns nothing).
+    - extensionless file without exec bit but with `#!/bin/bash` shebang is **not** discovered.
+    - file with `.txt` extension and `#!/bin/bash` shebang is **not** discovered (extension takes precedence; no content read).
+  - Extend `tests/integration/test_full_pipeline.py`:
+    - Add a test class gated by `requires_shell_adapter` that points `parse_repository` at `tests/fixtures/simple-shell/` and asserts `language_breakdown["shell"] == 3`, the expected `symbols` count, and at least one `error_handling` and one `logging` pattern instance in the resulting catalog.
+- Documentation:
+  - Add a one-line entry under the "Unreleased" / next-version heading in `CHANGELOG.md`: `Added: shell language support (.sh/.bash/.zsh/.ksh and shebang detection) via tree-sitter-bash.`
+
+**Acceptance criteria:**
+- `sdi snapshot` on `tests/fixtures/simple-shell/` (no custom config) reports `language_breakdown["shell"] == 3` and produces a non-empty pattern catalog.
+- Extensionless executable scripts with allow-listed shell shebangs are discovered as `("shell", path)`; non-shell shebangs are ignored without warning.
+- With `tree-sitter-bash` not installed, `_register_adapters` emits one `[warning] Shell adapter unavailable: ...` to stderr and the snapshot completes (no crash) when other grammars are available.
+- `FeatureRecord.language == "shell"` for every parsed shell file regardless of extension.
+- Static `source` / `.` imports resolve to repo-relative POSIX paths; dynamic forms produce zero imports and no warnings.
+- All new unit and integration tests pass on Python 3.10, 3.11, and 3.12.
+- `mypy src/sdi/` passes with `tree-sitter-bash` either present or absent.
+- No regressions: existing fixture-based snapshot/catalog tests for Python/TS/JS/Go/Java/Rust produce byte-identical `language_breakdown` keys for non-shell fixtures.
+
+**Tests:** (full enumerated assertions are listed under "Fixture and test coverage" above; this section is a checklist of the test files touched)
+
+- `tests/unit/test_discovery.py` — six new cases (extensions, fish exclusion, shebang positive, shebang negative on python, no-exec-bit, extension-takes-precedence).
+- `tests/unit/test_shell_adapter.py` — eight cases (imports, dynamic rejection, both function forms, four error_handling shapes, three logging shapes, empty file, broken script, hash stability).
+- `tests/integration/test_full_pipeline.py` — one new class gated by `requires_shell_adapter` asserting `language_breakdown["shell"] == 3` and presence of `error_handling` + `logging` instances.
+
+**Watch For:**
+- **Do not use `categories.py` query strings for extraction.** The `_PYTHON_QUERIES` strings at `src/sdi/patterns/categories.py:46-82` are decorative and unused at runtime — actual extraction lives in per-language walker modules (`_python_patterns.py` and the `_extract_patterns` function in `go.py:156-183`; Java/Rust/JS/TS adapters follow the same custom-walker convention with no query strings registered at all). Follow that convention for shell: walker code in `_shell_patterns.py`, `_SHELL_QUERIES = {}` left empty.
+- **`set -e` family fingerprint coarseness.** Tree-sitter-bash represents shell builtins as `command` nodes; without folding `command_name` into the structural hash, every `set -e` / `set -u` / `set -o pipefail` collapses to the same shape. The `_shell_structural_hash` helper specified in the adapter section is mandatory, not optional — otherwise `error_handling` entropy will under-count.
+- **Shebang detection is the only file-content I/O during discovery.** Bound it: extensionless files only, exec bit required, 256-byte read max, first line only. Any cost growth here regresses parse latency.
+- **Allow-list shebang interpreters strictly.** Match path tokens, not substrings — otherwise `#!/usr/bin/env bashbrew` would be miscategorized. Use `Path(interp).name in {"sh","bash","zsh","ksh","dash","ash"}`.
+- **Static-only `source` resolution.** Drop any `source` argument containing `$`, backticks, `$(...)`, glob chars, or whitespace splits. Capturing dynamic forms produces phantom edges and breaks reproducibility.
+- **`.fish` is intentionally unsupported.** Fish syntax differs from POSIX/bash and tree-sitter-bash will produce malformed ASTs. Map `.fish` to no language so it surfaces in the existing "no grammar" warning rather than corrupting analysis silently.
+- **Determinism guarantees:** no shell execution, no env-var expansion, no filesystem traversal beyond the parsed file's directory.
+
+**Seeds Forward:**
+- Enables SDI coverage for shell-heavy repos (high-impact for Tekhton-scale script surfaces).
+- Establishes shell AST substrate needed for richer pattern fingerprints and better drift signal quality in Milestone 14.
+- Unblocks future support for script-centric boundary inference in ops/infrastructure codebases.
+
+---
+
+---
+
+## Archived: 2026-04-24 — Unknown Initiative
+
+### Milestone 14: Shell Pattern Quality, Trend Calibration, and Rollout
+<!-- milestone-meta
+id: "14"
+status: "done"
+-->
+
+
+**Scope:** Improve shell signal quality beyond raw parsing by calibrating pattern extraction, validating trend behavior on shell-heavy histories, and documenting operational guidance so shell support is trustworthy for gates and remediation workflows. Builds directly on M13's `ShellAdapter` and `_shell_patterns.py`; this milestone extends — not replaces — those modules.
+
+**Philosophy reminder (read first):** Per CLAUDE.md Non-Negotiable Rule 4, SDI never classifies code as "good" or "bad." All language in this milestone uses *measurement* phrasing: "structurally distinct shapes," "additional categories detected," "broader command-name coverage." Phrasing like "robust vs ad-hoc," "best practice," or "quality" must not appear in code, comments, tests, or docs delivered by this milestone.
+
+**Deliverables:**
+- Pattern quality expansion in `src/sdi/parsing/_shell_patterns.py` (the walker module introduced in M13). All additions emit `(category, ast_hash, location)` tuples via the existing `_shell_structural_hash` helper, which folds `command_name` into the structural fingerprint so distinct command names produce distinct shapes.
+  - **`error_handling` — broaden the M13 set so the following structures each produce a distinct `ast_hash`:**
+    - `set` invocations: any flag string containing `e`, `u`, or `o pipefail` (M13 baseline).
+    - `trap <handler> <signal>` for any signal in `{ERR, EXIT, INT, TERM, HUP, QUIT}`.
+    - `if_statement` whose immediate body contains `exit` or `return` with non-zero literal.
+    - `list` (`||` / `&&`) right-hand side ending in `exit`/`return`/`false`.
+    - `command` with `command_name == "exit"` or `"return"` and a non-zero numeric literal first argument.
+    - `command_substitution` whose result is consumed by `[ -z ... ]` / `[ -n ... ]` / `[[ ... ]]` test expressions (defensive existence checks).
+    - **No quality ranking.** Every structurally distinct shape is its own catalog entry; entropy rises with shape count, full stop.
+  - **`async_patterns` — extend the existing category to shell-flavoured concurrency. Decision noted explicitly: catalog entropy is per-category, not per-language; mixing shell `&` shapes with Python `async def` shapes in the same category is intentional and consistent with the language-agnostic catalog model.** Detect:
+    - Any command terminated by `&` (background job): the parent node is `command` with `background = "&"` field, or a `pipeline` whose final element is followed by `&`.
+    - `command_name == "wait"` with or without arguments.
+    - `pipeline` nodes with three or more stages (fan-out heuristic): a structural-only count, no semantic judgment.
+    - `command_name in {"xargs", "parallel"}` with a `-P` / `--max-procs` flag literal.
+  - **`data_access` — populate `command_name` allow-list:**
+    - `{curl, wget, jq, yq, psql, mysql, mysqldump, pg_dump, redis-cli, mongo, mongosh, sqlite3, aws, gcloud, kubectl, az, doctl, terraform}`.
+    - Detection rule: `command` node whose `command_name` text matches the allow-list. The structural hash includes `command_name` (M13 helper), so `curl` and `psql` are distinct shapes — verify in tests.
+  - **`logging` — populate `command_name` allow-list:**
+    - `{echo, printf, logger, tee}` (the M13 baseline) plus `>&2` redirection patterns: any `redirected_statement` whose redirect target is `&2`. Treat the redirect form as a separate shape from bare `echo`.
+  - **Measurement-only semantics — explicit guard:** any new helper, comment, test name, or docstring containing the words "good," "bad," "best practice," "robust," "ad-hoc," "proper," or "quality" is a defect. The PR description must affirm this audit was performed.
+- Shell-focused fixture evolution:
+  - Add `tests/fixtures/shell-heavy/` with **8–12 scripts (≈20–60 LOC each)** spanning three subdirectories: `deploy/` (3-4 scripts), `ci/` (3-4 scripts), `ops/` (2-4 scripts). Aggregate content guarantees:
+    - **≥ 4 distinct `error_handling` shapes** (e.g., `set -euo pipefail`, `trap ... ERR`, `cmd || exit 1`, `if ! foo; then return 1; fi`).
+    - **≥ 3 distinct `data_access` shapes** (e.g., `curl`, `psql`, `kubectl`).
+    - **≥ 2 distinct `logging` shapes** (e.g., `echo`, `>&2` redirect).
+    - **≥ 2 distinct `async_patterns` shapes** (e.g., backgrounded `&`, `wait`, `xargs -P`).
+    - **≥ 2 cross-script `source` imports** to exercise the graph builder.
+  - Add `tests/fixtures/evolving-shell/` as a **new dedicated fixture** (do not modify the existing `tests/fixtures/evolving/` Python fixture). Include a `setup_fixture.py` that materializes 4 commits in a temp git repo:
+    - **C1 (baseline):** 5 shell scripts, 1 `error_handling` shape (`set -e` only), 1 `logging` shape, no `async_patterns`.
+    - **C2 (drift):** add 2 new `error_handling` shapes (`trap ... ERR`, `cmd || exit 1`) and 1 new `logging` shape (`>&2` redirect). Net new shapes: 3.
+    - **C3 (consolidation):** refactor C2's three error_handling shapes down to two by replacing all `cmd || exit 1` instances with `set -euo pipefail` at file head. Net shape change: −1.
+    - **C4 (regression):** introduce a 4th `error_handling` shape and a new `async_patterns` shape (`xargs -P 4`). Net new shapes: 2.
+  - Mirror M13's `simple-shell/` style for file conventions (extension `.sh`, exec bit set on entrypoint scripts, shebangs `#!/usr/bin/env bash`).
+- Trend and threshold validation — add `tests/integration/test_shell_evolving.py` (gated by `requires_shell_adapter`) that runs `setup_fixture.py` and walks C1→C4, asserting:
+  - **C1 snapshot:** `divergence.pattern_entropy_delta is None` (first snapshot baseline). All four delta dimensions are `None`, not `0`.
+  - **C1→C2 (`sdi diff`):** `pattern_entropy_delta["error_handling"] >= 2`, `pattern_entropy_delta["logging"] >= 1`, `convention_drift_rate > 0` (net new shapes).
+  - **C2→C3 (`sdi diff`):** `pattern_entropy_delta["error_handling"] <= -1`, `convention_drift_rate < 0` (consolidation — old shapes lost).
+  - **C3→C4 (`sdi diff`):** `pattern_entropy_delta["error_handling"] >= 1`, `pattern_entropy_delta["async_patterns"] >= 1`.
+  - **`sdi trend`** across all four snapshots returns a 4-point series with the correct sign sequence: `[null, +, -, +]` for `convention_drift_rate`.
+  - **`sdi check` exit codes:** with default thresholds, C1→C2 exits `10` (threshold exceeded — drift rate > `3.0`); C2→C3 exits `0`; C3→C4 exits `0` (within bounds with default thresholds, since 2 new shapes < `3.0`).
+  - All numeric thresholds above use the defaults from `src/sdi/config.py`. If those defaults change, update assertions accordingly — do not hardcode numbers that drift from config.
+- Documentation and DX updates — concrete content checklist:
+  - **`README.md`** — under the existing language-support section, add a "Shell" subsection covering:
+    1. Supported extensions: `.sh, .bash, .zsh, .ksh, .dash, .ash`. Note `.fish` is not supported.
+    2. Shebang detection: extensionless executable files with `#!/usr/bin/env bash` (and the allow-list from M13) are picked up automatically.
+    3. Installation: `pip install 'sdi[all]'` includes `tree-sitter-bash`.
+    4. Categories detected for shell: `error_handling`, `logging`, `data_access`, `async_patterns` (with one-line descriptions matching `categories.py`).
+    5. Known limits: dynamic `source` paths skipped, heredoc bodies not pattern-matched, fish syntax unsupported, parse failures emit a per-file warning and skip.
+  - **`docs/ci-integration.md`** — add:
+    1. A worked example invoking `sdi check` against a shell-heavy repo.
+    2. A concrete TOML override block for shell-script-heavy projects:
+       ```toml
+       [thresholds.overrides.error_handling]
+       pattern_entropy_rate = 6.0
+       expires = "2026-Q4"
+       reason = "Migrating ops scripts from set -e to explicit error traps"
+
+       [thresholds.overrides.async_patterns]
+       pattern_entropy_rate = 5.0
+       expires = "2026-12-31"
+       reason = "Pipeline parallelism rollout in deploy/"
+       ```
+    3. A note that default thresholds tuned for application code may be too strict for script-heavy repos and overrides are the supported relief valve.
+  - **`CHANGELOG.md`** — entry under "Unreleased": `Added: shell pattern quality (broader error_handling, async_patterns, data_access, logging coverage), shell-heavy fixtures, and CI integration docs.`
+- Performance and cache verification:
+  - Add a unit test in `tests/unit/test_parse_cache.py` (or new `test_parse_cache_shell.py`) verifying: parse a shell file once → write cache; parse the same bytes → read returns the cached `FeatureRecord` (assert no parser invocation by mocking `_get_parser` or by timing). No `_parse_cache.py` source changes expected — this confirms language-agnostic behaviour holds for shell.
+  - Add a benchmark case to `tests/benchmarks/test_parsing_perf.py` parameterised on `language="shell"` that:
+    - Generates 100 synthetic shell scripts of ≈50 LOC each in a temp dir.
+    - Asserts cold-parse runtime < **1.5s** on a 4-core CI runner (`SDI_WORKERS=4`).
+    - Asserts cache-hit rerun < **0.3s** on the same set.
+    - Numbers are budgets, not contracts: tune once the benchmark runs locally, but the budget must be hard-coded so regressions surface.
+
+**Acceptance criteria:**
+- Shell pattern instances appear in `PatternCatalog` for all four categories (`error_handling`, `logging`, `data_access`, `async_patterns`) when present in source. Identical bytes parsed twice produce identical `ast_hash` sets (reproducibility).
+- `sdi trend` on `tests/fixtures/evolving-shell/` (4 commits) returns 4 data points; the `convention_drift_rate` series follows the sign sequence `[null, +, -, +]`.
+- `sdi diff` between any two `evolving-shell` commits returns the deltas enumerated in the trend/threshold validation section above (numeric assertions, not "as expected").
+- `sdi check` exits `10` for the C1→C2 transition and `0` for C2→C3 and C3→C4 with default thresholds.
+- Documentation acceptance is checklist-based, not subjective: `README.md` includes the 5 enumerated items in the docs-update section; `docs/ci-integration.md` includes the worked example and the literal TOML override snippet; `CHANGELOG.md` has the new entry.
+- Benchmark assertions pass: cold parse < 1.5s, cache rerun < 0.3s on 100×50-LOC synthetic shell scripts.
+- **No regressions:** existing fixture-based tests for Python/TS/JS/Go/Java/Rust produce byte-identical `language_breakdown` and `pattern_catalog` keys (excluding new shell entries) compared to a pre-M14 reference run. Capture the reference by running the suite before any M14 changes; commit the reference JSON if needed for diffing.
+- **Philosophy compliance:** grep of all M14 deliverables (source, tests, docs) returns zero hits for `\b(robust|ad-hoc|good|bad|best practice|proper|quality)\b` in pattern-related contexts. The PR description must include the grep result.
+
+**Tests:** (gate every shell-touching test with `requires_shell_adapter` from `tests/conftest.py`)
+
+- `tests/unit/test_shell_adapter.py` — extend with:
+  - one case per new `error_handling` shape from the deliverables list (5 cases beyond M13's 4); each asserts a unique `ast_hash`.
+  - one case per `async_patterns` rule (background `&`, `wait`, fan-out pipeline, `xargs -P`).
+  - one case asserting `data_access` allow-list covers `curl`, `psql`, `kubectl`, `jq` with distinct `ast_hash` per command.
+  - one case for `logging` `>&2` redirect producing a different `ast_hash` than bare `echo`.
+  - reproducibility: parsing the `tests/fixtures/shell-heavy/` tree twice yields identical `(category, ast_hash)` multisets.
+- `tests/unit/test_catalog_velocity_spread.py` — extend with two cases:
+  - **velocity:** building a catalog from `evolving-shell` C2 with C1 as `prev_catalog` produces `velocity[shape] == 1` for each newly introduced shell shape and `velocity[shape] == 0` for unchanged shapes.
+  - **boundary spread:** when the same shell `error_handling` shape appears in two different Leiden clusters of the `shell-heavy` fixture, `boundary_spread[shape] == 2`.
+- `tests/integration/test_shell_evolving.py` — new file (referenced in deliverables) running the full `init → snapshot×4 → diff → trend → check` workflow against `evolving-shell`. Assertions enumerated in the trend/threshold validation deliverable.
+- `tests/benchmarks/test_parsing_perf.py` — new `test_shell_parse_perf_cold` and `test_shell_parse_perf_cached` cases with the budgets above.
+
+**Watch For:**
+- **Phrasing audit is enforced.** "Robust vs ad-hoc," "best practice," "good/bad" phrasing in any deliverable file violates Non-Negotiable Rule 4. The PR must include `git grep -nE '\b(robust|ad-hoc|good|bad|best practice|proper|quality)\b' src/ tests/ docs/ README.md CHANGELOG.md` output showing zero pattern-related hits.
+- **`async_patterns` mixing across languages is intentional.** The same category aggregates Python `async def` and shell `&` shapes. Reviewers may flag this as a smell; the milestone explicitly endorses it. Do not split the category to "fix" the perceived overlap — that would break the language-agnostic catalog model.
+- **`command_name` must be folded into the structural hash for `command` nodes.** This is the M13 helper `_shell_structural_hash`; without it, `curl`, `psql`, and `kubectl` collapse to one shape and `data_access` entropy becomes meaningless. Verify each new test case asserts distinct hashes between distinct command names.
+- **Overfitting risk.** Detection rules are structural and command-name-based — never path-based, file-name-based, or content-keyword-based. Rules that key off `deploy.sh` or `# CI script` belong elsewhere.
+- **Generated shell wrappers** (e.g., autotools, hand-rolled codegen output) inflate entropy and convention drift. Document in `README.md` that users should add such directories to `[core] exclude` patterns; do not attempt auto-detection in v1.
+- **Fish/zsh edge cases.** `tree-sitter-bash` parses POSIX/bash cleanly; zsh-specific constructs (e.g., `=()` process substitution syntax variants) may produce ERROR nodes. The adapter already returns `None` on parse exceptions via `parse_file_safe`; do not add zsh-specific handling.
+- **Threshold defaults vs. script-heavy repos.** The override examples in `ci-integration.md` are the only sanctioned relief mechanism — never lower default thresholds to accommodate scripts.
+- **Benchmark numbers are CI-runner dependent.** The 1.5s / 0.3s budgets target a 4-core x86_64 GitHub-Actions-class runner. If running on slower hardware, document the local baseline in the PR description but keep the committed budget at the stated values.
+
+**Seeds Forward:**
+- Makes shell support production-ready for CI gates rather than exploratory.
+- Improves remediation usability by turning shell drift into interpretable catalog and trend output.
+- Provides a template for adding future language support with two-step rollout: ingestion foundation, then signal calibration.
+
+---
