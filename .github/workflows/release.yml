@@ -62,11 +62,14 @@ jobs:
       - name: Type check
         run: mypy src/sdi/
 
-      - name: Unit tests
-        run: pytest tests/unit/ --cov=sdi --cov-fail-under=80
+      - name: Unit tests with coverage
+        run: pytest tests/unit/ --cov=sdi
 
-      - name: Integration tests
-        run: pytest tests/integration/ -v
+      - name: Integration tests with coverage append
+        run: pytest tests/integration/ -v --cov=sdi --cov-append
+
+      - name: Enforce combined coverage threshold
+        run: coverage report --fail-under=80
 
   build:
     name: Build sdist + wheel
