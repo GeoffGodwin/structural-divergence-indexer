@@ -131,9 +131,7 @@ class PatternCatalog:
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict."""
         category_languages = {
-            name: sorted(defn.languages)
-            for name in self.categories
-            if (defn := get_category(name)) is not None
+            name: sorted(defn.languages) for name in self.categories if (defn := get_category(name)) is not None
         }
         return {
             "categories": {name: cat.to_dict() for name, cat in self.categories.items()},

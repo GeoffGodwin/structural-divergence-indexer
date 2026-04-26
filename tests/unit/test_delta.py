@@ -39,6 +39,7 @@ class TestFirstSnapshot:
 
     def test_returns_divergence_summary(self) -> None:
         from sdi.snapshot.model import DivergenceSummary
+
         assert isinstance(compute_delta(_make_snap(), None), DivergenceSummary)
 
 

@@ -105,9 +105,7 @@ _DESCRIPTIONS: dict[str, str] = {
 }
 
 # All seven supported language names
-_ALL_LANGUAGES: frozenset[str] = frozenset(
-    {"python", "shell", "javascript", "typescript", "go", "java", "rust"}
-)
+_ALL_LANGUAGES: frozenset[str] = frozenset({"python", "shell", "javascript", "typescript", "go", "java", "rust"})
 
 _CATEGORY_LANGUAGES: dict[str, frozenset[str]] = {
     # Every supported language has error handling (try/except, set -e, panic/recover, etc.)

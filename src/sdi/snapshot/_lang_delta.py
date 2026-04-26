@@ -61,9 +61,7 @@ def per_language_pattern_entropy(
             if not _lang_applies(cat_name, lang):
                 continue
             count += sum(
-                1
-                for shape in cat.shapes.values()
-                if any(file_lang_map.get(fp) == lang for fp in shape.file_paths)
+                1 for shape in cat.shapes.values() if any(file_lang_map.get(fp) == lang for fp in shape.file_paths)
             )
         result[lang] = float(count)
     return result

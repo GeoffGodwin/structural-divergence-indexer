@@ -248,9 +248,7 @@ def test_class_hierarchy_filtered_from_shell_record():
     catalog = build_pattern_catalog(records, cfg, None, None)
     ch_cat = catalog.get_category("class_hierarchy")
     assert ch_cat is not None
-    assert ch_cat.entropy == 0, (
-        "class_hierarchy fingerprints from shell files should be silently dropped"
-    )
+    assert ch_cat.entropy == 0, "class_hierarchy fingerprints from shell files should be silently dropped"
 
 
 def test_error_handling_accepted_from_shell_record():

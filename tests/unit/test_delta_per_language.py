@@ -166,10 +166,7 @@ class TestComputeDeltaPerLanguage:
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             result = compute_delta(curr, old_snap)
-        per_lang_warns = [
-            w for w in caught
-            if "0.1.0" in str(w.message) or "per-language" in str(w.message).lower()
-        ]
+        per_lang_warns = [w for w in caught if "0.1.0" in str(w.message) or "per-language" in str(w.message).lower()]
         assert len(per_lang_warns) == 1
         assert issubclass(per_lang_warns[0].category, UserWarning)
         assert result.pattern_entropy_by_language_delta is None
@@ -196,9 +193,7 @@ class TestComputeDeltaPerLanguage:
             divergence=DivergenceSummary(pattern_entropy_by_language={"python": 1.0}),
         )
         curr = _make_snap(
-            pattern_catalog=_catalog_with_files(
-                {"error_handling": [("h1", "a.py", 1), ("h_sh", "b.sh", 1)]}
-            ),
+            pattern_catalog=_catalog_with_files({"error_handling": [("h1", "a.py", 1), ("h_sh", "b.sh", 1)]}),
             feature_records=[_fake_record("a.py", "python"), _fake_record("b.sh", "shell")],
         )
         result = compute_delta(curr, prev_snap)

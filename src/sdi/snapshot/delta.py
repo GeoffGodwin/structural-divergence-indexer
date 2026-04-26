@@ -204,8 +204,7 @@ def compute_delta(
     lang_drift_delta: dict[str, float] | None
     if previous.snapshot_version == "0.1.0":
         warnings.warn(
-            "Previous snapshot uses schema 0.1.0 which lacks per-language fields. "
-            "Per-language deltas will be None.",
+            "Previous snapshot uses schema 0.1.0 which lacks per-language fields. Per-language deltas will be None.",
             UserWarning,
             stacklevel=2,
         )
@@ -221,8 +220,7 @@ def compute_delta(
             for lang in sorted(all_entropy_langs)
         }
         lang_drift_delta = {
-            lang: (lang_drift or {}).get(lang, 0.0) - prev_lang_drift.get(lang, 0.0)
-            for lang in sorted(all_drift_langs)
+            lang: (lang_drift or {}).get(lang, 0.0) - prev_lang_drift.get(lang, 0.0) for lang in sorted(all_drift_langs)
         }
 
     return DivergenceSummary(

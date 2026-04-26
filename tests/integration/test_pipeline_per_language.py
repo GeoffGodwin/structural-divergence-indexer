@@ -64,9 +64,7 @@ def shell_heavy_project(tmp_path: Path) -> Path:
 class TestMultiLanguagePerLanguageFields:
     """Per-language signals on a Python+TypeScript fixture."""
 
-    def test_pattern_entropy_by_language_has_python_and_ts(
-        self, cli_runner, multilang_project
-    ):
+    def test_pattern_entropy_by_language_has_python_and_ts(self, cli_runner, multilang_project):
         """Snapshot of multi-language fixture includes both python and typescript keys."""
         result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], multilang_project)
         assert result.exit_code == 0, result.output
@@ -97,9 +95,7 @@ class TestShellHeavyPerLanguageFields:
 
     def test_shell_entropy_present(self, cli_runner, shell_heavy_project):
         """Shell-only project has a 'shell' key in pattern_entropy_by_language."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], shell_heavy_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], shell_heavy_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         by_lang = data["divergence"].get("pattern_entropy_by_language")
@@ -109,12 +105,8 @@ class TestShellHeavyPerLanguageFields:
 
     def test_no_python_key_for_shell_only_project(self, cli_runner, shell_heavy_project):
         """A pure-shell fixture must not have a 'python' key in per-language entropy."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], shell_heavy_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], shell_heavy_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         by_lang = data["divergence"].get("pattern_entropy_by_language") or {}
-        assert "python" not in by_lang, (
-            f"Shell-only fixture should have no 'python' key; got {by_lang}"
-        )
+        assert "python" not in by_lang, f"Shell-only fixture should have no 'python' key; got {by_lang}"
