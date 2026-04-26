@@ -2,9 +2,10 @@
 
 ## Metadata
 - Last audit: 2026-04-26
-- Runs since audit: 2
+- Runs since audit: 3
 
 ## Unresolved Observations
+- [2026-04-26 | "Address all 3 open non-blocking notes in NON_BLOCKING_LOG.md. Fix each item and note what you changed."] `CHANGELOG.md:18-19` — Pre-existing: no blank line between the `- [x]` checkbox entry (which looks misplaced inside `[0.14.5]`) and the `## [0.14.4]` heading. Inconsistent with the rest of the file. Not introduced by this commit but worth a cleanup pass.
 - [2026-04-26 | "M18"] `src/sdi/graph/_js_ts_resolver.py:44-56` — `_strip_jsonc` still has the known-bad case: a tsconfig.json with JSONC block comments *and* `@/*`-style path aliases together will corrupt the alias section when the block-comment regex spans from `@/*` to a later `*/`. The fix (try plain JSON first) eliminates the failure for the common case (no JSONC comments), and the docstring documents the residual limitation. This is not a regression from M18 but is worth a follow-up if tsconfig-with-comments + `@/*` becomes a common user scenario.
 - [2026-04-26 | "M17"] `catalog.py:17` — `import pathspec` is an unconditional top-level import that runs on every import of the module, even when `scope_exclude` is empty (the common case). Not a practical concern given pathspec is a declared lightweight dependency, but if startup time becomes a target this could be deferred to the `if scope_excl:` branch.
 - [2026-04-26 | "M17"] `src/sdi/_config_scope.py` lives at the package root rather than in a `config/` sub-package. Fine today (single helper module), but if config.py needs further decomposition in future milestones there is no designated home for additional helpers.

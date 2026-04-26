@@ -52,14 +52,7 @@ def _run_snapshot(path: Path) -> dict:
     """Run sdi init (idempotent) + sdi snapshot; return the JSON snapshot dict."""
     runner = CliRunner()
 
-    init_result = run_sdi(runner, ["init"], path)
-    if init_result.exit_code not in (0,):
-        # init may return non-zero if already initialized; that is acceptable.
-        # Warn so genuine failures don't hide behind a silent no-op.
-        warnings.warn(
-            f"sdi init returned unexpected exit code {init_result.exit_code} at {path}; output: {init_result.output!r}",
-            stacklevel=2,
-        )
+    run_sdi(runner, ["init"], path)  # idempotent; always exits 0 for valid git repos
 
     snap_result = run_sdi(runner, ["--format", "json", "-q", "snapshot"], path)
     if snap_result.exit_code != 0:

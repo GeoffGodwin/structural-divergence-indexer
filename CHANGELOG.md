@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.14.6] - 2026-04-26
+
+### Added
+- Removed dead-code conditional in `_run_snapshot`: `if init_result.exit_code not in (0,):` was unreachable because `sdi init` always exits 0 for valid git repos (already-initialized path just prints a message and returns). Replaced with a bare `run_sdi(...)` call with an inline comment.
+
 ## [0.14.5] - 2026-04-26
 
 ### Added
