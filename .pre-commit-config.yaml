@@ -1,15 +1,40 @@
-default_install_hook_types: [pre-push]
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.10
     hooks:
       - id: ruff-check
+        alias: ruff-check-fix
+        name: ruff check (auto-fix)
+        args: [--fix, src/, tests/]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: ruff-format
+        alias: ruff-format-write
+        name: ruff format (write)
+        args: [src/, tests/]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+      - id: ruff-check
+        name: ruff check (verify)
         args: [src/, tests/]
         pass_filenames: false
         always_run: true
         stages: [pre-push]
       - id: ruff-format
+        name: ruff format (verify)
         args: [--check, src/, tests/]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy src/sdi/
+        language: system
         pass_filenames: false
         always_run: true
         stages: [pre-push]
