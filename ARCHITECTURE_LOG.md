@@ -13,3 +13,8 @@ Each entry captures why a structural change was made, preventing future develope
 - **Date**: 2026-04-24
 - **Rationale**: The `str = ""` default preserves backward compatibility with pre-M10 snapshots, `from_dict` uses `.get(..., "")`, and carrying the hash on the record avoids re-reading files during orphan cleanup. Min
 - **Source**: Accepted ACP from pipeline run
+
+## ADL-3: Extract JS/TS helpers to `_js_ts_resolver.py` (Task: "M15")
+- **Date**: 2026-04-26
+- **Rationale**: The extraction is warranted: builder.py was 455 lines pre-M15 and would have exceeded 300 again with shell additions. All names are re-exported for backward compatibility, the module carries a leading
+- **Source**: Accepted ACP from pipeline run

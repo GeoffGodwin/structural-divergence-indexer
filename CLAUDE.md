@@ -590,6 +590,9 @@ pip install -e ".[dev]"
 # Install all language grammars
 pip install -e ".[all]"
 
+# Install pre-push hooks (runs ruff check + ruff format --check)
+pre-commit install --hook-type pre-push
+
 # Verify installation
 sdi --version
 ```

@@ -230,6 +230,7 @@ Exit codes:
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev,all]"
+pre-commit install --hook-type pre-push
 
 pytest
 ruff check src/ tests/

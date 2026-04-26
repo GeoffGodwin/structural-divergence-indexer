@@ -2,9 +2,11 @@
 
 ## Metadata
 - Last audit: 2026-04-24
-- Runs since audit: 3
+- Runs since audit: 4
 
 ## Unresolved Observations
+- [2026-04-26 | "M15"] [src/sdi/graph/builder.py:31-42] The `# noqa: F401 — re-exported for backward compatibility` comments on `_JS_TS_EXTS`, `_expand_alias_candidates`, `_match_alias`, `_strip_jsonc`, and `_try_extensions_and_index` suggest these private symbols were imported into test files directly. Private symbols with leading underscores are not part of the public API contract; tests importing them directly from `builder` instead of `_js_ts_resolver` create a maintenance burden. Worth auditing whether those re-exports can be dropped when the pre-M15 tests are updated.
+- [2026-04-26 | "M15"] [tests/integration/test_shell_pipeline.py:43-59] `_make_shell_project` is a free function that duplicates the body of the `shell_project` fixture verbatim (modulo fixture_name parameter). The fixture calls the helper anyway, making the duplication one-way. Consider collapsing the fixture to just call `_make_shell_project(tmp_path, "simple-shell")` to eliminate the copy.
 - [2026-04-24 | "Implement Milestone 14: Shell Pattern Quality, Trend Calibration, and Rollout"] `categories.py:112-123` — `_SHELL_QUERIES = {}` is declared and then checked in `_build_registry` via `if name in _SHELL_QUERIES`. Since the dict is intentionally empty, this branch is permanently dead code. The comment explains the rationale (extraction lives in `_shell_patterns.py`), but the dead branch is misleading to future readers who might expect it to execute. Consider removing the branch entirely and leaving only the comment explaining the architecture decision.
 - [2026-04-24 | "Implement Milestone 14: Shell Pattern Quality, Trend Calibration, and Rollout"] `shell.py` and `_shell_patterns.py` each contain private `_node_text` and `_get_command_name` functions with identical byte-for-byte implementations. This is a latent drift hazard: a future maintainer fixing one copy may not notice the other.
 - [2026-04-24 | "M13"] `categories.py:112-123` — `_SHELL_QUERIES = {}` is declared and then checked in `_build_registry` via `if name in _SHELL_QUERIES`. Since the dict is intentionally empty, this branch is permanently dead code. The comment explains the rationale (extraction lives in `_shell_patterns.py`), but the dead branch is misleading to future readers who might expect it to execute. Consider removing the branch entirely and leaving only the comment explaining the architecture decision.
