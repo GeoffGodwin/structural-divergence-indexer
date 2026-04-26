@@ -1,102 +1,106 @@
 ## Test Audit Report
 
 ### Audit Summary
-Tests audited: 1 file, 16 test functions
+Tests audited: 2 files, 22 test functions
+(tests/unit/test_js_ts_resolver.py: 19 functions; tests/integration/test_validation_real_repos.py: 3 functions)
 Verdict: PASS
 
 ---
 
 ### Findings
 
-#### COVERAGE: _validate_scope_exclude error path not exercised in this file
-- File: tests/unit/test_catalog_scope.py (no specific line — missing test)
-- Issue: `_config_scope._validate_scope_exclude` raises `SystemExit(2)` when a
-  non-string entry appears in `scope_exclude`. This error path is not tested
-  anywhere in `test_catalog_scope.py`. The CODER_SUMMARY notes that
-  `tests/unit/test_config.py` was also modified by the coder with "config
-  validation" tests, but the TESTER_REPORT does not claim to have audited or
-  added to that file. If `test_config.py` covers this path, the gap is closed;
-  if it does not, the `SystemExit(2)` branch is untested.
+#### EXERCISE: Meta-test asserts a locally-created marker, not the real function decorators
+- File: tests/integration/test_validation_real_repos.py:205
+- Issue: `test_real_repo_harness_skips_without_env_vars` constructs fresh
+  `pytest.mark.skipif` objects with `not _TEKHTON_PATH` / `not _BIFL_PATH` and
+  then asserts `tekhton_marker.args[0] is True`. Because the test body only runs
+  when both env vars are absent, `not _TEKHTON_PATH` is definitionally `True`,
+  making the assertion equivalent to `assert True is True` in every run. More
+  importantly, the test does not inspect the actual `@pytest.mark.skipif`
+  decorators on `test_tekhton_real_repo_invariants` and
+  `test_bifl_tracker_real_repo_invariants` — so a mistake in those real decorators
+  (e.g. an inverted condition) would not be caught.
 - Severity: MEDIUM
-- Action: Confirm that `tests/unit/test_config.py` includes at least one test
-  asserting `SystemExit(2)` when `scope_exclude` contains a non-string value
-  (e.g., `scope_exclude = [42]`). If absent, add it there — it belongs in
-  test_config.py, not this file.
+- Action: Replace the local-marker construction with introspection of the real
+  function markers via `test_tekhton_real_repo_invariants.pytestmark` and
+  `test_bifl_tracker_real_repo_invariants.pytestmark`, then assert `marker.args[0]`
+  on those objects. Alternatively, drop the assertions entirely and leave only the
+  env-var guard with a comment, accepting that skip behaviour is verified by
+  pytest's own collection logic.
 
-#### COVERAGE: Entropy assertion uses relative comparison only
-- File: tests/unit/test_catalog_scope.py:88-89
-- Issue: `test_scope_exclude_reduces_entropy` asserts
-  `catalog_excl.entropy < catalog_all.entropy`. The test docstring documents
-  the expected absolute values ("reduces entropy from 4 to 2 distinct shapes"),
-  but only the relative direction is asserted. A regression that reduced entropy
-  from 4 to 3 (still `<`) would pass. The fixture clearly has 4 distinct hashes
-  (hash_src_a, hash_src_b, hash_test_foo, hash_test_bar); excluding `tests/**`
-  leaves exactly 2 — the precise count is knowable from the fixture.
+#### COVERAGE: JSONC fallback path in `_load_ts_path_aliases` has no test
+- File: tests/unit/test_js_ts_resolver.py (missing test)
+- Issue: The M18 fix wraps `json.loads(text)` in a try/except and falls back to
+  `json.loads(_strip_jsonc(text))` when the plain parse fails. The regression test
+  (`test_at_wildcard_not_corrupted_when_later_string_contains_block_comment_end`)
+  only exercises the plain-JSON path. No test feeds a tsconfig.json with real JSONC
+  line comments to verify (a) that the fallback succeeds, and (b) that the alias
+  is not corrupted when `_strip_jsonc` is actually invoked.
 - Severity: LOW
-- Action: Optionally tighten to
-  `assert cat_excl.entropy == 2` / `assert cat_all.entropy == 4`
-  to lock the expected absolute values. The current form is not wrong, just less
-  precise than the fixture allows.
+- Action: Add a test in `TestLoadTsPathAliasesM18Regression` (or a new class) that
+  writes a tsconfig.json with a JSONC `// …` comment plus the `@/*` alias, then
+  asserts `_load_ts_path_aliases` returns the correct tuple. This closes the gap
+  for the fallback branch.
 
-#### COVERAGE: Missing None guard before .entropy access in reduce-entropy test
-- File: tests/unit/test_catalog_scope.py:89
-- Issue: `catalog_excl.get_category("error_handling").entropy` is called
-  without a preceding `assert ... is not None` guard. An `AttributeError` on
-  a None return would obscure the failure reason. In practice the test is safe
-  because `build_pattern_catalog` always emits a `CategoryStats` for any
-  category present in `raw`, and the fixture records feed "error_handling" into
-  `raw`. The style is inconsistent with the guard pattern used in other tests in
-  this file (e.g., line 67: `assert eh is not None`).
+#### COVERAGE: No test for absent tsconfig.json / jsconfig.json
+- File: tests/unit/test_js_ts_resolver.py (missing test)
+- Issue: `_load_ts_path_aliases` is expected to return an empty list when neither
+  `tsconfig.json` nor `jsconfig.json` is present. This is the dominant code path
+  for non-TypeScript projects and is untested.
 - Severity: LOW
-- Action: Add `assert catalog_excl.get_category("error_handling") is not None`
-  before accessing `.entropy` for consistency. Not a correctness issue.
+- Action: Add `test_returns_empty_list_when_no_config_present(tmp_path)` that calls
+  `_load_ts_path_aliases` on an empty directory and asserts `== []`.
 
 ---
 
 ### Verified Clean (no findings)
 
 **1. Assertion Honesty — PASS**
-All numeric assertions derive from fixture data or implementation logic.
-`assert ... == 2` (line 96) corresponds to the 2 `tests/` records in
-`mixed_records`. `assert ... == 5` (line 188) is the value placed directly in
-the test data, testing round-trip deserialization. `assert ... == len(mixed_records)`
-(line 213) is computed dynamically. No hard-coded magic values that are not
-traceable to fixture logic.
+Every assertion in `test_js_ts_resolver.py` is traceable to implementation logic.
+The M18 regression assertion `aliases == [("@/*", ["src/*"])]` derives from
+`posixpath.normpath(posixpath.join(".", "./src/*"))` → `"src/*"` (implementation
+line 96–97 in `_js_ts_resolver.py`). No hard-coded magic values.
 
 **2. Edge Case Coverage — PASS**
-The suite covers: happy path (partial exclusion), empty scope_exclude, 100%
-exclusion (4 edge cases), glob wildcard at multiple depths, double-star
-extension pattern, anchored path pattern, Windows-style backslash normalization,
-and round-trip deserialization with and without the meta key.
+`TestIsJsTsFile` covers happy path, non-JS/TS, and case-sensitivity.
+`TestNormalizeJsPath` covers empty string, multiple `./` prefixes, backslashes,
+and unchanged paths. `TestBuildJsPathSet` covers empty input, mixed extensions.
+`TestExpandAliasCandidates` covers no-match, empty alias list, wildcard expansion,
+exact match, multiple targets, first-match semantics, and prefix-skip ordering.
 
 **3. Implementation Exercise — PASS**
-`build_pattern_catalog` is called directly with real `FeatureRecord` instances
-and a real `SDIConfig`. No dependency of the function under test is mocked. The
-`fingerprint_from_instance` code path is exercised: `make_instance` dicts omit
-`node_count`, so the `min_pattern_nodes` filter never fires (documented behavior
-per fingerprint.py:148: "Absent node_count always passes"). The `min_pattern_nodes=1`
-in `config_with_scope` is a deliberate low sentinel, not a mock.
+All 19 test functions in `test_js_ts_resolver.py` import and call real private
+functions with zero mocking. The regression test uses `tmp_path` to create a real
+`tsconfig.json` on disk and exercises the full file-I/O path of
+`_load_ts_path_aliases`. The integration tests run the real CLI via `CliRunner`.
 
 **4. Test Weakening — PASS**
-`test_catalog_scope.py` is a new file (git status: `??`). No existing tests
-were modified by the tester. No weakening possible.
+`test_js_ts_resolver.py` is a new file; no existing tests were modified. The
+coder's change to `test_validation_real_repos.py` (`kwargs["condition"]` →
+`args[0]`) corrected a `KeyError`-raising assertion — this is a fix, not a
+weakening. The tester's addition of `warnings.warn` in `_run_snapshot` is additive
+only (a helper function change, no assertion removed).
 
 **5. Test Naming — PASS**
-All 16 test names encode both the scenario and the expected outcome.
-Examples: `test_meta_absent_when_no_exclusion`, `test_glob_anchored_path`,
-`test_all_files_excluded_canonical_hash_is_none`,
-`test_windows_path_backslash_excluded_by_scope`. No opaque names.
+All 22 test names encode both the scenario and the expected outcome. Examples:
+`test_at_wildcard_not_corrupted_when_later_string_contains_block_comment_end`,
+`test_first_matching_alias_is_used`, `test_real_repo_harness_skips_without_env_vars`.
+No opaque names.
 
 **6. Scope Alignment — PASS**
 All imports resolve against the current source:
-- `sdi.config.SDIConfig` — present; `PatternsConfig` now includes `scope_exclude`
-- `sdi.patterns.catalog.PatternCatalog, build_pattern_catalog` — present
-- `sdi.snapshot.model.FeatureRecord` — present
-No references to deleted modules or renamed symbols. The deleted file
-`.tekhton/test_dedup.fingerprint` is not referenced in the test file.
+- `sdi.graph._js_ts_resolver`: module present; all five imported private functions
+  (`_is_js_ts_file`, `_normalize_js_path`, `_build_js_path_set`,
+  `_expand_alias_candidates`, `_load_ts_path_aliases`) are defined in that module.
+- `tests.conftest.run_sdi`: present at conftest.py:199.
+No references to deleted modules or renamed symbols. The deleted files
+(`.tekhton/JR_CODER_SUMMARY.md`, `.tekhton/test_dedup.fingerprint`) are not
+referenced in any audited test file.
 
 **7. Test Isolation — PASS**
-All fixture data is constructed inline via `make_record()` / `make_instance()`
-helpers. No test reads `.tekhton/` reports, pipeline logs, snapshot files,
-or any other mutable project state. Pass/fail is independent of prior pipeline
-runs and repository state.
+`test_js_ts_resolver.py` uses only in-memory data and pytest's `tmp_path`.
+`test_validation_real_repos.py` real-repo tests are gated behind env-var `skipif`
+markers; the module docstring explicitly documents that those tests write `.sdi/`
+state to external repos as intentional dogfooding behaviour. The meta-test
+`test_real_repo_harness_skips_without_env_vars` is purely in-memory and reads no
+project files or pipeline artifacts.

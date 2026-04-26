@@ -1,7 +1,7 @@
 ### Milestone 18: Cross-Repo Validation Harness for Shell and TS
 <!-- milestone-meta
 id: "18"
-status: "pending"
+status: "done"
 -->
 
 

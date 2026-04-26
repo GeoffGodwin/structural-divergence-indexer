@@ -2,13 +2,15 @@
 PASS
 
 ## Confidence
-95
+88
 
 ## Reasoning
-- **Scope Definition:** Exceptionally clear. Scope is explicitly limited to Stage 4 (pattern catalog) only. Files to create and modify are enumerated: `src/sdi/config.py`, `src/sdi/patterns/catalog.py`, `src/sdi/cli/show_cmd.py`, `docs/ci-integration.md`, `CHANGELOG.md`, and the new fixture `tests/fixtures/scope-exclude-python/`. The Watch For section explicitly guards against the most common misinterpretations (filtering at Stage 1–3, moving the filter inside the fingerprint loop, aliasing with `core.exclude`).
-- **Testability:** Acceptance criteria are specific and machine-verifiable. They name exact field paths (`pattern_catalog.meta.scope_excluded_file_count`, `graph_metrics.node_count`), exact fixture structure with known expected shape counts (5 distinct shapes unfiltered, 2 filtered), and specific glob match/no-match cases with named inputs. The byte-identical regression check for the empty-list case is a concrete falsifiable assertion.
-- **Ambiguity:** Very low. The library (`pathspec`), method signature (`PathSpec.from_lines("gitwildmatch", ...)`), and even the reference line range in `catalog.py` (`154-216`) are given. The distinction between `core.exclude` (removes from discovery) and `scope_exclude` (keeps in graph, removes from catalog) is explicitly called out and guarded against conflation.
-- **Implicit Assumptions:** Minimal. Path normalization, config-hash impact, `meta` key absence when count is 0, backward-compatible snapshot deserialization, and the config-hash edge case for empty-list vs. absent-key are all stated explicitly.
-- **Migration Impact:** Present and complete — covers config files, snapshot JSON (additive field, no version bump), `sdi diff`/`sdi trend` cross-version comparison, and the config-hash edge case for empty list vs. absent key.
-- **UI Testability:** N/A — this is a CLI tool. The CLI surface test (informational line in `sdi show`) is included in `tests/integration/test_cli_output.py`.
-- **Previously flagged gaps:** Both issues from the prior intake pass have been resolved in the PM-tweaked milestone: the Migration Impact section was added, and the fixture was renamed from `scope-exclude-shell/` (unsupported language) to `scope-exclude-python/` with a rationale note.
+- Scope is precise: exact file counts (30–40 shell scripts, 15–25 TS files), exact directory layouts, exact test function names, and exact assertion floors with rationale.
+- Acceptance criteria are numeric and unambiguous — `edge_count >= 45`, `cluster_count between 2 and file_count // 3`, `scope_excluded_file_count == 5` — no vague aspirations.
+- The "Running with M15/M16/M17 reverted" regression table ties each assertion back to the milestone that must be in place, which also defines the implementation order dependency clearly.
+- Watch For section explicitly addresses the highest-risk issues: hardcoded paths, fixture directory pollution, fragile baseline, and phrasing audit.
+- The optional real-repo harness is cleanly separated from bundled fixtures, env-var gating is specified, and skip behavior is described.
+- No new user-facing config or file-format changes that would require a Migration impact section — the `SDI_VALIDATION_*` vars are test-only.
+- No UI components; UI testability rubric does not apply.
+- One minor implicit assumption: `requires_shell_adapter` is referenced as a pytest marker but its registration location is not stated. A developer implementing M15 would have created it; following the `test_shell_evolving.py` pattern cited in the milestone is sufficient guidance. Not a blocker.
+- `tests/integration/fixtures/_baselines/` directory does not appear in the project index and will need to be created; the milestone covers the absent-file case (skip with warning), so this is handled.
