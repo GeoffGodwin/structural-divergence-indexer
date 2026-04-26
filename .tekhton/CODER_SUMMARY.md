@@ -2,48 +2,33 @@
 ## Status: COMPLETE
 
 ## What Was Implemented
-- [x] Shell-heavy-realistic fixture (32 scripts: 9 lib + 9 bin + 9 cmd + 5 tests) — was already present
-- [x] TypeScript-realistic fixture (16 .ts files simulating a backend service) — was already present
-- [x] test_validation_shell_realistic.py (2 test functions) — was already present; passes
-- [x] test_validation_typescript_realistic.py (1 test function) — was already present; fixed (see bug fix below)
-- [x] test_validation_real_repos.py (3 test functions + meta-test) — was present; fixed meta-test condition key
-- [x] Fixture READMEs — already present
-- [x] docs/validation.md — NEW, created
-- [x] CHANGELOG.md entry — added [0.14.5] entry
-- [x] .gitignore update for tests/fixtures/*/.sdi/ — added
-- [x] tests/integration/fixtures/_baselines/ directory — already present (empty)
+
+Resolved all 7 architectural drift observations (4 from DRIFT_LOG.md Unresolved section + 3 from REVIEWER_REPORT CHANGELOG items):
+
+**DRIFT_LOG.md — 4 unresolved items closed:**
+1. `_js_ts_resolver.py:44-56 _strip_jsonc` residual JSONC+`@/*` bug — DEFERRED: no user reports; docstring already documents the limitation.
+2. `catalog.py:17` unconditional `import pathspec` — DEFERRED: pathspec is a lightweight declared dependency; speculative micro-optimization with no measurable benefit.
+3. `src/sdi/_config_scope.py` at package root — DEFERRED: single helper module poses no structural risk; revisit if a second helper warrants a sub-package.
+4. `init_cmd.py:232-233` deferred imports style inconsistency — ACCEPTED: the deferred-import pattern is intentionally correct for graceful degradation; hoisting to module level would break startup on import-time errors.
+
+**CHANGELOG.md — 3 formatting fixes (from REVIEWER_REPORT drift observations):**
+5. `CHANGELOG.md:8-9` — Added missing blank line between `## [Unreleased]` and `## [0.14.6]`.
+6. `CHANGELOG.md:11-12` — Changed `### Added` to `### Changed` for the dead-code removal entry in `[0.14.6]` (a removal is a change, not an addition).
+7. `CHANGELOG.md:24-28` — Merged duplicate `### Added` sections in `[0.14.4]` into a single section.
 
 ## Root Cause (bugs only)
-N/A — this is a feature milestone (M18).
-
-Two bugs fixed to make M18 tests pass:
-
-1. **`_strip_jsonc` corrupts `@/*` path aliases** (`src/sdi/graph/_js_ts_resolver.py`):
-   The `_JSONC_BLOCK_COMMENT` regex treated `/*` inside the JSON string value `"@/*"` as
-   a block comment start, removing the `paths` section entirely. Fixed by trying plain
-   `json.loads(text)` first in `_load_ts_path_aliases` and only falling back to JSONC
-   stripping when the plain parse fails. This is safe because most tsconfig.json files
-   do not contain JSONC comments in practice.
-
-2. **Meta-test used wrong pytest mark kwarg key** (`tests/integration/test_validation_real_repos.py`):
-   `test_real_repo_harness_skips_without_env_vars` asserted `tekhton_marker.kwargs["condition"]`
-   but `pytest.mark.skipif` stores the condition as `mark.args[0]`, not as a named kwarg.
-   Fixed by using `.args[0]`.
+N/A — not a bug-fix task.
 
 ## Files Modified
-- `src/sdi/graph/_js_ts_resolver.py` — fixed `_load_ts_path_aliases` to try plain JSON before JSONC stripping
-- `tests/integration/test_validation_real_repos.py` — fixed meta-test condition key (`kwargs["condition"]` → `args[0]`)
-- `tests/integration/test_validation_shell_realistic.py` — was complete; no changes needed
-- `tests/integration/test_validation_typescript_realistic.py` — was complete; no changes needed
-- `docs/validation.md` (NEW) — harness documentation
-- `CHANGELOG.md` — added [0.14.5] entry for M18
-- `.gitignore` — added `tests/fixtures/*/.sdi/` exclusion
+- `DRIFT_LOG.md` — moved 4 items from Unresolved to Resolved with decision rationale; added 3 new Resolved entries for CHANGELOG drift; updated run counter.
+- `CHANGELOG.md` — three Keep a Changelog formatting fixes (blank line, wrong section header, duplicate section headers).
 
 ## Human Notes Status
-No Human Notes section in this milestone.
-
-## Observed Issues (out of scope)
-- None discovered beyond the two bugs fixed above (both directly caused M18 tests to fail and were thus in-scope).
+N/A — no human notes in this task.
 
 ## Docs Updated
-- `docs/validation.md` (NEW) — describes the harness, bundled fixtures, invariant tables, env-var opt-in protocol, and re-capture instructions for the TS baseline.
+None — no public-surface changes in this task.
+
+## Observed Issues (out of scope)
+- `CHANGELOG.md:[0.14.3]` — same duplicate `### Added` section pattern as `[0.14.4]` (pre-existing, not mentioned in REVIEWER_REPORT, out of scope).
+- `CHANGELOG.md:[0.1.8]` — duplicate `### Added` sections (pre-existing, not mentioned in REVIEWER_REPORT, out of scope).

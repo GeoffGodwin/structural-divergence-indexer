@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.14.7] - 2026-04-26
+
+### Added
+- Resolved all 7 architectural drift observations (4 from DRIFT_LOG.md Unresolved section + 3 from REVIEWER_REPORT CHANGELOG items):
+
+## [0.14.6] - 2026-04-26
+
+### Changed
+- Removed dead-code conditional in `_run_snapshot`: `if init_result.exit_code not in (0,):` was unreachable because `sdi init` always exits 0 for valid git repos (already-initialized path just prints a message and returns). Replaced with a bare `run_sdi(...)` call with an inline comment.
+
 ## [0.14.5] - 2026-04-26
 
 ### Added
@@ -14,13 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `_load_ts_path_aliases`: try plain JSON parse before JSONC stripping so that tsconfig path alias patterns containing `/*` (e.g. `@/*`) are not incorrectly removed by the block-comment regex. (M18 — discovered while building TS fixture)
 
-- [x] Shell-heavy-realistic fixture (32 scripts: 9 lib + 9 bin + 9 cmd + 5 tests) — was already present (M18)
 ## [0.14.4] - 2026-04-26
 
 ### Added
 - Added `scope_exclude: list[str]` to `PatternsConfig` with validation (M17)
-
-### Added
 - `patterns.scope_exclude` config key: gitignore-style glob patterns that filter files out of the pattern catalog (Stage 4) while keeping them in the dependency graph, community partition, and boundary spread calculations. Default: empty list (no change to existing behaviour). Snapshot JSON gains `pattern_catalog.meta.scope_excluded_file_count` when files are excluded. `sdi show` text output prints an informational note when the count is > 0. (M17)
 
 ## [0.14.3] - 2026-04-26

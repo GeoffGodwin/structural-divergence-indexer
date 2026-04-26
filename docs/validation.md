@@ -91,13 +91,15 @@ The 10% tolerance (`_BIFL_REGRESSION_TOLERANCE = 0.10`) absorbs minor structural
 
 ```bash
 export SDI_VALIDATION_BIFL=/path/to/bifl-tracker
-python -c "
-import json, os, sys
-sys.path.insert(0, 'src')
-from pathlib import Path
-# Run snapshot and extract the entropy
-# ... (see test_validation_real_repos.py for the full flow)
-"
+cd "$SDI_VALIDATION_BIFL"
+sdi init
+sdi --format json -q snapshot \
+  | python3 -c "
+import json, sys
+snap = json.load(sys.stdin)
+by_lang = snap['divergence'].get('pattern_entropy_by_language', {})
+print(json.dumps({'pattern_entropy_by_language': {'typescript': by_lang['typescript']}}, indent=2))
+" > /path/to/sdi/tests/integration/fixtures/_baselines/bifl_tracker_pre_m16.json
 ```
 
 ## Updating the Bundled Fixtures
