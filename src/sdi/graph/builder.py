@@ -236,9 +236,7 @@ def build_dependency_graph(
     # Build language-specific lookups
     module_map = _build_module_map(set(path_to_id.keys()))
     js_path_set = _build_js_path_set(set(path_to_id.keys()))
-    js_norm_to_original: dict[str, str] = {
-        _normalize_js_path(fp): fp for fp in path_to_id if _is_js_ts_file(fp)
-    }
+    js_norm_to_original: dict[str, str] = {_normalize_js_path(fp): fp for fp in path_to_id if _is_js_ts_file(fp)}
     aliases = _load_ts_path_aliases(repo_root) if repo_root is not None else []
     # Full path set for shell resolution — all languages, no filtering.
     # A bash script sourcing a co-located .env-style file that happens to be

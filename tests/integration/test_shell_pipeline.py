@@ -159,34 +159,26 @@ class TestShellNoEdges:
 
     def test_snapshot_exits_zero(self, cli_runner, no_source_project):
         """sdi snapshot must succeed (exit 0) for a shell repo with no source edges."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project)
         assert result.exit_code == 0, result.output
 
     def test_edge_count_is_zero(self, cli_runner, no_source_project):
         """Graph has zero edges when no shell script sources another."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["graph_metrics"]["edge_count"] == 0
 
     def test_component_count_equals_file_count(self, cli_runner, no_source_project):
         """Each isolated shell file is its own weakly-connected component."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["graph_metrics"]["component_count"] == data["file_count"]
 
     def test_language_breakdown_is_shell_only(self, cli_runner, no_source_project):
         """language_breakdown contains only 'shell' for a repo with only .sh files."""
-        result = run_sdi(
-            cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project
-        )
+        result = run_sdi(cli_runner, ["--format", "json", "-q", "snapshot"], no_source_project)
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         breakdown = data["language_breakdown"]

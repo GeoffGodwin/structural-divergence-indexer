@@ -196,7 +196,7 @@ def _resolve_js_import(
         asset (.css, .json, etc.).
     """
     if import_str.startswith("type:"):
-        import_str = import_str[len("type:"):]
+        import_str = import_str[len("type:") :]
     if not import_str:
         return None
 
