@@ -1,13 +1,13 @@
 ## Planned Tests
-- [x] `tests/unit/test_shell_adapter.py` — add TestShellListBail class covering ||/&& bail patterns in error_handling detection
-- [x] `tests/unit/test_categories.py` — M14 architecture guard: shell categories absent from ts_queries; all four shell-pattern categories registered
+- [x] `tests/unit/test_graph_builder_shell.py` — dot-command form + dynamic-string safety for _resolve_shell_import
+- [x] `tests/integration/test_shell_pipeline.py` — zero-source-edge shell-only repo produces valid snapshot
 
 ## Test Run Results
-Passed: 31  Failed: 0
+Passed: 48  Failed: 0
 
 ## Bugs Found
 None
 
 ## Files Modified
-- [x] `tests/unit/test_shell_adapter.py`
-- [x] `tests/unit/test_categories.py`
+- [x] `tests/unit/test_graph_builder_shell.py`
+- [x] `tests/integration/test_shell_pipeline.py`

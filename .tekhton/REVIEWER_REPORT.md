@@ -1,5 +1,3 @@
-# Reviewer Report — M13: Shell Language Discovery and Adapter Foundation
-
 ## Verdict
 APPROVED_WITH_NOTES
 
@@ -10,11 +8,17 @@ APPROVED_WITH_NOTES
 - None
 
 ## Non-Blocking Notes
-- `_node_text` and `_get_command_name` are privately defined in both `shell.py` and `_shell_patterns.py` with identical implementations. Since `_shell_patterns.py` is already imported by `shell.py`, one could import from the other to avoid the duplication. Current state is harmless but creates a drift risk if one copy is later updated.
+- [tests/integration/test_shell_pipeline.py:38,58] Security agent (LOW/fixable): `dest.chmod(... | S_IXUSR | S_IXGRP | S_IXOTH)` silently grants group- and world-execute beyond source intent. Both the `shell_project` fixture and the `_make_shell_project` helper contain the same pattern. Fix: replace with `shutil.copymode(src, dest)` or set only `S_IXUSR` to mirror the source bit faithfully. Test dirs are ephemeral tmp_path so impact is negligible, but the pattern should not become a template for future fixtures.
+- [src/sdi/graph/builder.py] Shell constants (`_SHELL_LANGS`, `_SHELL_EXTENSIONS_FOR_FALLBACK`, `_KNOWN_SHELL_EXTS`) and `_resolve_shell_import` currently live in builder.py rather than a dedicated `_shell_resolver.py` sibling of `_js_ts_resolver.py`. At 299 lines builder.py is just under the ceiling; a future shell expansion would push it over. Not a blocker today.
 
 ## Coverage Gaps
-- `TestShellErrorHandling` covers `set`, `trap`, and `exit/return` forms but not the `||/&&` list bail pattern (e.g., `cmd || exit 1`). The coder summary explicitly lists `||/&&` list nodes as a detected shape, and the implementation in `_check_list_node` handles it, but there is no unit test exercising this code path. The integration fixture (`deploy.sh` line 17: `do_deploy "${env}" || exit 1`) exercises it indirectly, but the integration test only asserts that `error_handling` is present in categories — it does not isolate the `||` path.
+- No unit test for the `.` (dot-command) form as a `source` alias — `_extract_imports` in shell.py handles it, but `_resolve_shell_import` has no test using an import that arrived via a `.` directive rather than `source`.
+- No integration test for a shell-only repo with zero `source` edges (edge_count = 0, component_count = file_count) to confirm the base case produces a valid snapshot rather than a crash.
+- No test covering a shell FeatureRecord whose import string contains `$VAR` or backtick (dynamic form); the shell adapter silently skips these, but a malformed FeatureRecord with such a string should be confirmed to return None from `_resolve_shell_import` gracefully.
+
+## ACP Verdicts
+- ACP: Extract JS/TS helpers to `_js_ts_resolver.py` — ACCEPT — The extraction is warranted: builder.py was 455 lines pre-M15 and would have exceeded 300 again with shell additions. All names are re-exported for backward compatibility, the module carries a leading underscore indicating internal scope, and the public surface of `sdi.graph.builder` is unchanged. No architecture doc update required.
 
 ## Drift Observations
-- `categories.py:112-123` — `_SHELL_QUERIES = {}` is declared and then checked in `_build_registry` via `if name in _SHELL_QUERIES`. Since the dict is intentionally empty, this branch is permanently dead code. The comment explains the rationale (extraction lives in `_shell_patterns.py`), but the dead branch is misleading to future readers who might expect it to execute. Consider removing the branch entirely and leaving only the comment explaining the architecture decision.
-- `shell.py` and `_shell_patterns.py` each contain private `_node_text` and `_get_command_name` functions with identical byte-for-byte implementations. This is a latent drift hazard: a future maintainer fixing one copy may not notice the other.
+- [src/sdi/graph/builder.py:31-42] The `# noqa: F401 — re-exported for backward compatibility` comments on `_JS_TS_EXTS`, `_expand_alias_candidates`, `_match_alias`, `_strip_jsonc`, and `_try_extensions_and_index` suggest these private symbols were imported into test files directly. Private symbols with leading underscores are not part of the public API contract; tests importing them directly from `builder` instead of `_js_ts_resolver` create a maintenance burden. Worth auditing whether those re-exports can be dropped when the pre-M15 tests are updated.
+- [tests/integration/test_shell_pipeline.py:43-59] `_make_shell_project` is a free function that duplicates the body of the `shell_project` fixture verbatim (modulo fixture_name parameter). The fixture calls the helper anyway, making the duplication one-way. Consider collapsing the fixture to just call `_make_shell_project(tmp_path, "simple-shell")` to eliminate the copy.

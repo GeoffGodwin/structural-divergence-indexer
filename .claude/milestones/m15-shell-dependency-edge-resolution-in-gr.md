@@ -1,7 +1,7 @@
 ### Milestone 15: Shell Dependency Edge Resolution in Graph Builder
 <!-- milestone-meta
 id: "15"
-status: "pending"
+status: "done"
 -->
 
 
