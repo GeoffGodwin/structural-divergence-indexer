@@ -1,7 +1,7 @@
 ### Milestone 16: Per-Language Pattern Catalog Scoping and Signals
 <!-- milestone-meta
 id: "16"
-status: "pending"
+status: "done"
 -->
 
 

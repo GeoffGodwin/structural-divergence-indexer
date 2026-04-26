@@ -148,3 +148,74 @@ class TestSnapshotJSONRoundTrip:
         d = sample_snapshot.to_dict()
         restored = Snapshot.from_dict(d)
         assert restored == sample_snapshot
+
+
+# ---------------------------------------------------------------------------
+# M16: DivergenceSummary with per-language fields
+# ---------------------------------------------------------------------------
+
+
+class TestDivergenceSummaryPerLanguageFields:
+    """Per-language fields round-trip correctly and default to None."""
+
+    def test_new_fields_default_to_none(self) -> None:
+        d = DivergenceSummary()
+        assert d.pattern_entropy_by_language is None
+        assert d.pattern_entropy_by_language_delta is None
+        assert d.convention_drift_by_language is None
+        assert d.convention_drift_by_language_delta is None
+
+    def test_round_trip_with_per_language_values(self) -> None:
+        d = DivergenceSummary(
+            pattern_entropy=3.0,
+            pattern_entropy_by_language={"python": 2.0, "shell": 1.0},
+            pattern_entropy_by_language_delta={"python": 1.0, "shell": 0.5},
+            convention_drift_by_language={"python": 0.3, "shell": 0.1},
+            convention_drift_by_language_delta={"python": 0.05, "shell": 0.0},
+        )
+        restored = DivergenceSummary.from_dict(d.to_dict())
+        assert restored == d
+
+    def test_from_dict_missing_per_language_keys_defaults_to_none(self) -> None:
+        """Deserializing an old 0.1.0-style dict (no per-language keys) gives None."""
+        old_dict = {
+            "pattern_entropy": 2.0,
+            "pattern_entropy_delta": None,
+            "convention_drift": 0.1,
+            "convention_drift_delta": None,
+            "coupling_topology": 0.2,
+            "coupling_topology_delta": None,
+            "boundary_violations": 0,
+            "boundary_violations_delta": None,
+        }
+        restored = DivergenceSummary.from_dict(old_dict)
+        assert restored.pattern_entropy_by_language is None
+        assert restored.pattern_entropy_by_language_delta is None
+        assert restored.convention_drift_by_language is None
+        assert restored.convention_drift_by_language_delta is None
+        assert restored.pattern_entropy == 2.0
+
+    def test_snapshot_from_dict_with_old_0_1_0_json(self) -> None:
+        """Snapshot.from_dict handles a snapshot lacking per-language fields gracefully."""
+        old_data = {
+            "snapshot_version": "0.1.0",
+            "timestamp": "2026-01-01T00:00:00Z",
+            "commit_sha": None,
+            "config_hash": "abc",
+            "divergence": {
+                "pattern_entropy": 1.0,
+                "pattern_entropy_delta": None,
+                "convention_drift": 0.0,
+                "convention_drift_delta": None,
+                "coupling_topology": 0.0,
+                "coupling_topology_delta": None,
+                "boundary_violations": 0,
+                "boundary_violations_delta": None,
+            },
+            "file_count": 1,
+            "language_breakdown": {"python": 1},
+        }
+        snap = Snapshot.from_dict(old_data)
+        assert snap.divergence.pattern_entropy_by_language is None
+        assert snap.divergence.convention_drift_by_language is None
+        assert snap.snapshot_version == "0.1.0"

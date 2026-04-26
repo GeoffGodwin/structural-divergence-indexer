@@ -144,6 +144,7 @@ def assemble_snapshot(
         divergence=_null_divergence(),
         file_count=len(records),
         language_breakdown=_language_breakdown(records),
+        feature_records=list(records),
         graph_metrics=graph_metrics,
         pattern_catalog=catalog_dict,
         partition_data=part_dict,

@@ -17,6 +17,11 @@ import warnings
 from typing import Any
 
 from sdi.patterns.catalog import PatternCatalog
+from sdi.snapshot._lang_delta import (
+    build_file_language_map,
+    per_language_convention_drift,
+    per_language_pattern_entropy,
+)
 from sdi.snapshot.model import DivergenceSummary, Snapshot
 
 __all__ = ["compute_delta"]
@@ -148,6 +153,9 @@ def compute_delta(
     convention_drift = _catalog_convention_drift(current.pattern_catalog)
     coupling_topology = _coupling_composite(current.graph_metrics)
     boundary_violations = _count_boundary_violations(current.partition_data)
+    file_lang_map = build_file_language_map(current.feature_records)
+    lang_entropy = per_language_pattern_entropy(current.pattern_catalog, file_lang_map)
+    lang_drift = per_language_convention_drift(current.pattern_catalog, file_lang_map)
 
     if previous is None:
         return DivergenceSummary(
@@ -159,6 +167,10 @@ def compute_delta(
             coupling_topology_delta=None,
             boundary_violations=boundary_violations,
             boundary_violations_delta=None,
+            pattern_entropy_by_language=lang_entropy or None,
+            pattern_entropy_by_language_delta=None,
+            convention_drift_by_language=lang_drift or None,
+            convention_drift_by_language_delta=None,
         )
 
     if _major_version(current) != _major_version(previous):
@@ -177,12 +189,39 @@ def compute_delta(
             coupling_topology_delta=None,
             boundary_violations=boundary_violations,
             boundary_violations_delta=None,
+            pattern_entropy_by_language=lang_entropy or None,
+            pattern_entropy_by_language_delta=None,
+            convention_drift_by_language=lang_drift or None,
+            convention_drift_by_language_delta=None,
         )
 
     prev_entropy = _catalog_pattern_entropy(previous.pattern_catalog)
     prev_drift = _catalog_convention_drift(previous.pattern_catalog)
     prev_coupling = _coupling_composite(previous.graph_metrics)
     prev_violations = _count_boundary_violations(previous.partition_data)
+
+    lang_entropy_delta: dict[str, float] | None
+    lang_drift_delta: dict[str, float] | None
+    if previous.snapshot_version == "0.1.0":
+        warnings.warn(
+            "Previous snapshot uses schema 0.1.0 which lacks per-language fields. Per-language deltas will be None.",
+            UserWarning,
+            stacklevel=2,
+        )
+        lang_entropy_delta = None
+        lang_drift_delta = None
+    else:
+        prev_lang_entropy = previous.divergence.pattern_entropy_by_language or {}
+        prev_lang_drift = previous.divergence.convention_drift_by_language or {}
+        all_entropy_langs = set(lang_entropy or {}) | set(prev_lang_entropy)
+        all_drift_langs = set(lang_drift or {}) | set(prev_lang_drift)
+        lang_entropy_delta = {
+            lang: (lang_entropy or {}).get(lang, 0.0) - prev_lang_entropy.get(lang, 0.0)
+            for lang in sorted(all_entropy_langs)
+        }
+        lang_drift_delta = {
+            lang: (lang_drift or {}).get(lang, 0.0) - prev_lang_drift.get(lang, 0.0) for lang in sorted(all_drift_langs)
+        }
 
     return DivergenceSummary(
         pattern_entropy=pattern_entropy,
@@ -193,4 +232,8 @@ def compute_delta(
         coupling_topology_delta=coupling_topology - prev_coupling,
         boundary_violations=boundary_violations,
         boundary_violations_delta=boundary_violations - prev_violations,
+        pattern_entropy_by_language=lang_entropy or None,
+        pattern_entropy_by_language_delta=lang_entropy_delta,
+        convention_drift_by_language=lang_drift or None,
+        convention_drift_by_language_delta=lang_drift_delta,
     )

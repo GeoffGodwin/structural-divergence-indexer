@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.14.3] - 2026-04-26
+
+### Added
+- **`src/sdi/patterns/categories.py`**: Added `languages: frozenset[str]` field to `CategoryDefinition`. Populated all seven built-in categories with their applicable-language sets. Added `applicable_languages(name)` function returning `None` for unknown names. Added module docstring documenting the empty-means-all-languages convention. (M16)
+
+### Added
+- Per-language pattern entropy and convention drift fields in `DivergenceSummary`: `pattern_entropy_by_language`, `pattern_entropy_by_language_delta`, `convention_drift_by_language`, `convention_drift_by_language_delta`. These fields are always present on new snapshots and default to `None` when deserializing older snapshots.
+- `CategoryDefinition` gains a `languages: frozenset[str]` field declaring which languages a category applies to. An empty set means "applies to all" (back-compat default). All seven built-in categories now declare their applicable languages.
+- `applicable_languages(name)` helper in `sdi.patterns.categories` returns the language set for a category, or `None` for unknown names.
+- Snapshot schema bumped to `0.2.0` (additive only — new fields are optional; `0.1.0` snapshots still deserialize with per-language fields defaulting to `None`).
+
 ## [0.14.2] - 2026-04-26
 
 ### Added

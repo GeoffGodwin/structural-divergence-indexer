@@ -1,126 +1,110 @@
 ## Test Audit Report
 
 ### Audit Summary
-Tests audited: 2 files, 37 test functions (23 unit + 14 integration)
+Tests audited: 1 file, 6 test functions
 Verdict: PASS
 
 ---
 
 ### Findings
 
-#### COVERAGE: Tester report does not distinguish skipped vs. passed for adapter-gated tests
-- File: tests/integration/test_shell_pipeline.py (all 4 test classes)
-- Issue: All new integration test classes (`TestShellPipeline.test_edge_count_at_least_one`,
-  `TestShellHeavyGraph`, `TestShellGraphFixture`, `TestShellNoEdges`) are decorated with
-  `@requires_shell_adapter`. The TESTER_REPORT claims "Passed: 48 Failed: 0" without
-  stating whether tree-sitter-bash was installed or whether these tests executed vs. were
-  skipped. The count of 48 is consistent with the 23 new unit tests (no grammar needed)
-  plus pre-existing tests — meaning all 14 new integration tests may have been *skipped*,
-  not passed. M15 acceptance criteria (`edge_count >= 12`, `component_count <= 4`) would
-  therefore be unverified at the integration level.
-- Severity: MEDIUM
-- Action: Re-run the test suite with tree-sitter-bash installed and confirm the four new
-  integration classes execute and pass (not just skip). Update TESTER_REPORT with
-  explicit skipped/passed/failed counts. No test code changes required.
-
-#### COVERAGE: `TestShellHeavyGraph` uses a weak lower-bound assertion for connectivity
-- File: tests/integration/test_shell_pipeline.py:117
-- Issue: `assert data["graph_metrics"]["component_count"] <= data["file_count"] - 1`
-  is mathematically equivalent to `component_count < file_count`, meaning it passes
-  whenever a single edge exists in any 10-node graph. For a fixture named "shell-heavy"
-  (10 files with multiple source edges), this bound does not adequately verify the
-  degree of connectivity the fixture is designed to demonstrate.
+#### COVERAGE: Text-mode section suppression not exercised
+- File: tests/integration/test_cli_per_language.py:156
+- Issue: `test_show_text_renders_per_language_section` verifies the "Per-Language Pattern
+  Entropy" section IS rendered when the field is populated. No integration test verifies
+  that the section is absent — and causes no crash — when `pattern_entropy_by_language`
+  is `None` (e.g., a first-snapshot or catalog-less snapshot). The same gap exists for
+  `sdi diff` text mode. Both `show_cmd._format_text` and `diff_cmd._print_diff_text`
+  guard on the field's truthiness; the guard is untested via the CLI path.
 - Severity: LOW
-- Action: Tighten to a fixture-specific bound, e.g. `<= 5` (half the file count). No
-  implementation change required.
+- Action: Add one test each to `TestShowPerLanguageOutput` and `TestDiffPerLanguageOutput`
+  that write a snapshot with no catalog/per-language fields and assert that (a) exit_code
+  is 0 and (b) "Per-Language Pattern Entropy" is NOT in the output. The
+  `sample_snapshot` conftest fixture (all per-language fields None) is a ready-made input.
 
-#### EXERCISE: `TestResolveShellImportDynamic` tests a code path the pipeline is designed to prevent
-- File: tests/unit/test_graph_builder_shell.py:312–355
-- Issue: The class docstring acknowledges that "these strings should never reach the
-  resolver in normal operation" because the shell adapter's static-literal filter removes
-  `$VAR`, `$(...)`, and backtick forms before building FeatureRecords. The seven tests
-  verify defensive behavior for inputs that cannot arrive through the real pipeline.
-  They provide no confidence in M15 behavior and test an unreachable branch of the
-  resolver under normal operation.
+#### COVERAGE: Redundant None guard before membership assertion
+- File: tests/integration/test_cli_per_language.py:152, 193
+- Issue: `assert by_lang is not None` is immediately followed by `assert "python" in
+  by_lang`. If `by_lang` were `None`, the membership test already raises `TypeError`,
+  making the explicit None check redundant — it provides no additional diagnostic signal
+  and could be mistaken for a meaningful invariant. Same pattern at line 193.
 - Severity: LOW
-- Action: Tests are not incorrect and protect against future regressions if the
-  shell adapter filter is weakened. Acceptable as-is; no removal required.
+- Action: Remove the explicit `is not None` checks and rely on the membership assertions
+  alone. No logic change required.
 
-#### SCOPE: Pre-verified stale-symbol report is entirely false positives
-- File: tests/integration/test_shell_pipeline.py
-- Issue: The pre-audit orphan checker flagged `Path`, `conftest`, `json`, `pathlib`,
-  `pytest`, `requires_shell_adapter`, `shutil`, and `stat` as unresolved symbols. All
-  eight are present and correctly imported: `json`, `shutil`, `stat`, `pathlib` are
-  Python stdlib (lines 9–12); `pytest` is the test framework (line 14); `Path` is
-  from `pathlib` (line 10); `requires_shell_adapter` and `run_sdi` are defined at
-  `tests/conftest.py:67` and `tests/conftest.py:199` respectively. The checker compares
-  only against implementation source files and is not Python-import-aware.
+#### COVERAGE: Fixture uses duplicate file_path entries to simulate instance_count
+- File: tests/integration/test_cli_per_language.py:61
+- Issue: `_make_python_catalog_dict` constructs `shape_dominant` with
+  `"file_paths": ["src/foo.py", "src/foo.py"]` (identical entries) to produce the
+  appearance of `instance_count: 2`. The real pipeline deduplicates `file_paths` via
+  `ShapeStats.to_dict()` (`sorted(set(...))`), so a real snapshot with two instances
+  from the same file serializes to `["src/foo.py"]` with `instance_count: 2`. Because
+  the test injects the raw dict directly (bypassing `PatternCatalog.to_dict()`),
+  `per_language_convention_drift` counts the duplicate entry twice. The assertions
+  are currently correct, but the fixture diverges from what the real pipeline produces
+  and creates implicit coupling to the list-entry counting behavior.
 - Severity: LOW
-- Action: No test changes needed. The orphan checker's false-positive rate for stdlib
-  and conftest symbols should disqualify it as a gate in future audits without a
-  Python-aware import resolver.
+- Action: Restructure `_make_python_catalog_dict` so `shape_dominant` references two
+  distinct file paths (e.g., `["src/foo.py", "src/baz.py"]`) with `instance_count: 2`.
+  Add `"src/baz.py"` to the companion `feature_records` in `_write_diff_pair`. This
+  aligns the fixture with real pipeline output and removes the dependency on duplicate
+  list-entry counting.
 
 ---
 
 ### Verified Clean (no findings)
 
 **1. Assertion Honesty — PASS**
-Every numeric assertion traces to implementation logic. `result == "common.sh"` over
-`"common.bash"` directly reflects `_SHELL_EXTENSIONS_FOR_FALLBACK = (".sh", ".bash")`
-(builder.py:56) — an ordered tuple checked left-to-right. `g.es[0]["weight"] == 2`
-follows from the `edge_weight_map` accumulation at builder.py:284–286. `result is None`
-for `"common.zsh"` follows from `_KNOWN_SHELL_EXTS` containing `.zsh` (builder.py:60)
-which causes extension fallback to be skipped. No assertion hard-codes a value that
-cannot be traced to the implementation.
+All six assertions derive values from actual function calls, not hard-coded constants.
+`assert "python" in by_lang` is valid because the snapshot is written with
+`pattern_entropy_by_language={"python": 2.0, "shell": 1.0}` and `Snapshot.to_dict()`
+uses `dataclasses.asdict` which round-trips all fields unchanged through `show_cmd`'s
+`emit_json` path. For the diff tests, `compute_delta` recomputes per-language data from
+`snap_b.feature_records` and `snap_b.pattern_catalog`; tracing through
+`per_language_pattern_entropy` and `per_language_convention_drift` confirms `{"python":
+2.0}` and `{"python": ~0.333}` respectively, making all `"python" in ...` assertions
+sound.
 
-**2. Edge Case Coverage — PASS**
-Unit suite covers: exact match, missing import, extensionless `.sh` fallback,
-`.sh`-over-`.bash` preference, known-extension skip, `.bash`-only fallback, self-import
-(counted but not an edge), empty imports, empty path set, cross-language sourcing, mixed
-3-language dispatch, weighted duplicate edges, and determinism under reversed input
-order. Integration suite covers: zero-source-edge shell repo (no crash), edge count
-floor, connectivity lower bound, and the full shell-graph fixture at acceptance
-thresholds.
+**2. Implementation Exercise — PASS**
+Tests use `write_snapshot` (real atomic I/O), invoke the CLI via `runner.invoke` with
+`catch_exceptions=False` (no mock layer), and trigger the full `compute_delta` →
+`per_language_pattern_entropy` → `per_language_convention_drift` →
+`_print_diff_text`/`emit_json` stack. The per-language delta computation through
+`_lang_delta.py` is directly exercised by the three diff tests.
 
-**3. Implementation Exercise — PASS**
-Unit tests call `_resolve_shell_import` and `build_dependency_graph` directly with
-minimal `FeatureRecord` inputs — no mocking of any dependency. Integration tests run
-the full SDI CLI pipeline (`run_sdi`) against real fixture files copied into `tmp_path`.
-The shell dispatch arm in `build_dependency_graph` (builder.py:260–262), the extension
-fallback loop (builder.py:187–191), and the weighted/unweighted edge accumulation paths
-(builder.py:283–293) are all exercised by the unit suite.
+**3. Test Weakening — PASS**
+The tester's change added only new content: the `_write_diff_pair` helper and the
+`TestDiffPerLanguageOutput` class (three test methods). The three pre-existing
+`TestShowPerLanguageOutput` tests are unchanged. No assertion was removed or broadened.
 
-**4. Test Weakening — PASS**
-The integration file was modified by adding three new test classes and one test method
-to an existing class. All pre-existing tests (`test_snapshot_detects_three_shell_files`,
-`test_catalog_contains_error_handling_and_logging`) are unchanged. No assertion was
-removed or broadened.
+**4. Test Naming — PASS**
+All six names encode both scenario and expected outcome:
+`test_show_json_includes_per_language_fields`,
+`test_show_json_includes_convention_drift_by_language`,
+`test_show_text_renders_per_language_section`,
+`test_diff_text_renders_per_language_section`,
+`test_diff_json_includes_convention_drift_by_language`,
+`test_diff_json_includes_pattern_entropy_by_language`.
 
-**5. Test Naming — PASS**
-Names are descriptive and encode both scenario and expected outcome:
-`test_extensionless_prefers_sh_over_bash`, `test_known_extension_skips_fallback`,
-`test_self_import_not_counted_as_unresolved`, `test_mixed_language_three_edges`.
-Integration test names map to acceptance criteria: `test_edge_count_at_least_12`,
-`test_component_count_at_most_4`.
+**5. Scope Alignment — PASS**
+All imports resolve to currently existing symbols: `SNAPSHOT_VERSION`, `DivergenceSummary`,
+`FeatureRecord`, `Snapshot` in `src/sdi/snapshot/model.py`; `write_snapshot` in
+`src/sdi/snapshot/storage.py`; `run_sdi` in `tests/conftest.py`. The deleted file
+`.tekhton/test_dedup.fingerprint` is not referenced anywhere in the test file.
 
-**6. Scope Alignment — PASS**
-All imports are live: `_resolve_shell_import` and `build_dependency_graph` exist in
-`src/sdi/graph/builder.py`; `FeatureRecord` exists in `src/sdi/parsing/__init__.py`;
-`SDIConfig` exists in `src/sdi/config.py`. The deleted file
-`.tekhton/test_dedup.fingerprint` is not referenced by either test file. No orphaned
-or stale references.
+**6. Test Isolation — PASS**
+Both test classes use the `sdi_project_dir` fixture (function-scoped `tmp_path` with
+`.git/` and `.sdi/snapshots/` pre-created). All snapshot data is written to that temp
+directory. No test reads `.tekhton/`, `.claude/logs/`, pipeline logs, or any other
+mutable project file. Pass/fail outcomes are independent of prior pipeline runs and
+repository state.
 
-**7. Test Isolation — PASS**
-All integration tests copy fixture directories into `tmp_path` before use
-(`_make_shell_project`, `shell_project` fixture, `no_source_project` fixture). No test
-reads `.tekhton/`, `.claude/logs/`, live pipeline artifacts, or any mutable project
-state. Pass/fail outcomes are fully independent of prior pipeline runs and repository
-state.
-
-**Edge count arithmetic for shell-graph fixture — independently verified**
-Manual trace of `tests/fixtures/shell-graph/` sources yields 13 unique directed edges:
-`entrypoint.sh` contributes 4 (→ common, deploy, rollback, status); `lib/common.sh`
-contributes 2 (→ log.sh, util.sh via extensionless fallback); `cmd/deploy.sh`,
-`cmd/rollback.sh` each contribute 3 (→ common, log, db); `cmd/status.sh` contributes 1
-(→ common). All 8 nodes form one weakly-connected component. The `>= 12` edge threshold
-and `<= 4` component bound in `TestShellGraphFixture` are both sound.
+**Delta correctness for diff tests — independently verified**
+`compute_delta(snap_b, snap_a)` with snap_a (version 0.2.0, empty divergence, no catalog)
+and snap_b (version 0.2.0, two Python FeatureRecords, error_handling catalog with two
+shapes): both snapshots share major version "0"; the `0.1.0` backward-compat branch is
+not taken; `prev_lang_entropy = {}` and `prev_lang_drift = {}` (snap_a divergence all
+None). Resulting `lang_entropy_delta = {"python": 2.0}` and `lang_drift_delta =
+{"python": ~0.333}` — both non-None and containing "python". The three diff assertions
+(`pattern_entropy_by_language_delta is not None`, `convention_drift_by_language_delta is
+not None`, `"python" in delta`) are all sound.

@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-SNAPSHOT_VERSION = "0.1.0"
+SNAPSHOT_VERSION = "0.2.0"
 
 
 @dataclass
@@ -73,6 +73,10 @@ class DivergenceSummary:
     coupling_topology_delta: float | None = None
     boundary_violations: int | None = None
     boundary_violations_delta: int | None = None
+    pattern_entropy_by_language: dict[str, float] | None = None
+    pattern_entropy_by_language_delta: dict[str, float] | None = None
+    convention_drift_by_language: dict[str, float] | None = None
+    convention_drift_by_language_delta: dict[str, float] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict (JSON-safe, preserves None values)."""
@@ -90,6 +94,10 @@ class DivergenceSummary:
             coupling_topology_delta=data.get("coupling_topology_delta"),
             boundary_violations=data.get("boundary_violations"),
             boundary_violations_delta=data.get("boundary_violations_delta"),
+            pattern_entropy_by_language=data.get("pattern_entropy_by_language"),
+            pattern_entropy_by_language_delta=data.get("pattern_entropy_by_language_delta"),
+            convention_drift_by_language=data.get("convention_drift_by_language"),
+            convention_drift_by_language_delta=data.get("convention_drift_by_language_delta"),
         )
 
 

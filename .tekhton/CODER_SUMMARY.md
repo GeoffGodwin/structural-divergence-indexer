@@ -2,85 +2,70 @@
 ## Status: COMPLETE
 
 ## What Was Implemented
-- **Extracted JS/TS resolver to `src/sdi/graph/_js_ts_resolver.py`**: All JS/TS
-  helper functions (`_resolve_js_import`, `_load_ts_path_aliases`, `_match_alias`,
-  `_expand_alias_candidates`, `_try_extensions_and_index`, `_strip_jsonc`,
-  `_is_js_ts_file`, `_normalize_js_path`, `_build_js_path_set`) and their constants
-  moved out of builder.py. All names re-imported at module level in builder.py for
-  backward compatibility — existing tests requiring `from sdi.graph.builder import
-  _load_ts_path_aliases` (etc.) continue to work unchanged.
 
-- **Added `_SHELL_LANGS`, `_SHELL_EXTENSIONS_FOR_FALLBACK`, `_KNOWN_SHELL_EXTS`
-  constants to builder.py**: `_SHELL_EXTENSIONS_FOR_FALLBACK` is a `tuple` (not
-  `frozenset`); order `.sh` before `.bash` is intentional and documented in comments.
+- **`src/sdi/patterns/categories.py`**: Added `languages: frozenset[str]` field to `CategoryDefinition`. Populated all seven built-in categories with their applicable-language sets. Added `applicable_languages(name)` function returning `None` for unknown names. Added module docstring documenting the empty-means-all-languages convention.
 
-- **Added `_resolve_shell_import(import_str, path_set)` to builder.py**: Fast-path
-  exact match; extension fallback using the ordered tuple only when the literal does
-  not already end in a known shell extension.
+- **`src/sdi/patterns/catalog.py`**: Added language-scope filtering in `build_pattern_catalog` — fingerprints whose category has a non-empty `languages` set are silently dropped when `record.language` is not in that set. Added `category_languages: dict[str, list[str]]` to `PatternCatalog.to_dict()` with sorted lists for deterministic output.
 
-- **Modified `build_dependency_graph()` shell dispatch arm**: `is_shell` dispatches
-  to `_resolve_shell_import` before `is_js_ts` and the Python default. `shell_path_set`
-  is built once as `frozenset(path_to_id.keys())` — full set, no language filtering,
-  enabling legitimate cross-language `source` edges.
+- **`src/sdi/snapshot/model.py`**: Added four new optional fields to `DivergenceSummary`: `pattern_entropy_by_language`, `pattern_entropy_by_language_delta`, `convention_drift_by_language`, `convention_drift_by_language_delta`. Updated `to_dict` and `from_dict` for round-trip. Bumped `SNAPSHOT_VERSION` from `"0.1.0"` to `"0.2.0"`.
 
-- **Created `tests/fixtures/shell-graph/`**: 8 scripts, 13 explicit `source` edges
-  (≥12 acceptance threshold). `lib/common.sh` uses `source ./util` (extensionless)
-  which exercises the `.sh` extension fallback → `lib/util.sh`. All 8 files form a
-  single weakly-connected component (component_count = 1 ≤ 4).
+- **`src/sdi/snapshot/_lang_delta.py`** (NEW): Per-language delta helpers: `build_file_language_map`, `per_language_pattern_entropy`, `per_language_convention_drift`. Uses per-language canonicals for drift computation to prevent cross-language baseline contamination.
 
-- **Created `tests/unit/test_graph_builder_shell.py`**: 23 unit tests covering
-  exact match, missing import, extensionless-to-sh, sh-vs-bash preference, known
-  extension skip, self-import, cross-language source, mixed-language 3-way dispatch,
-  weighted duplicate edge, and determinism.
+- **`src/sdi/snapshot/delta.py`**: Updated `compute_delta` to compute per-language fields for current snapshot. When previous is `None`, all `_delta` fields are `None`. When previous is `"0.1.0"`, emits exactly one `UserWarning` and returns per-language `_delta` as `None` (aggregate delta still computed). Handles new-language-added case (previous value treated as `0.0`).
 
-- **Extended `tests/integration/test_shell_pipeline.py`**: Added 3 new test classes
-  (`TestShellPipeline.test_edge_count_at_least_one`, `TestShellHeavyGraph`,
-  `TestShellGraphFixture`) covering all acceptance criteria from the milestone.
+- **`src/sdi/snapshot/assembly.py`**: Already imports `compute_delta` which now includes per-language logic — no additional changes needed.
 
-## Root Cause
-Shell records fell into the Python (dotted-module-key) resolution branch in
-`build_dependency_graph()`. Python resolution matches dotted strings like
-`sdi.config` against the module map; shell import strings are repo-relative
-POSIX paths like `lib/util.sh` that never match any dotted key. Result: all shell
-`source` directives were classified as unresolved, producing edge_count ≈ 0 and
-component_count ≈ N for shell-heavy repos. Fix: third dispatch arm with direct path
-lookup plus bounded extension fallback.
+- **`src/sdi/cli/show_cmd.py`**: Renders a "Per-Language Pattern Entropy" section in text mode when `pattern_entropy_by_language` is present; sorted by entropy descending with delta column.
+
+- **`src/sdi/cli/diff_cmd.py`**: Same per-language section in `_print_diff_text`.
+
+- **`tests/unit/test_categories.py`**: Added M16 tests: `applicable_languages()` per category, unknown name returns `None`, frozenset type assertion, all built-in categories have non-empty languages, shell categories have no shell ts_query.
+
+- **`tests/unit/test_catalog.py`**: Added M16 tests: `class_hierarchy` filtered from shell records, `error_handling` accepted from shell records, `category_languages` in `to_dict`, round-trip.
+
+- **`tests/unit/_delta_helpers.py`** (NEW): Shared test helpers (`make_snap`, `catalog`, `catalog_with_files`, `fake_record`, `metrics`, `partition`) shared between `test_delta.py` and `test_delta_per_language.py`.
+
+- **`tests/unit/test_delta_per_language.py`** (NEW): Tests for `per_language_pattern_entropy`, `per_language_convention_drift`, and `compute_delta` per-language fields including `0.1.0` backward compat warning, new-language-added delta, determinism.
+
+- **`tests/unit/test_snapshot_model.py`**: Added M16 tests: per-language fields default to `None`, round-trip with values, `from_dict` with old `0.1.0` dict, `Snapshot.from_dict` handles missing per-language keys.
+
+- **`tests/integration/test_cli_per_language.py`** (NEW): Asserts `sdi show --format json` includes per-language keys; text mode renders "Per-Language Pattern Entropy" section.
+
+- **`tests/integration/test_pipeline_per_language.py`** (NEW): Pipeline tests on multi-language and shell-heavy fixtures asserting per-language entropy presence and determinism.
+
+- **`README.md`**: Added one-paragraph note in the "what SDI measures" section about per-language reporting.
+
+- **`CHANGELOG.md`**: Added "Unreleased" entry documenting the four new fields, `applicable_languages`, and schema version bump.
+
+## Root Cause (bugs only)
+N/A — feature milestone
 
 ## Files Modified
-- `src/sdi/graph/_js_ts_resolver.py` (NEW) — extracted JS/TS resolver helpers
-- `src/sdi/graph/builder.py` — shell dispatch arm, shell constants, `_resolve_shell_import`
-- `tests/fixtures/shell-graph/entrypoint.sh` (NEW)
-- `tests/fixtures/shell-graph/lib/common.sh` (NEW)
-- `tests/fixtures/shell-graph/lib/util.sh` (NEW)
-- `tests/fixtures/shell-graph/lib/log.sh` (NEW)
-- `tests/fixtures/shell-graph/lib/db.sh` (NEW)
-- `tests/fixtures/shell-graph/cmd/deploy.sh` (NEW)
-- `tests/fixtures/shell-graph/cmd/rollback.sh` (NEW)
-- `tests/fixtures/shell-graph/cmd/status.sh` (NEW)
-- `tests/unit/test_graph_builder_shell.py` (NEW)
-- `tests/integration/test_shell_pipeline.py` (modified — added M15 test classes)
+
+- `src/sdi/patterns/categories.py` — added languages field, applicable_languages(), module docstring
+- `src/sdi/patterns/catalog.py` — language filtering, category_languages in to_dict
+- `src/sdi/snapshot/model.py` — four new DivergenceSummary fields, SNAPSHOT_VERSION 0.2.0
+- `src/sdi/snapshot/delta.py` — per-language computation in compute_delta
+- `src/sdi/snapshot/_lang_delta.py` (NEW) — per-language helper functions
+- `src/sdi/cli/show_cmd.py` — per-language section in text output
+- `src/sdi/cli/diff_cmd.py` — per-language section in text output
+- `tests/unit/test_categories.py` — M16 language-scope tests
+- `tests/unit/test_catalog.py` — M16 filtering and category_languages tests
+- `tests/unit/test_delta.py` — imports updated to use _delta_helpers
+- `tests/unit/test_snapshot_model.py` — M16 per-language field tests
+- `tests/unit/_delta_helpers.py` (NEW) — shared snapshot/catalog factory helpers
+- `tests/unit/test_delta_per_language.py` (NEW) — M16 per-language delta tests
+- `tests/integration/test_cli_per_language.py` (NEW) — CLI output assertions
+- `tests/integration/test_pipeline_per_language.py` (NEW) — pipeline assertions
+- `README.md` — per-language measurement paragraph
+- `CHANGELOG.md` — Unreleased entry
 
 ## Human Notes Status
-No Human Notes section present in milestone spec.
+No human notes section present in this milestone.
 
 ## Docs Updated
-None — no public-surface changes in this task. `build_dependency_graph()` signature
-is unchanged; the shell resolver is an internal dispatch detail.
-
-## Architecture Change Proposals
-**Current constraint**: builder.py contains all resolution logic (Python, JS/TS) in
-one file.
-**What triggered this**: builder.py was 455 lines pre-M15; adding shell resolver would
-push it well past the 300-line ceiling.
-**Proposed change**: Extracted JS/TS helpers to `src/sdi/graph/_js_ts_resolver.py`.
-All names re-exported from builder.py so the public surface of `sdi.graph.builder`
-is unchanged.
-**Backward compatible**: Yes — `from sdi.graph.builder import _load_ts_path_aliases`
-(etc.) still works.
-**ARCHITECTURE.md update needed**: No (module is internal with leading underscore).
+- `README.md` — added per-language paragraph after the four-dimension list
+- `CHANGELOG.md` — added Unreleased entry for M16 schema changes
 
 ## Observed Issues (out of scope)
-- `tests/unit/test_graph_builder.py`: pre-existing 833-line length violation; new
-  shell tests placed in separate file to avoid further growth.
-- `tests/integration/test_shell_evolving.py`: module-level `xfail` carry-over from
-  M14; unrelated to M15.
+None observed.

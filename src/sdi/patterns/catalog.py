@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from sdi.config import SDIConfig
 from sdi.patterns._fingerprint_cache import get_file_fingerprints
-from sdi.patterns.categories import CATEGORY_NAMES
+from sdi.patterns.categories import CATEGORY_NAMES, get_category
 
 if TYPE_CHECKING:
     from sdi.detection.leiden import CommunityResult
@@ -130,7 +130,13 @@ class PatternCatalog:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-safe dict."""
-        return {"categories": {name: cat.to_dict() for name, cat in self.categories.items()}}
+        category_languages = {
+            name: sorted(defn.languages) for name in self.categories if (defn := get_category(name)) is not None
+        }
+        return {
+            "categories": {name: cat.to_dict() for name, cat in self.categories.items()},
+            "category_languages": category_languages,
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatternCatalog:
@@ -184,7 +190,13 @@ def build_pattern_catalog(
     raw: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {"count": 0, "files": []}))
 
     for record in records:
+        record_lang = record.language
         for fp in get_file_fingerprints(record, min_nodes, cache_dir):
+            cat_def = get_category(fp.category)
+            # Non-empty languages set restricts which languages may contribute.
+            # Empty set means "applies to all" — no filtering applied.
+            if cat_def is not None and cat_def.languages and record_lang not in cat_def.languages:
+                continue
             entry = raw[fp.category][fp.structural_hash]
             entry["count"] += 1
             entry["files"].append(record.file_path)

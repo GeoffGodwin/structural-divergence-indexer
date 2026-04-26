@@ -44,6 +44,16 @@ def _format_text(snap: Snapshot, filename: str) -> None:
         div.boundary_violations_delta,
     )
 
+    by_lang = div.pattern_entropy_by_language
+    if by_lang:
+        click.echo("")
+        click.echo("Per-Language Pattern Entropy")
+        click.echo("  {:<28} {:>10}  {:>12}".format("Language", "Entropy", "Delta"))
+        click.echo("  " + "-" * 54)
+        lang_delta = div.pattern_entropy_by_language_delta or {}
+        for lang in sorted(by_lang, key=lambda n: -by_lang[n]):
+            _div_row(lang, by_lang[lang], lang_delta.get(lang))
+
     if snap.graph_metrics:
         click.echo("")
         click.echo("Graph Metrics")
