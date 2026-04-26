@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import os
 import sys
-import warnings
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+
+from sdi._config_scope import _validate_scope_exclude, _warn_unknown_keys
 
 try:
     import tomllib
@@ -69,6 +70,7 @@ class PatternsConfig:
 
     categories: str = "auto"
     min_pattern_nodes: int = 5
+    scope_exclude: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -121,9 +123,6 @@ class SDIConfig:
     thresholds: ThresholdsConfig = field(default_factory=ThresholdsConfig)
     change_coupling: ChangeCouplingConfig = field(default_factory=ChangeCouplingConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
-
-
-_KNOWN_SECTIONS = frozenset({"core", "snapshots", "boundaries", "patterns", "thresholds", "change_coupling", "output"})
 
 
 def _load_toml(path: Path) -> dict:
@@ -209,23 +208,14 @@ def _build_overrides(overrides: dict) -> dict[str, ThresholdOverride]:
     return result
 
 
-def _warn_unknown_keys(data: dict) -> None:
-    """Emit DeprecationWarning for unrecognized top-level config keys."""
-    for key in data:
-        if key not in _KNOWN_SECTIONS:
-            warnings.warn(
-                f"[config] Unknown configuration key '{key}' — it may have been removed or renamed.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
-
-
 def _dict_to_config(data: dict) -> SDIConfig:
     """Construct SDIConfig from a fully merged dict."""
     core = data.get("core", {})
     snaps = data.get("snapshots", {})
     bounds = data.get("boundaries", {})
     pats = data.get("patterns", {})
+    scope_excl: list = pats.get("scope_exclude", [])
+    _validate_scope_exclude(scope_excl)
     thresh = data.get("thresholds", {})
     cc = data.get("change_coupling", {})
     out = data.get("output", {})
@@ -255,6 +245,7 @@ def _dict_to_config(data: dict) -> SDIConfig:
         patterns=PatternsConfig(
             categories=pats.get("categories", "auto"),
             min_pattern_nodes=pats.get("min_pattern_nodes", 5),
+            scope_exclude=scope_excl,
         ),
         thresholds=ThresholdsConfig(
             pattern_entropy_rate=thresh.get("pattern_entropy_rate", 2.0),

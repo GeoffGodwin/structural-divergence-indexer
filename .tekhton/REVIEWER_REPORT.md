@@ -1,3 +1,6 @@
+# Reviewer Report — M17 (patterns.scope_exclude config key)
+Review cycle: 1 of 4
+
 ## Verdict
 APPROVED_WITH_NOTES
 
@@ -8,15 +11,16 @@ APPROVED_WITH_NOTES
 - None
 
 ## Non-Blocking Notes
-- `src/sdi/snapshot/_lang_delta.py:14` — `build_file_language_map(feature_records: list)` uses bare `list` without type parameter; CLAUDE.md requires type hints on all public function signatures. Should be `list[FeatureRecord]` (importable via TYPE_CHECKING).
-- `src/sdi/snapshot/_lang_delta.py:38,72` — `catalog_dict: dict` in both per-language functions should be `dict[str, Any]` for consistency with the rest of the codebase.
-- `src/sdi/snapshot/_lang_delta.py:72` — `per_language_convention_drift` counts deduplicated file paths (one per file per shape after `ShapeStats.to_dict()` runs `sorted(set(...))`) rather than raw instance counts. This means a shape appearing 5× in the same file contributes the same weight as one appearing once. The global `_catalog_convention_drift` uses `instance_count` — this asymmetry is undocumented in the docstring.
-- `src/sdi/cli/show_cmd.py` / `src/sdi/cli/diff_cmd.py` — `convention_drift_by_language` and `convention_drift_by_language_delta` are computed and stored but never rendered in text mode. Only `pattern_entropy_by_language` gets a UI section. If the milestone spec intended both to appear, this is a gap; if only entropy was in scope, it should be noted in docs/CHANGELOG.
+- `_config_scope.py:16,37` — `_validate_scope_exclude(patterns: list)` and `_warn_unknown_keys(data: dict)` use bare collection types without parameters. The "type hints on all public function signatures" rule technically covers only public functions, but using `list[Any]` / `dict[str, Any]` would be more consistent with the rest of the codebase.
+- `pyproject.toml` version is still `0.14.3` with M17 shipped. Milestone versioning bump is a human decision; flagging for awareness only.
 
 ## Coverage Gaps
-- No integration test for `sdi diff` text output containing the per-language section — only `sdi show` is exercised in `test_cli_per_language.py`.
-- `convention_drift_by_language` and its delta are untested via CLI output paths; coverage exists only at the unit level through `test_delta_per_language.py`.
+- No test for the 100%-exclusion edge case (scope_exclude matches all files). The catalog result in this case is untested — all categories would have empty shapes, but no assertion currently verifies this.
+- The `.replace("\\", "/")` Windows-path normalization branch in `catalog.py:201` is not exercised by any test. Platform-specific and hard to run in Linux CI, but the code path is untested.
+
+## ACP Verdicts
+- ACP: Extraction of `_warn_unknown_keys` + `_validate_scope_exclude` to `src/sdi/_config_scope.py` — **ACCEPT** — The 300-line ceiling is a hard rule per `reviewer.md`; config.py sits at 296 lines after the extraction (would have been ~320 without it). The extracted module has no SDI module dependencies, so no circular imports are introduced and the "leaf dependency" spirit of config.py is preserved. The leading `_` name correctly signals it is private to config.py.
 
 ## Drift Observations
-- `src/sdi/patterns/catalog.py:131-141` — `category_languages` is computed from the live registry at `to_dict()` time but silently dropped by `from_dict()`. The field is informational (snapshot consumers can read it), but round-tripping through `from_dict → to_dict` regenerates it from the current registry, not from what was stored. If a future version removes a category from the registry, that category's `category_languages` entry vanishes from re-serialized old snapshots. This is low-risk today but worth documenting as a known behavior.
-- `tests/unit/_delta_helpers.py:61-87` — `catalog_with_files` produces raw dicts with `[fp] * cnt` file_paths (potentially duplicated), while production data arriving at `per_language_convention_drift` has already passed through `ShapeStats.to_dict()`'s `sorted(set(...))` deduplication. The numeric assertions in `test_python_drift_uses_python_canonical` (e.g., `1/3`) rely on the duplicated form and would differ under production-equivalent data (`1/2`). The tests validate logic correctly for their input, but they do not exercise the post-dedup (production-equivalent) code path.
+- `catalog.py:17` — `import pathspec` is an unconditional top-level import that runs on every import of the module, even when `scope_exclude` is empty (the common case). Not a practical concern given pathspec is a declared lightweight dependency, but if startup time becomes a target this could be deferred to the `if scope_excl:` branch.
+- `src/sdi/_config_scope.py` lives at the package root rather than in a `config/` sub-package. Fine today (single helper module), but if config.py needs further decomposition in future milestones there is no designated home for additional helpers.

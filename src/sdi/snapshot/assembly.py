@@ -56,6 +56,7 @@ def _compute_config_hash(config: SDIConfig) -> str:
         "patterns": {
             "categories": config.patterns.categories,
             "min_pattern_nodes": config.patterns.min_pattern_nodes,
+            "scope_exclude": sorted(config.patterns.scope_exclude),
         },
     }
     canonical = json.dumps(analysis_cfg, sort_keys=True)

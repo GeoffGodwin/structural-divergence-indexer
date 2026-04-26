@@ -21,23 +21,7 @@ FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 @pytest.fixture
 def shell_project(tmp_path: Path) -> Path:
     """Initialized SDI project populated with the simple-shell fixture files."""
-    fixture = FIXTURES_DIR / "simple-shell"
-    (tmp_path / ".git").mkdir()
-    sdi_dir = tmp_path / ".sdi"
-    sdi_dir.mkdir()
-    (sdi_dir / "snapshots").mkdir()
-
-    for src in fixture.rglob("*"):
-        if not src.is_file():
-            continue
-        rel = src.relative_to(fixture)
-        dest = tmp_path / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-        if src.stat().st_mode & stat.S_IXUSR:
-            dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-    return tmp_path
+    return _make_shell_project(tmp_path, "simple-shell")
 
 
 def _make_shell_project(tmp_path: Path, fixture_name: str) -> Path:

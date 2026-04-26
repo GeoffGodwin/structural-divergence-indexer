@@ -10,9 +10,11 @@ Provides:
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import pathspec
 
 from sdi.config import SDIConfig
 from sdi.patterns._fingerprint_cache import get_file_fingerprints
@@ -113,9 +115,12 @@ class PatternCatalog:
 
     Args:
         categories: Mapping of category name -> CategoryStats.
+        meta: Optional metadata (e.g. scope_excluded_file_count). Absent from
+            to_dict() output when empty, so old snapshots remain byte-identical.
     """
 
     categories: dict[str, CategoryStats]
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def get_category(self, name: str) -> CategoryStats | None:
         """Return CategoryStats for a category name, or None if absent.
@@ -133,16 +138,19 @@ class PatternCatalog:
         category_languages = {
             name: sorted(defn.languages) for name in self.categories if (defn := get_category(name)) is not None
         }
-        return {
+        result: dict[str, Any] = {
             "categories": {name: cat.to_dict() for name, cat in self.categories.items()},
             "category_languages": category_languages,
         }
+        if self.meta:
+            result["meta"] = self.meta
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PatternCatalog:
         """Deserialize from a plain dict (as produced by to_dict)."""
         categories = {name: CategoryStats.from_dict(cd) for name, cd in data.get("categories", {}).items()}
-        return cls(categories=categories)
+        return cls(categories=categories, meta=data.get("meta", {}))
 
 
 def _build_partition_lookup(partition: CommunityResult) -> dict[str, int]:
@@ -186,10 +194,19 @@ def build_pattern_catalog(
     """
     min_nodes: int = config.patterns.min_pattern_nodes
 
+    # Filter records by scope_exclude (Stage 4 only — graph/partition are unaffected).
+    scope_excl = config.patterns.scope_exclude
+    if scope_excl:
+        ps = pathspec.PathSpec.from_lines("gitignore", scope_excl)
+        active_records = [r for r in records if not ps.match_file(r.file_path.replace("\\", "/"))]
+    else:
+        active_records = records
+    excluded_count = len(records) - len(active_records)
+
     # raw[category][hash] = {"count": int, "files": list[str]}
     raw: dict[str, dict[str, dict[str, Any]]] = defaultdict(lambda: defaultdict(lambda: {"count": 0, "files": []}))
 
-    for record in records:
+    for record in active_records:
         record_lang = record.language
         for fp in get_file_fingerprints(record, min_nodes, cache_dir):
             cat_def = get_category(fp.category)
@@ -225,7 +242,8 @@ def build_pattern_catalog(
 
         categories[cat_name] = CategoryStats(name=cat_name, shapes=shapes)
 
-    return PatternCatalog(categories=categories)
+    meta = {"scope_excluded_file_count": excluded_count} if excluded_count > 0 else {}
+    return PatternCatalog(categories=categories, meta=meta)
 
 
 def _compute_velocity(

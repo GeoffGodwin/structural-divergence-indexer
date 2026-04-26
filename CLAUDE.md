@@ -288,6 +288,9 @@ weighted_edges = false
 categories = "auto"
 # Minimum AST subtree size to consider as a pattern instance (nodes)
 min_pattern_nodes = 5
+# Gitignore-style glob patterns. Matched files are excluded from the pattern catalog (Stage 4)
+# only — they remain in the dependency graph, partition, and boundary spread calculations.
+scope_exclude = []
 
 [thresholds]
 # Drift rate thresholds for `sdi check`. Per-dimension overrides below.

@@ -5,15 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from sdi.config import SDIConfig
+from sdi.graph._js_ts_resolver import (
+    _match_alias,
+    _strip_jsonc,
+    _try_extensions_and_index,
+)
 from sdi.graph.builder import (
     _build_module_map,
     _file_path_to_module_key,
     _load_ts_path_aliases,
-    _match_alias,
     _resolve_import,
     _resolve_js_import,
-    _strip_jsonc,
-    _try_extensions_and_index,
     build_dependency_graph,
 )
 from sdi.parsing import FeatureRecord

@@ -294,6 +294,41 @@ Overrides without an `expires` date are rejected with exit code 2.
 
 ---
 
+## Excluding Test Directories from the Pattern Catalog
+
+Test directories often contain intentionally varied code — each test file may use a different
+error-handling style, data-access pattern, or control structure by design. Including them in
+`pattern_entropy` and `convention_drift` inflates structural-shape counts without representing
+real codebase drift. Use `patterns.scope_exclude` to filter them out of Stage 4 (pattern catalog)
+while keeping them in the dependency graph and community partition.
+
+```toml
+[patterns]
+scope_exclude = [
+  "tests/**",
+  "test/**",
+  "**/__tests__/**",
+  "**/*.test.ts",
+  "**/*.spec.ts",
+]
+```
+
+**Important:** Files matched by `scope_exclude` are still included in the dependency graph,
+the community partition, and boundary spread calculations. Coupling and boundary metrics still
+reflect the relationship between test files and application code — only the pattern-shape
+signal is suppressed for the excluded paths.
+
+When files are excluded, `sdi show` prints an informational note:
+
+```
+Pattern catalog excluded 12 file(s) via patterns.scope_exclude.
+```
+
+This note also appears in the snapshot JSON as `pattern_catalog.meta.scope_excluded_file_count`.
+Use this field in downstream tooling to detect misconfigured or unexpectedly large exclusion sets.
+
+---
+
 ## Shell-Heavy Repositories
 
 Default thresholds are tuned for application code (Python, TypeScript, Go, etc.). Shell-script-heavy repositories (ops tooling, CI scripts, deploy pipelines) often have higher shape diversity by nature; the default `pattern_entropy_rate = 2.0` and `convention_drift_rate = 0.10` may fire more frequently than intended.

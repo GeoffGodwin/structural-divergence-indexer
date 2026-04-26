@@ -28,17 +28,12 @@ except ImportError:
     raise
 
 from sdi.graph._js_ts_resolver import (
-    _JS_TS_EXTS,  # noqa: F401 — re-exported for backward compatibility
     _JS_TS_LANGS,
     _build_js_path_set,
-    _expand_alias_candidates,  # noqa: F401
     _is_js_ts_file,
     _load_ts_path_aliases,
-    _match_alias,  # noqa: F401
     _normalize_js_path,
     _resolve_js_import,
-    _strip_jsonc,  # noqa: F401
-    _try_extensions_and_index,  # noqa: F401
 )
 
 if TYPE_CHECKING:

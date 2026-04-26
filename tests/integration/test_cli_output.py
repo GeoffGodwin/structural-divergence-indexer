@@ -97,6 +97,29 @@ class TestShowCommand:
         result = run_sdi(cli_runner, ["show"], git_repo_dir)
         assert result.exit_code == 2
 
+    def test_show_scope_excluded_note_present(self, cli_runner, sdi_project_dir):
+        """Text output contains the exclusion note when scope_excluded_file_count > 0."""
+        snap = Snapshot(
+            snapshot_version=SNAPSHOT_VERSION,
+            timestamp="2026-04-11T10:00:00Z",
+            commit_sha=None,
+            config_hash="deadbeef01234567",
+            divergence=DivergenceSummary(),
+            file_count=5,
+            language_breakdown={"python": 5},
+            pattern_catalog={"categories": {}, "category_languages": {}, "meta": {"scope_excluded_file_count": 3}},
+        )
+        write_snapshot(snap, sdi_project_dir / ".sdi" / "snapshots")
+        result = run_sdi(cli_runner, ["show"], sdi_project_dir)
+        assert result.exit_code == 0
+        assert "Pattern catalog excluded 3 file(s) via patterns.scope_exclude." in result.output
+
+    def test_show_scope_excluded_note_absent(self, cli_runner, sdi_project_with_snapshot):
+        """Text output does not contain the exclusion note when no files were excluded."""
+        result = run_sdi(cli_runner, ["show"], sdi_project_with_snapshot)
+        assert result.exit_code == 0
+        assert "patterns.scope_exclude" not in result.output
+
 
 # ---------------------------------------------------------------------------
 # Tests: sdi diff

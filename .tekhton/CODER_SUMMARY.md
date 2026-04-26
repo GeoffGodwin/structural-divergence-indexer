@@ -2,70 +2,50 @@
 ## Status: COMPLETE
 
 ## What Was Implemented
-
-- **`src/sdi/patterns/categories.py`**: Added `languages: frozenset[str]` field to `CategoryDefinition`. Populated all seven built-in categories with their applicable-language sets. Added `applicable_languages(name)` function returning `None` for unknown names. Added module docstring documenting the empty-means-all-languages convention.
-
-- **`src/sdi/patterns/catalog.py`**: Added language-scope filtering in `build_pattern_catalog` — fingerprints whose category has a non-empty `languages` set are silently dropped when `record.language` is not in that set. Added `category_languages: dict[str, list[str]]` to `PatternCatalog.to_dict()` with sorted lists for deterministic output.
-
-- **`src/sdi/snapshot/model.py`**: Added four new optional fields to `DivergenceSummary`: `pattern_entropy_by_language`, `pattern_entropy_by_language_delta`, `convention_drift_by_language`, `convention_drift_by_language_delta`. Updated `to_dict` and `from_dict` for round-trip. Bumped `SNAPSHOT_VERSION` from `"0.1.0"` to `"0.2.0"`.
-
-- **`src/sdi/snapshot/_lang_delta.py`** (NEW): Per-language delta helpers: `build_file_language_map`, `per_language_pattern_entropy`, `per_language_convention_drift`. Uses per-language canonicals for drift computation to prevent cross-language baseline contamination.
-
-- **`src/sdi/snapshot/delta.py`**: Updated `compute_delta` to compute per-language fields for current snapshot. When previous is `None`, all `_delta` fields are `None`. When previous is `"0.1.0"`, emits exactly one `UserWarning` and returns per-language `_delta` as `None` (aggregate delta still computed). Handles new-language-added case (previous value treated as `0.0`).
-
-- **`src/sdi/snapshot/assembly.py`**: Already imports `compute_delta` which now includes per-language logic — no additional changes needed.
-
-- **`src/sdi/cli/show_cmd.py`**: Renders a "Per-Language Pattern Entropy" section in text mode when `pattern_entropy_by_language` is present; sorted by entropy descending with delta column.
-
-- **`src/sdi/cli/diff_cmd.py`**: Same per-language section in `_print_diff_text`.
-
-- **`tests/unit/test_categories.py`**: Added M16 tests: `applicable_languages()` per category, unknown name returns `None`, frozenset type assertion, all built-in categories have non-empty languages, shell categories have no shell ts_query.
-
-- **`tests/unit/test_catalog.py`**: Added M16 tests: `class_hierarchy` filtered from shell records, `error_handling` accepted from shell records, `category_languages` in `to_dict`, round-trip.
-
-- **`tests/unit/_delta_helpers.py`** (NEW): Shared test helpers (`make_snap`, `catalog`, `catalog_with_files`, `fake_record`, `metrics`, `partition`) shared between `test_delta.py` and `test_delta_per_language.py`.
-
-- **`tests/unit/test_delta_per_language.py`** (NEW): Tests for `per_language_pattern_entropy`, `per_language_convention_drift`, and `compute_delta` per-language fields including `0.1.0` backward compat warning, new-language-added delta, determinism.
-
-- **`tests/unit/test_snapshot_model.py`**: Added M16 tests: per-language fields default to `None`, round-trip with values, `from_dict` with old `0.1.0` dict, `Snapshot.from_dict` handles missing per-language keys.
-
-- **`tests/integration/test_cli_per_language.py`** (NEW): Asserts `sdi show --format json` includes per-language keys; text mode renders "Per-Language Pattern Entropy" section.
-
-- **`tests/integration/test_pipeline_per_language.py`** (NEW): Pipeline tests on multi-language and shell-heavy fixtures asserting per-language entropy presence and determinism.
-
-- **`README.md`**: Added one-paragraph note in the "what SDI measures" section about per-language reporting.
-
-- **`CHANGELOG.md`**: Added "Unreleased" entry documenting the four new fields, `applicable_languages`, and schema version bump.
+- Added `scope_exclude: list[str]` to `PatternsConfig` with validation
+- Extracted `_warn_unknown_keys` + new `_validate_scope_exclude` to `src/sdi/_config_scope.py` (to keep config.py under 300 lines)
+- Filtering logic in `build_pattern_catalog` via pathspec — Stage 4 only
+- `meta.scope_excluded_file_count` added to `PatternCatalog.to_dict()` when > 0
+- `scope_exclude` added to `_compute_config_hash` in assembly.py
+- Informational note in `sdi show` text output when files are excluded
+- New fixture `tests/fixtures/scope-exclude-python/` with 5 structurally distinct patterns
+- Unit tests for config validation and catalog filtering
+- Integration tests for full pipeline and CLI output
+- CLI output tests asserting the exclusion note appears/is absent per milestone spec
 
 ## Root Cause (bugs only)
 N/A — feature milestone
 
 ## Files Modified
-
-- `src/sdi/patterns/categories.py` — added languages field, applicable_languages(), module docstring
-- `src/sdi/patterns/catalog.py` — language filtering, category_languages in to_dict
-- `src/sdi/snapshot/model.py` — four new DivergenceSummary fields, SNAPSHOT_VERSION 0.2.0
-- `src/sdi/snapshot/delta.py` — per-language computation in compute_delta
-- `src/sdi/snapshot/_lang_delta.py` (NEW) — per-language helper functions
-- `src/sdi/cli/show_cmd.py` — per-language section in text output
-- `src/sdi/cli/diff_cmd.py` — per-language section in text output
-- `tests/unit/test_categories.py` — M16 language-scope tests
-- `tests/unit/test_catalog.py` — M16 filtering and category_languages tests
-- `tests/unit/test_delta.py` — imports updated to use _delta_helpers
-- `tests/unit/test_snapshot_model.py` — M16 per-language field tests
-- `tests/unit/_delta_helpers.py` (NEW) — shared snapshot/catalog factory helpers
-- `tests/unit/test_delta_per_language.py` (NEW) — M16 per-language delta tests
-- `tests/integration/test_cli_per_language.py` (NEW) — CLI output assertions
-- `tests/integration/test_pipeline_per_language.py` (NEW) — pipeline assertions
-- `README.md` — per-language measurement paragraph
-- `CHANGELOG.md` — Unreleased entry
+- `src/sdi/_config_scope.py` (NEW) — private validation helpers extracted from config.py
+- `src/sdi/config.py` — added scope_exclude field to PatternsConfig; imports from _config_scope
+- `src/sdi/patterns/catalog.py` — scope filtering + meta field
+- `src/sdi/snapshot/assembly.py` — scope_exclude in config hash
+- `src/sdi/cli/show_cmd.py` — informational note for excluded files
+- `tests/fixtures/scope-exclude-python/` (NEW directory + 5 files)
+- `tests/unit/test_config.py` — scope_exclude validation tests
+- `tests/unit/test_catalog_scope.py` (NEW) — scope_exclude catalog tests
+- `tests/integration/test_scope_exclude.py` (NEW) — integration tests
+- `tests/integration/test_cli_output.py` — scope_excluded note tests (present/absent)
+- `docs/ci-integration.md` — new subsection
+- `CHANGELOG.md` — new entry
+- `CLAUDE.md` — updated [patterns] default config block
 
 ## Human Notes Status
-No human notes section present in this milestone.
+N/A — no Human Notes section in this task
 
 ## Docs Updated
-- `README.md` — added per-language paragraph after the four-dimension list
-- `CHANGELOG.md` — added Unreleased entry for M16 schema changes
+- `docs/ci-integration.md` — added "Excluding test directories from the pattern catalog" subsection
+- `CLAUDE.md` — updated `[patterns]` default config block with `scope_exclude = []`
 
-## Observed Issues (out of scope)
-None observed.
+## Architecture Change Proposals
+
+### Extraction of `_warn_unknown_keys` + new validation to `src/sdi/_config_scope.py`
+- **Current constraint**: `sdi/config.py` is described as "a leaf dependency — depended on by all modules, depends on none"
+- **What triggered this**: config.py was at 304 lines before M17; adding 16 lines of scope_exclude logic would push it to 320 — violating the 300-line hard ceiling in coder.md
+- **Proposed change**: Created `src/sdi/_config_scope.py` as a private helper containing `_warn_unknown_keys` (moved from config.py) and `_validate_scope_exclude` (new). config.py imports both from it. `_config_scope.py` has no SDI module dependencies (only stdlib + lazy pathspec import), so no circular dependency is introduced.
+- **Backward compatible**: Yes — `_warn_unknown_keys` was a private function; nothing outside config.py called it. The public API of config.py is unchanged.
+- **ARCHITECTURE.md update needed**: Yes — note that `_config_scope.py` is a private helper for config.py only; nothing else should import from it
+
+## Design Observations
+- The milestone spec says "invalid glob entries (e.g., `[unclosed`) raise `SystemExit(2)`", but pathspec/gitwildmatch semantics treat all strings as valid gitignore entries — `[unclosed` is silently treated as a literal pattern. The implementation validates non-string entries only, which is correct per pathspec's behavior. The docstring in `_validate_scope_exclude` documents this decision explicitly.

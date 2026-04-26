@@ -18,3 +18,8 @@ Each entry captures why a structural change was made, preventing future develope
 - **Date**: 2026-04-26
 - **Rationale**: The extraction is warranted: builder.py was 455 lines pre-M15 and would have exceeded 300 again with shell additions. All names are re-exported for backward compatibility, the module carries a leading
 - **Source**: Accepted ACP from pipeline run
+
+## ADL-4: Extraction of `_warn_unknown_keys` + `_validate_scope_exclude` to `src/sdi/_conf (Task: "M17")
+- **Date**: 2026-04-26
+- **Rationale**: - ACP: Extraction of `_warn_unknown_keys` + `_validate_scope_exclude` to `src/sdi/_config_scope.py` — **ACCEPT** — The 300-line ceiling is a hard rule per `reviewer.md`; config.py sits at 296 line
+- **Source**: Accepted ACP from pipeline run

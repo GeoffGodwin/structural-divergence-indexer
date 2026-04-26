@@ -226,3 +226,37 @@ class TestUnknownKeys:
         assert any(
             issubclass(w.category, DeprecationWarning) and "deprecated_section" in str(w.message) for w in caught
         )
+
+
+class TestScopeExclude:
+    """patterns.scope_exclude config key — validation and parsing."""
+
+    def _write_config(self, directory: Path, content: str) -> None:
+        sdi_dir = directory / ".sdi"
+        sdi_dir.mkdir(exist_ok=True)
+        (sdi_dir / "config.toml").write_text(content, encoding="utf-8")
+
+    def test_default_scope_exclude_is_empty(self, tmp_path: Path) -> None:
+        cfg = load_config(project_dir=tmp_path)
+        assert cfg.patterns.scope_exclude == []
+
+    def test_valid_scope_exclude_parses(self, tmp_path: Path) -> None:
+        self._write_config(
+            tmp_path,
+            '[patterns]\nscope_exclude = ["tests/**", "**/*.test.ts"]\n',
+        )
+        cfg = load_config(project_dir=tmp_path)
+        assert cfg.patterns.scope_exclude == ["tests/**", "**/*.test.ts"]
+
+    def test_non_string_entry_exits_2(self, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+        self._write_config(tmp_path, "[patterns]\nscope_exclude = [42]\n")
+        with pytest.raises(SystemExit) as exc_info:
+            load_config(project_dir=tmp_path)
+        assert exc_info.value.code == 2
+        captured = capsys.readouterr()
+        assert "non-string" in captured.err or "scope_exclude" in captured.err
+
+    def test_empty_scope_exclude_parses(self, tmp_path: Path) -> None:
+        self._write_config(tmp_path, "[patterns]\nscope_exclude = []\n")
+        cfg = load_config(project_dir=tmp_path)
+        assert cfg.patterns.scope_exclude == []

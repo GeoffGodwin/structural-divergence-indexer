@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.14.4] - 2026-04-26
+
+### Added
+- Added `scope_exclude: list[str]` to `PatternsConfig` with validation (M17)
+
+### Added
+- `patterns.scope_exclude` config key: gitignore-style glob patterns that filter files out of the pattern catalog (Stage 4) while keeping them in the dependency graph, community partition, and boundary spread calculations. Default: empty list (no change to existing behaviour). Snapshot JSON gains `pattern_catalog.meta.scope_excluded_file_count` when files are excluded. `sdi show` text output prints an informational note when the count is > 0. (M17)
+
 ## [0.14.3] - 2026-04-26
 
 ### Added

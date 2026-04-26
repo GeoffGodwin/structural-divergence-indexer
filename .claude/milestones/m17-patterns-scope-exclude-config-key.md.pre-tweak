@@ -1,10 +1,8 @@
-
 ### Milestone 17: patterns.scope_exclude Config Key
 <!-- milestone-meta
 id: "17"
-status: "done"
+status: "in_progress"
 -->
-<!-- PM-tweaked: 2026-04-26 -->
 
 
 **Scope:** Add a new config key `[patterns] scope_exclude` (gitignore-style globs) that filters records out of pattern catalog construction *only*. Graph construction, community detection, and boundary inference are unaffected — files matched by `scope_exclude` still appear as nodes, still produce edges, and still participate in clusters and intent divergence. The motivating case: test directories where each script is intentionally varied per scenario, and including them in `pattern_entropy` / `convention_drift` inflates structural-shape counts without representing real codebase drift. Excluding them from the catalog while keeping them in the graph preserves the boundary signal (tests do depend on application code) without polluting the pattern signal.
@@ -18,7 +16,7 @@ status: "done"
   - Document in the config reference: "Gitignore-style glob patterns matching repo-relative POSIX paths. Records whose `file_path` matches any pattern are excluded from pattern catalog construction (Stage 4) only. They remain present in the dependency graph, the community partition, and boundary spread calculations. Default: empty list."
   - Update the default `[patterns]` block in CLAUDE.md's "Complete Default Configuration" snippet to include `scope_exclude = []` with a one-line comment.
 - Filtering logic in `src/sdi/patterns/catalog.py`:
-  - Compile `config.patterns.scope_exclude` to a glob matcher once at the start of `build_pattern_catalog` (`catalog.py:154-216`). Use `pathspec` — it is already a declared dependency (`pathspec>=0.11` in `pyproject.toml`), so no new top-level dependency is introduced. Use `pathspec.PathSpec.from_lines("gitwildmatch", config.patterns.scope_exclude)`.
+  - Compile `config.patterns.scope_exclude` to a glob matcher once at the start of `build_pattern_catalog` (`catalog.py:154-216`). Use `pathspec` if already a transitive dependency; otherwise use `fnmatch.fnmatch` against forward-slashed paths. Confirm dependency choice during implementation — do not introduce a new top-level dependency for this milestone.
   - Filter `records` by the matcher *before* the existing fingerprint extraction loop. Excluded records do not contribute to `raw[category][hash]` and do not appear in `ShapeStats.file_paths`.
   - Compile once, match per-record. Do not match per-fingerprint — the cost would be one match per pattern instance instead of one per file.
   - Counts on excluded records: track and surface the excluded file count in `PatternCatalog.to_dict()` as `meta: {"scope_excluded_file_count": N}`. This makes the exclusion visible in snapshots without affecting the metric values. The `meta` key is additive; deserializers handle its absence with `data.get("meta", {})`.
@@ -41,15 +39,6 @@ status: "done"
     ```
     and a one-paragraph note that excluded files remain in the graph and partition, so coupling and boundary metrics still reflect them.
   - Add a `CHANGELOG.md` entry: `Added: patterns.scope_exclude config key for filtering files out of the pattern catalog while keeping them in the dependency graph.`
-
-**Migration Impact:**
-
-[PM: Added — the rubric requires a Migration Impact section for milestones that add user-facing config keys or snapshot format changes.]
-
-- **Config files:** `scope_exclude` defaults to `[]`. Existing `.sdi/config.toml` files without this key continue to work without change (Non-Negotiable Rule 12: missing keys fall through to built-in defaults).
-- **Snapshot JSON:** The new `meta.scope_excluded_file_count` field is additive. Older snapshots that lack it deserialize correctly via `data.get("meta", {})`. No schema version bump is required — this is a backward-compatible addition within the same schema version.
-- **`sdi diff` / `sdi trend`:** Snapshots produced before M17 compare cleanly against post-M17 snapshots. The absence of `meta` in the older snapshot is treated as `scope_excluded_file_count = 0`.
-- **Config hash:** `_compute_config_hash` gains `scope_exclude` (sorted) in its input dict. A snapshot taken with `scope_exclude = []` and one taken before M17 (when the key did not exist) will hash identically because `sorted([]) == []` and the prior hash also omitted the key — document this edge case in the implementation notes. If the implementer chooses to always include the key in the hash (even when empty), accept that as a minor hash change: pre-M17 and post-M17 snapshots will show as config-hash-differing in `sdi diff`, which is accurate since the configuration format changed.
 
 **Acceptance criteria:**
 - A snapshot of a fixture with `scope_exclude = ["tests/**"]` reports zero pattern instances in `pattern_catalog.categories[*].shapes[*].file_paths` for any path under `tests/` — assert by enumerating `file_paths` across all shapes and checking the prefix.
@@ -78,7 +67,7 @@ status: "done"
   - `meta` block is absent from `to_dict()` output when no records were excluded (keep the default JSON quiet).
   - glob anchoring: `/scripts/setup.sh` matches only the top-level path; nested matches are excluded from the match set.
 - `tests/integration/test_full_pipeline.py` — extend with:
-  - new fixture `tests/fixtures/scope-exclude-python/` [PM: renamed from `scope-exclude-shell/` — shell/bash has no tree-sitter adapter in this project; files would be silently skipped at Stage 1 per Non-Negotiable Rule 10, making all pattern-count assertions vacuously true. Use Python files instead.] containing `lib/util.py` (one canonical error-handling pattern), `cmd/run.py` (one variant error-handling pattern), and `tests/scenario_a.py`, `tests/scenario_b.py`, `tests/scenario_c.py` (each using a distinct third/fourth/fifth error-handling variant — e.g., bare `except`, `except Exception`, `except Exception as e`, logging-based, and return-None-on-error styles).
+  - new fixture `tests/fixtures/scope-exclude-shell/` containing `lib/util.sh` (one canonical pattern), `cmd/run.sh` (one variant pattern), and `tests/scenario_a.sh`, `tests/scenario_b.sh`, `tests/scenario_c.sh` (each a different `error_handling` variant).
   - run with `scope_exclude = []`: `pattern_entropy` includes 5 distinct shapes.
   - run with `scope_exclude = ["tests/**"]`: `pattern_entropy` includes 2 distinct shapes (the canonical and the one variant from non-test code), and `graph_metrics.edge_count` and `partition_data.cluster_count` match the unfiltered run.
 - `tests/integration/test_cli_output.py` — extend with one case asserting the informational line `Pattern catalog excluded N file(s) via patterns.scope_exclude.` appears in `sdi show` output when `N > 0` and is absent when `N == 0`.

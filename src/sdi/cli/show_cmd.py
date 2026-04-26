@@ -72,6 +72,10 @@ def _format_text(snap: Snapshot, filename: str) -> None:
         click.echo(f"  stability       {pd.get('stability_score', 'N/A')}")
         click.echo(f"  cross-boundary  {len(pd.get('inter_cluster_edges', []))} edge group(s)")
 
+    excluded = snap.pattern_catalog.get("meta", {}).get("scope_excluded_file_count", 0)
+    if excluded > 0:
+        click.echo(f"Pattern catalog excluded {excluded} file(s) via patterns.scope_exclude.")
+
 
 def _div_row(name: str, value: float | int | None, delta: float | int | None) -> None:
     """Print one divergence row.

@@ -71,13 +71,14 @@ def catalog_with_files(categories: dict[str, list[tuple[str, str, int]]]) -> dic
                 shape_dict[h] = {
                     "structural_hash": h,
                     "instance_count": cnt,
-                    "file_paths": [fp] * cnt,
+                    "file_paths": [fp],
                     "velocity": None,
                     "boundary_spread": None,
                 }
             else:
                 shape_dict[h]["instance_count"] += cnt
-                shape_dict[h]["file_paths"].extend([fp] * cnt)
+                if fp not in shape_dict[h]["file_paths"]:
+                    shape_dict[h]["file_paths"].append(fp)
         cats[cat_name] = {
             "name": cat_name,
             "entropy": len(shape_dict),

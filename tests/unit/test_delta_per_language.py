@@ -107,7 +107,7 @@ class TestPerLanguageConventionDrift:
         )
         file_lang = {"a.py": "python", "b.py": "python", "c.sh": "shell"}
         result = per_language_convention_drift(cat, file_lang)
-        assert result["python"] == pytest.approx(1 / 3)
+        assert result["python"] == pytest.approx(1 / 2)
         assert result["shell"] == pytest.approx(0.0)
 
     def test_zero_drift_when_one_shape(self) -> None:
@@ -125,7 +125,7 @@ class TestPerLanguageConventionDrift:
         )
         file_lang = {"a.py": "python", "b.sh": "shell"}
         result = per_language_convention_drift(cat, file_lang)
-        assert result["shell"] == pytest.approx(1 / 3)
+        assert result["shell"] == pytest.approx(1 / 2)
 
     def test_empty_catalog_returns_empty(self) -> None:
         assert per_language_convention_drift({}, {"a.py": "python"}) == {}
