@@ -217,3 +217,73 @@ def test_empty_catalog_round_trip():
     data = catalog.to_dict()
     restored = PatternCatalog.from_dict(data)
     assert restored.categories == {}
+
+
+# ---------------------------------------------------------------------------
+# M16: language-scope filtering and category_languages in to_dict
+# ---------------------------------------------------------------------------
+
+
+def make_shell_record(file_path: str, instances: list[dict]) -> FeatureRecord:
+    """Build a FeatureRecord with language='shell'."""
+    return FeatureRecord(
+        file_path=file_path,
+        language="shell",
+        imports=[],
+        symbols=[],
+        pattern_instances=instances,
+        lines_of_code=5,
+    )
+
+
+def test_class_hierarchy_filtered_from_shell_record():
+    """build_pattern_catalog silently drops class_hierarchy instances from shell files."""
+    records = [
+        make_shell_record(
+            "deploy.sh",
+            [make_instance("class_hierarchy", "hash_shell_class")],
+        )
+    ]
+    cfg = default_config()
+    catalog = build_pattern_catalog(records, cfg, None, None)
+    ch_cat = catalog.get_category("class_hierarchy")
+    assert ch_cat is not None
+    assert ch_cat.entropy == 0, (
+        "class_hierarchy fingerprints from shell files should be silently dropped"
+    )
+
+
+def test_error_handling_accepted_from_shell_record():
+    """build_pattern_catalog accepts error_handling instances from shell files."""
+    records = [
+        make_shell_record(
+            "ci.sh",
+            [make_instance("error_handling", "hash_set_e")],
+        )
+    ]
+    cfg = default_config()
+    catalog = build_pattern_catalog(records, cfg, None, None)
+    eh_cat = catalog.get_category("error_handling")
+    assert eh_cat is not None
+    assert eh_cat.entropy == 1
+
+
+def test_category_languages_in_to_dict(simple_catalog: PatternCatalog):
+    """to_dict includes category_languages with sorted lists."""
+    data = simple_catalog.to_dict()
+    assert "category_languages" in data
+    cat_langs = data["category_languages"]
+    assert "error_handling" in cat_langs
+    langs = cat_langs["error_handling"]
+    assert isinstance(langs, list)
+    assert langs == sorted(langs), "category_languages lists must be sorted"
+
+
+def test_category_languages_round_trip(two_shape_records: list[FeatureRecord]):
+    """category_languages survives a to_dict / from_dict / to_dict round-trip."""
+    cfg = default_config()
+    catalog = build_pattern_catalog(two_shape_records, cfg, None, None)
+    d1 = catalog.to_dict()
+    restored = PatternCatalog.from_dict(d1)
+    d2 = restored.to_dict()
+    assert d1["category_languages"] == d2["category_languages"]

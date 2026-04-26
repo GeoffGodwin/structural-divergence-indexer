@@ -2,16 +2,14 @@
 PASS
 
 ## Confidence
-92
+88
 
 ## Reasoning
-- Scope is tightly defined: one file to modify (`src/sdi/graph/builder.py`), exact insertion points called out by line numbers, explicit list of files that require no changes
-- Acceptance criteria are specific and numeric (`edge_count >= 1`, `component_count <= file_count - 1`, byte-identical determinism) — each is directly assertable in pytest
-- Implementation is spelled out with pseudo-code and step-by-step algorithm for `_resolve_shell_import`; two competent developers would produce near-identical implementations
-- Constants are fully specified: names, types, values, and order rationale all documented
-- Out-of-scope items are explicitly enumerated (no changes to shell.py, no function-call edges, no cross-extension expansion)
-- Watch For section preemptively addresses the highest-risk reviewer mistakes (set vs. tuple, filesystem reads, cross-language filtering)
-- Reference snapshot workflow (capture pre-M15, assert post-M15, delete) is clearly described as throwaway scaffolding with explicit lifecycle
-- No user-facing config keys, CLI flags, or snapshot schema changes — migration impact section is not required
-- No UI components — UI testability criterion is not applicable
-- Prerequisite fixtures (simple-shell from M13, shell-heavy from M14) are described as already-shipped; a developer would verify their existence on checkout, which is normal practice
+- Scope is precisely defined: every file to modify is named with line-number anchors, every new field is named with its type signature, and every built-in category's `languages` frozenset is enumerated explicitly.
+- Acceptance criteria are concrete and testable: specific return values (`frozenset[str]`), specific fixture assertions (`pattern_entropy_by_language["shell"] > 0`, no `"python"` key on a zero-Python fixture), and a determinism assertion (byte-identical JSON on two runs of the same fixture).
+- Backward-compatibility contract is fully spelled out: `0.1.0` snapshots deserialize without crashing, emit exactly one `UserWarning`, and produce `None` per-language deltas while the aggregate delta is still computed. No guessing required.
+- Watch For section covers the highest-risk implementation mistakes (per-language canonicals for drift, empty-means-all semantic, aggregate value regression) with enough specificity to write targeted test cases.
+- Tests section lists test file, test scenario, and expected assertion for every new behaviour — unusually thorough.
+- One minor implicit assumption worth noting: `tests/fixtures/shell-heavy/` is referenced as an existing M14 fixture in both acceptance criteria and integration tests. If that fixture does not exist on the current branch the affected acceptance criteria are untestable. The milestone describes it as pre-existing ("M14 fixture"), so this is treated as an assumption rather than a gap — but the implementing developer should verify the fixture is present before starting the integration-test work.
+- No Migration Impact section is present, but the snapshot schema bump (`0.1.0` → `0.2.0`) and all associated compatibility handling are described thoroughly inline (deliverables, Watch For, acceptance criteria). The absence of a formal section is cosmetic rather than substantive.
+- No UI components; CLI text/JSON output verification is included in the tests section.

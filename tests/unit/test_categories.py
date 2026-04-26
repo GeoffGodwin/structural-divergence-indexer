@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from sdi.patterns.categories import (
     CATEGORY_NAMES,
+    CategoryDefinition,
+    applicable_languages,
     get_all_categories,
     get_category,
     is_registered_category,
@@ -98,6 +100,62 @@ def test_shell_supported_categories_are_registered():
     """The four shell-pattern categories are present in the built-in registry."""
     for name in _SHELL_PATTERN_CATEGORIES:
         assert is_registered_category(name), f"Shell-pattern category '{name}' missing from registry"
+
+
+# ---------------------------------------------------------------------------
+# M16: applicable_languages() and languages field
+# ---------------------------------------------------------------------------
+
+_EXPECTED_LANGUAGES: dict[str, frozenset[str]] = {
+    "error_handling": frozenset({"python", "shell", "javascript", "typescript", "go", "java", "rust"}),
+    "data_access": frozenset({"python", "shell", "javascript", "typescript", "go", "java", "rust"}),
+    "logging": frozenset({"python", "shell", "javascript", "typescript", "go", "java", "rust"}),
+    "async_patterns": frozenset({"python", "shell", "javascript", "typescript", "go", "rust"}),
+    "class_hierarchy": frozenset({"python", "javascript", "typescript", "java"}),
+    "context_managers": frozenset({"python"}),
+    "comprehensions": frozenset({"python"}),
+}
+
+
+def test_applicable_languages_returns_expected_frozenset():
+    """Each built-in category's applicable_languages() matches the declared set."""
+    for name, expected in _EXPECTED_LANGUAGES.items():
+        result = applicable_languages(name)
+        assert result == expected, f"applicable_languages('{name}') returned {result!r}, expected {expected!r}"
+
+
+def test_applicable_languages_unknown_returns_none():
+    """applicable_languages for an unknown name returns None, not an exception."""
+    assert applicable_languages("does_not_exist") is None
+
+
+def test_category_definition_languages_field_is_frozenset():
+    """CategoryDefinition.languages is a frozenset on every registered category."""
+    for name in CATEGORY_NAMES:
+        defn = get_category(name)
+        assert defn is not None
+        assert isinstance(defn.languages, frozenset), (
+            f"Category '{name}' languages field is {type(defn.languages)}, expected frozenset"
+        )
+
+
+def test_empty_languages_means_applies_to_all():
+    """A CategoryDefinition with empty languages is treated as 'applies to all'.
+
+    The applicable_languages function returns the frozenset from the registry;
+    for externally-defined categories with empty sets the semantic is all-apply.
+    """
+    defn = CategoryDefinition(name="custom", description="custom", languages=frozenset())
+    assert defn.languages == frozenset()
+
+
+def test_all_category_names_have_nonempty_languages():
+    """Every built-in category has a non-empty languages set."""
+    for name in CATEGORY_NAMES:
+        result = applicable_languages(name)
+        assert result is not None and len(result) > 0, (
+            f"Category '{name}' has an empty languages set; all built-in categories must declare at least one language"
+        )
 
 
 def test_shell_categories_have_no_shell_ts_query():

@@ -18,6 +18,8 @@ SDI tracks four dimensions per snapshot:
 - `coupling_topology`
 - `boundary_violations`
 
+Pattern entropy and convention drift are reported globally and per-language. Categories declare which languages they apply to; non-applicable languages contribute zero. A 95%-shell repo's `error_handling` entropy under `pattern_entropy_by_language["shell"]` reflects shell-specific shapes only. For example, `class_hierarchy` is Python/JS/TS/Java only — a shell file's class-like structure does not pollute the Python entropy count, and a Python-only project will never see an empty `class_hierarchy` entry under a non-Python key.
+
 ## Why SDI
 
 - Deterministic and local: no network calls during analysis.

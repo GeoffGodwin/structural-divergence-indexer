@@ -98,6 +98,15 @@ def _print_diff_text(name_a: str, name_b: str, div: DivergenceSummary) -> None:
     row("coupling_topology", d.coupling_topology, d.coupling_topology_delta)
     row("boundary_violations", d.boundary_violations, d.boundary_violations_delta)
 
+    if d.pattern_entropy_by_language:
+        click.echo("")
+        click.echo("  Per-Language Pattern Entropy")
+        click.echo("  {:<28} {:>10}  {:>12}".format("Language", "Entropy", "Δ"))
+        click.echo("  " + "-" * 54)
+        lang_delta = d.pattern_entropy_by_language_delta or {}
+        for lang in sorted(d.pattern_entropy_by_language, key=lambda n: -d.pattern_entropy_by_language[n]):
+            row(lang, d.pattern_entropy_by_language[lang], lang_delta.get(lang))
+
 
 @click.command("diff")
 @click.argument("snapshot_a", required=False, default=None)

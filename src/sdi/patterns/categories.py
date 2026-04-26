@@ -5,6 +5,13 @@ Other languages register their queries via their adapter modules.
 
 The category registry maps category name to CategoryDefinition. An unknown category
 name returns None from get_category() — never an exception.
+
+Language scoping rules:
+- An empty ``languages`` set means the category applies to every parsed language.
+  This is the back-compat default for any externally-defined category.
+- A non-empty set restricts catalog rollups for that category to those languages —
+  files in non-applicable languages cannot contribute instances even if a future
+  adapter mistakenly emits them.
 """
 
 from __future__ import annotations
@@ -31,11 +38,18 @@ class CategoryDefinition:
         description: Human-readable description of what this category captures.
         ts_queries: Tree-sitter query strings keyed by language name.
             A language absent from this dict means no detection for that language.
+        languages: Languages to which this category applies.
+            An empty frozenset means "applies to every parsed language" (the
+            back-compat default). A non-empty frozenset restricts rollups to
+            those languages — absence of a language from this set means files in
+            that language do not contribute to this category even if an adapter
+            mistakenly emits instances.
     """
 
     name: str
     description: str
     ts_queries: dict[str, str] = field(default_factory=dict)
+    languages: frozenset[str] = field(default_factory=frozenset)
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +104,27 @@ _DESCRIPTIONS: dict[str, str] = {
     "comprehensions": ("List, dict, set, and generator comprehension expressions"),
 }
 
+# All seven supported language names
+_ALL_LANGUAGES: frozenset[str] = frozenset(
+    {"python", "shell", "javascript", "typescript", "go", "java", "rust"}
+)
+
+_CATEGORY_LANGUAGES: dict[str, frozenset[str]] = {
+    # Every supported language has error handling (try/except, set -e, panic/recover, etc.)
+    "error_handling": _ALL_LANGUAGES,
+    # Call-site allow-lists exist for every language; zero detection ≠ not applicable
+    "data_access": _ALL_LANGUAGES,
+    "logging": _ALL_LANGUAGES,
+    # Java omitted: CompletableFuture/etc. not in the catalog for v0
+    "async_patterns": frozenset({"python", "shell", "javascript", "typescript", "go", "rust"}),
+    # Go (embedding, not inheritance), Rust (traits), shell (no classes) excluded
+    "class_hierarchy": frozenset({"python", "javascript", "typescript", "java"}),
+    # Python `with` only; JS `using` (TC39 stage 3) not yet detected by SDI's queries
+    "context_managers": frozenset({"python"}),
+    # Python list/dict/set/generator comprehensions only; JS .map/.filter are not comprehensions
+    "comprehensions": frozenset({"python"}),
+}
+
 
 def _build_registry() -> dict[str, CategoryDefinition]:
     """Construct the category registry from built-in definitions."""
@@ -103,6 +138,7 @@ def _build_registry() -> dict[str, CategoryDefinition]:
             name=name,
             description=_DESCRIPTIONS[name],
             ts_queries=ts_queries,
+            languages=_CATEGORY_LANGUAGES.get(name, frozenset()),
         )
     return registry
 
@@ -142,3 +178,22 @@ def is_registered_category(name: str) -> bool:
         True if registered, False otherwise.
     """
     return name in _REGISTRY
+
+
+def applicable_languages(name: str) -> frozenset[str] | None:
+    """Return the set of languages applicable to a category.
+
+    An empty frozenset in the registry means "applies to every language";
+    this function returns ``None`` only for unknown category names.
+
+    Args:
+        name: Category name to look up.
+
+    Returns:
+        frozenset of language names for known categories, or None if the
+        category is not registered.
+    """
+    defn = _REGISTRY.get(name)
+    if defn is None:
+        return None
+    return defn.languages
