@@ -10,12 +10,19 @@ from sdi.snapshot.delta import _count_boundary_violations, compute_delta
 from sdi.snapshot.model import SNAPSHOT_VERSION
 from tests.unit._delta_helpers import (
     INCOMPAT_VERSION as _INCOMPAT_VERSION,
+)
+from tests.unit._delta_helpers import (
     catalog as _catalog,
+)
+from tests.unit._delta_helpers import (
     make_snap as _make_snap,
+)
+from tests.unit._delta_helpers import (
     metrics as _metrics,
+)
+from tests.unit._delta_helpers import (
     partition as _partition,
 )
-
 
 # ---------------------------------------------------------------------------
 # First snapshot: all delta fields are None
