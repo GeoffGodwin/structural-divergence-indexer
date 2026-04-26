@@ -73,7 +73,13 @@ def _load_ts_path_aliases(repo_root: Path) -> list[tuple[str, list[str]]]:
             continue
         try:
             text = cfg_path.read_text(encoding="utf-8")
-            data = json.loads(_strip_jsonc(text))
+            # Try plain JSON first; _strip_jsonc can corrupt string literals that
+            # contain comment-like substrings (e.g. "@/*" path alias patterns).
+            # Fall back to JSONC stripping only when plain JSON fails.
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                data = json.loads(_strip_jsonc(text))
         except (OSError, json.JSONDecodeError) as exc:
             logger.debug("Failed to parse %s: %s", cfg_path, exc)
             continue

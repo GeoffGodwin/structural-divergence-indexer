@@ -1,6 +1,3 @@
-# Reviewer Report — M17 (patterns.scope_exclude config key)
-Review cycle: 1 of 4
-
 ## Verdict
 APPROVED_WITH_NOTES
 
@@ -11,16 +8,12 @@ APPROVED_WITH_NOTES
 - None
 
 ## Non-Blocking Notes
-- `_config_scope.py:16,37` — `_validate_scope_exclude(patterns: list)` and `_warn_unknown_keys(data: dict)` use bare collection types without parameters. The "type hints on all public function signatures" rule technically covers only public functions, but using `list[Any]` / `dict[str, Any]` would be more consistent with the rest of the codebase.
-- `pyproject.toml` version is still `0.14.3` with M17 shipped. Milestone versioning bump is a human decision; flagging for awareness only.
+- `tests/integration/test_validation_real_repos.py:55-58` — `if init_result.exit_code not in (0,): pass` is a dead-code no-op. The comment explains the rationale but the branch body does nothing; simplify to just a comment or remove the conditional entirely.
+- `docs/validation.md:93-100` — The re-capture instructions contain a placeholder Python snippet that is incomplete and non-functional (`# ... (see test_validation_real_repos.py for the full flow)`). Replace with working prose or a working script; as written it tells the reader to look at the test file, which is circular.
+- `CHANGELOG.md:8-9` — `## [Unreleased]` and `## [0.14.5]` are on consecutive lines with no blank line between them; minor inconsistency with the rest of the file's formatting.
 
 ## Coverage Gaps
-- No test for the 100%-exclusion edge case (scope_exclude matches all files). The catalog result in this case is untested — all categories would have empty shapes, but no assertion currently verifies this.
-- The `.replace("\\", "/")` Windows-path normalization branch in `catalog.py:201` is not exercised by any test. Platform-specific and hard to run in Linux CI, but the code path is untested.
-
-## ACP Verdicts
-- ACP: Extraction of `_warn_unknown_keys` + `_validate_scope_exclude` to `src/sdi/_config_scope.py` — **ACCEPT** — The 300-line ceiling is a hard rule per `reviewer.md`; config.py sits at 296 lines after the extraction (would have been ~320 without it). The extracted module has no SDI module dependencies, so no circular imports are introduced and the "leaf dependency" spirit of config.py is preserved. The leading `_` name correctly signals it is private to config.py.
+- `test_validation_real_repos.py:_run_snapshot` — `sdi init` non-zero exit is silently swallowed (the no-op branch). A genuine init failure (e.g., corrupted config in the target repo) would be invisible and could make the subsequent snapshot failure harder to diagnose. Worth logging at least a `warnings.warn` on unexpected init exit codes (codes other than 0 or "already initialized").
 
 ## Drift Observations
-- `catalog.py:17` — `import pathspec` is an unconditional top-level import that runs on every import of the module, even when `scope_exclude` is empty (the common case). Not a practical concern given pathspec is a declared lightweight dependency, but if startup time becomes a target this could be deferred to the `if scope_excl:` branch.
-- `src/sdi/_config_scope.py` lives at the package root rather than in a `config/` sub-package. Fine today (single helper module), but if config.py needs further decomposition in future milestones there is no designated home for additional helpers.
+- `src/sdi/graph/_js_ts_resolver.py:44-56` — `_strip_jsonc` still has the known-bad case: a tsconfig.json with JSONC block comments *and* `@/*`-style path aliases together will corrupt the alias section when the block-comment regex spans from `@/*` to a later `*/`. The fix (try plain JSON first) eliminates the failure for the common case (no JSONC comments), and the docstring documents the residual limitation. This is not a regression from M18 but is worth a follow-up if tsconfig-with-comments + `@/*` becomes a common user scenario.

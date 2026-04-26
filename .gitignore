@@ -27,6 +27,9 @@ __pycache__/
 # SDI cache (auto-generated, do not commit)
 .sdi/cache/
 
+# SDI directories created during test runs against bundled fixtures
+tests/fixtures/*/.sdi/
+
 # Sensitive files
 .env
 *.pem
